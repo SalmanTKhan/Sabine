@@ -25,6 +25,8 @@ namespace Sabine.Zone.Ais
 		private readonly int _wanderMinDistance = 3;
 		private readonly Dictionary<string, List<CallbackFunc>> _durings = new();
 
+		protected int _targetCharacterHandle;
+
 		/// <summary>
 		/// Returns the character this component belongs to.
 		/// </summary>

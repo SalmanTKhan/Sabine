@@ -2,10 +2,10 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Sabine.Char</RootNamespace>
+    <RootNamespace>Sabine.Web</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <AssemblyTitle>CharServer</AssemblyTitle>
-    <Product>CharServer</Product>
+    <AssemblyTitle>WebServer</AssemblyTitle>
+    <Product>WebServer</Product>
     <Copyright>Copyright ©  2022</Copyright>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
@@ -20,6 +20,7 @@
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="EmbedIO" Version="3.5.2" />
     <PackageReference Include="ExecTails.Yggdrasil" Version="1.4.0" />
     <PackageReference Include="ExecTails.Yggdrasil.Data.JSON" Version="1.0.1" />
     <PackageReference Include="ExecTails.Yggdrasil.Scripting" Version="1.0.1" />

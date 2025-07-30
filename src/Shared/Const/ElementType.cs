@@ -1,11 +1,12 @@
 ﻿namespace Sabine.Shared.Const
 {
 	/// <summary>
-	/// Defines what element a monster has.
+	/// Defines what element a monster or skill has.
 	/// </summary>
 	public enum ElementType
 	{
-		Neutral,
+		None = -1,
+		Neutral = 0,
 		Water,
 		Earth,
 		Fire,
@@ -15,5 +16,10 @@
 		Dark,
 		Ghost,
 		Undead,
+		All,
+		Max,
+		Weapon,
+		Endowed,
+		Random,
 	}
 }

@@ -20,11 +20,11 @@ namespace Sabine.Zone.World.Maps
 	/// </summary>
 	public class Map : IUpdateable
 	{
-		private readonly Dictionary<int, PlayerCharacter> _characters = new Dictionary<int, PlayerCharacter>();
+		private readonly Dictionary<int, PlayerCharacter> _characters = new();
 
-		private readonly Dictionary<int, Npc> _npcs = new Dictionary<int, Npc>();
-		private readonly Dictionary<int, Item> _items = new Dictionary<int, Item>();
-		private readonly List<IUpdateable> _updateEntities = new List<IUpdateable>();
+		private readonly Dictionary<int, Npc> _npcs = new();
+		private readonly Dictionary<int, Item> _items = new();
+		private readonly List<IUpdateable> _updateEntities = new();
 
 		/// <summary>
 		/// Returns a reference to the Limbo map. See Limbo class for
@@ -326,6 +326,27 @@ namespace Sabine.Zone.World.Maps
 		}
 
 		/// <summary>
+		/// Returns a list of all players on this map.
+		/// </summary>
+		/// <returns></returns>
+		public PlayerCharacter[] GetPlayers()
+		{
+			lock (_characters)
+				return _characters.Values.ToArray();
+		}
+
+		/// <summary>
+		/// Returns a list of all players on this map that match the given
+		/// predicate.
+		/// </summary>
+		/// <returns></returns>
+		public PlayerCharacter[] GetPlayers(Func<PlayerCharacter, bool> predicate)
+		{
+			lock (_characters)
+				return _characters.Values.Where(predicate).ToArray();
+		}
+
+		/// <summary>
 		/// Adds NPC to this map.
 		/// </summary>
 		/// <param name="npc"></param>
@@ -410,6 +431,27 @@ namespace Sabine.Zone.World.Maps
 		{
 			lock (_npcs)
 				return _npcs.Values.Where(predicate).ToArray();
+		}
+
+		/// <summary>
+		/// Returns a list of all monsters on this map.
+		/// </summary>
+		/// <returns></returns>
+		public Monster[] GetMonsters()
+		{
+			lock (_npcs)
+				return _npcs.Values.OfType<Monster>().ToArray();
+		}
+
+		/// <summary>
+		/// Returns a list of all monsters on this map that match the given
+		/// predicate.
+		/// </summary>
+		/// <returns></returns>
+		public Monster[] GetMonsters(Func<Monster, bool> predicate)
+		{
+			lock (_npcs)
+				return _npcs.Values.OfType<Monster>().Where(predicate).ToArray();
 		}
 
 		/// <summary>

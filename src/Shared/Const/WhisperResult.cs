@@ -15,5 +15,10 @@
 		/// Shows a message that the character doesn't exist.
 		/// </summary>
 		CharacterDoesntExist = 1,
+
+		/// <summary>
+		/// Shows a message that the whisper was rejected by the target.
+		/// </summary>
+		TargetIgnored = 2,
 	}
 }

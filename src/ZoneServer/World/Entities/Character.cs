@@ -6,7 +6,6 @@ using Sabine.Shared.World;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Entities.Components.Characters;
 using Sabine.Zone.World.Maps;
-using Shared.Const;
 using Yggdrasil.Scheduling;
 using Yggdrasil.Util;
 
@@ -39,6 +38,12 @@ namespace Sabine.Zone.World.Entities
 		/// appearance.
 		/// </summary>
 		public abstract int ClassId { get; protected set; }
+
+
+		public virtual int OwnerHandle { get; protected set; } = 0;
+		public virtual int TargetHandle { get; protected set; } = 0;
+		public virtual int GuildId { get; protected set; } = 0;
+		public virtual bool IsCasting { get; protected set; } = false;
 
 		/// <summary>
 		/// Gets or sets the class id that the character will appear as.

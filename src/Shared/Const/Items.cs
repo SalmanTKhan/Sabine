@@ -88,26 +88,50 @@ namespace Sabine.Shared.Const
 
 		// Items assigned types greater than 9 don't appear in the
 		// inventory on the alpha client.
+
+		Card = 6,
+		PetEgg = 7,
+		PetArmor = 8,
+		Ammo = 10,
+		DelayConsume = 11,
+		ShadowGear = 12,
+		Cash = 18,
 	}
 
 	/// <summary>
 	/// Specifies the equip slot(s) an item can be equipped on.
 	/// </summary>
 	[Flags]
-	public enum EquipSlots : byte
+	public enum EquipSlots : uint
 	{
 		None = 0x00,
-		Head = 0x01, // Lower in > Alpha
+		HeadLow = 0x01,
 		RightHand = 0x02,
-		Robe = 0x04,
-		Accessory1 = 0x08,
+		Garment = 0x04,
+		AccessoryLeft = 0x08,
 		Body = 0x10,
 		LeftHand = 0x20,
 		Shoes = 0x40,
-		Accessory2 = 0x80,
-		//HeadUpper = 0x100,
-		//HeadMiddle = 0x200,
+		AccessoryRight = 0x80,
+		HeadTop = 0x100,
+		HeadMid = 0x200,
+		CostumeHeadTop = 0x400,
+		CostumeHeadMid = 0x800,
+		CostumeHeadLow = 0x1000,
+		CostumeGarment = 0x2000,
+		Ammo = 0x8000,
+		ShadowArmor = 0x10000,
+		ShadowWeapon = 0x20000,
+		ShadowShield = 0x40000,
+		ShadowShoes = 0x80000,
+		ShadowAccRight = 0x100000,
+		ShadowAccLeft = 0x200000,
 
+		// Old client compatibility aliases
+		Head = HeadLow | HeadMid | HeadTop,
+		Accessory1 = AccessoryLeft,
+		Accessory2 = AccessoryRight,
+		Robe = Garment,
 		Accessories = Accessory1 | Accessory2,
 	}
 
@@ -123,7 +147,19 @@ namespace Sabine.Shared.Const
 		/// <returns></returns>
 		public static bool IsEquip(this ItemType type)
 		{
-			return type >= ItemType.Weapon;
+			switch (type)
+			{
+				case ItemType.Weapon:
+				case ItemType.Armor:
+				case ItemType.PetArmor:
+				case ItemType.ShadowGear:
+				// Old client types
+				//case ItemType.RangedWeapon:
+				case ItemType.Weapon3:
+					return true;
+				default:
+					return false;
+			}
 		}
 	}
 }

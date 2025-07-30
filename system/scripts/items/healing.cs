@@ -6,6 +6,8 @@
 // eAthena
 //---------------------------------------------------------------------------
 
+using Sabine.Shared;
+using Sabine.Shared.Const;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.World.Entities;
 
@@ -15,9 +17,8 @@ public class Item501 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		// TODO: Update healing amounts for alpha, use a feature check.
-
-		player.HealHp(Random(45, 65));
+		var healAmount = Game.Version < Versions.Beta1 ? Random(20, 30) : Random(45, 65);
+		player.HealHp(healAmount);
 		return ItemUseResult.Okay;
 	}
 }
@@ -28,7 +29,8 @@ public class Item502 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		player.HealHp(Random(105, 145));
+		var healAmount = Game.Version < Versions.Beta1 ? Random(45, 70) : Random(105, 145);
+		player.HealHp(healAmount);
 		return ItemUseResult.Okay;
 	}
 }
@@ -39,7 +41,8 @@ public class Item503 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		player.HealHp(Random(175, 235));
+		var healAmount = Game.Version < Versions.Beta1 ? Random(85, 100) : Random(175, 235);
+		player.HealHp(healAmount);
 		return ItemUseResult.Okay;
 	}
 }
@@ -50,7 +53,8 @@ public class Item504 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		player.HealHp(Random(325, 405));
+		var healAmount = Game.Version < Versions.Beta1 ? Random(110, 150) : Random(325, 405);
+		player.HealHp(healAmount);
 		return ItemUseResult.Okay;
 	}
 }
@@ -61,7 +65,8 @@ public class Item505 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		player.HealSp(Random(40, 60));
+		var healAmount = Game.Version < Versions.Beta1 ? Random(50, 60) : Random(40, 60);
+		player.HealSp(healAmount);
 		return ItemUseResult.Okay;
 	}
 }
@@ -87,7 +92,8 @@ public class Item507 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		player.HealHp(Random(18, 28));
+		var healAmount = Game.Version < Versions.Beta1 ? Random(15, 20) : Random(18, 28);
+		player.HealHp(healAmount);
 		return ItemUseResult.Okay;
 	}
 }
@@ -98,7 +104,8 @@ public class Item508 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		player.HealHp(Random(38, 58));
+		var healAmount = Game.Version < Versions.Beta1 ? Random(25, 30) : Random(38, 58);
+		player.HealHp(healAmount);
 		return ItemUseResult.Okay;
 	}
 }
@@ -109,7 +116,8 @@ public class Item509 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		player.HealHp(Random(75, 115));
+		var healAmount = Game.Version < Versions.Beta1 ? Random(35, 50) : Random(75, 115);
+		player.HealHp(healAmount);
 		return ItemUseResult.Okay;
 	}
 }
@@ -227,7 +235,7 @@ public class Item907 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
 	{
-		player.HealHp(Random(15, 30));
+		player.HealSp(Random(15, 30));
 		return ItemUseResult.Okay;
 	}
 }

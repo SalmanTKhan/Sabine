@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
@@ -8,10 +9,11 @@ using Sabine.Shared.L10N;
 using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
+using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Entities.Components.Characters;
-using Shared.Const;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
+using static Sabine.Shared.Util.TaskHelper;
 
 namespace Sabine.Zone.World.Entities
 {
@@ -151,6 +153,8 @@ namespace Sabine.Zone.World.Entities
 			this.Parameters = new PlayerCharacterParameters(this);
 
 			this.LoadJobData(jobId);
+
+			this.Components.Add(new RecoveryComponent(this));
 		}
 
 		/// <summary>
@@ -628,6 +632,68 @@ namespace Sabine.Zone.World.Entities
 			base.Kill(killer);
 
 			Send.ZC_NOTIFY_VANISH(this, DisappearType.StrikedDead);
+		}
+
+		/// <summary>
+		/// Starts a dialog between the character and the given NPC.
+		/// </summary>
+		/// <param name="npc"></param>
+		public void StartDialog(Npc npc)
+			=> this.StartDialog(npc, npc.DialogFunc);
+
+		/// <summary>
+		/// Starts a dialog between the character and the given NPC, using
+		/// the given talk function, instead of the NPC's default one.
+		/// </summary>
+		/// <param name="npc"></param>
+		/// <param name="dialogFunc"></param>
+		public void StartDialog(Npc npc, DialogFunc dialogFunc)
+		{
+			if (npc == null)
+			{
+				throw new InvalidOperationException("Starting a remote dialog with an null NPC");
+			}
+			if (dialogFunc == null)
+			{
+				throw new InvalidOperationException($"NPC '{npc.Name}' doesn't have a dialog function assigned to it.");
+			}
+			async Task RunNpcDialogAsync()
+			{
+				await using (var dialog = new Dialog(this, npc))
+				{
+					try
+					{
+						dialog.State = DialogState.Active;
+
+						// Execute the provided script logic.
+						await dialogFunc(dialog);
+					}
+					catch (OperationCanceledException)
+					{
+						// This is a normal exit path when a dialog is closed by the script or player.
+					}
+					catch (Exception ex)
+					{
+						// This is the error handling that was previously in Dialog.Start.
+						Log.Error($"An exception occurred during an NPC dialog for '{this.Name}' with NPC '{npc?.Name}'. Error: {ex}");
+					}
+					finally
+					{
+						if (dialog.GetLastAction() == DialogActionType.Message /*&& isAlpha*/)
+						{
+							await dialog.Next();
+							dialog.Close();
+						}
+						else if (dialog.GetLastAction() == DialogActionType.Input)
+						{
+							dialog.Close();
+						}
+						dialog.State = DialogState.Ended;
+					}
+				}
+			}
+
+			CallSafe(RunNpcDialogAsync());
 		}
 	}
 }

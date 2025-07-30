@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,6 +7,7 @@ using Sabine.Zone.Network;
 using Sabine.Zone.World.Entities;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Logging;
+using static Sabine.Shared.Util.TaskHelper;
 
 namespace Sabine.Zone.Scripting.Dialogues
 {
@@ -13,11 +15,12 @@ namespace Sabine.Zone.Scripting.Dialogues
 	/// Manages a dialog between a player and and NPC and allows sending
 	/// of messages to the player.
 	/// </summary>
-	public class Dialog
+	public class Dialog : IAsyncDisposable
 	{
 		private string _response;
 		private readonly SemaphoreSlim _resumeSignal = new(0);
 		private readonly CancellationTokenSource _cancellation = new();
+		private readonly ZoneConnection _connection;
 
 		private DialogActionType _lastAction;
 
@@ -35,6 +38,13 @@ namespace Sabine.Zone.Scripting.Dialogues
 		/// Gets or sets the dialog's current state.
 		/// </summary>
 		public DialogState State { get; set; }
+		public string Title { get; private set; }
+		public string Portrait { get; private set; }
+
+		public void SetTitle(string title) => this.Title = title;
+		public void SetPortrait(string portrait) => this.Portrait = portrait;
+
+		public DialogActionType GetLastAction() => _lastAction;
 
 		/// <summary>
 		/// Creates and prepares a new dialog between the player and
@@ -46,6 +56,13 @@ namespace Sabine.Zone.Scripting.Dialogues
 		{
 			this.Player = player;
 			this.Npc = npc;
+			_connection = player.Connection;
+
+			if (_connection.CurrentDialog != null)
+			{
+				throw new InvalidOperationException($"Character '{player.Name}' tried to start a dialog while another was already active.");
+			}
+			_connection.CurrentDialog = this;
 		}
 
 		/// <summary>
@@ -118,8 +135,17 @@ namespace Sabine.Zone.Scripting.Dialogues
 		/// <param name="response"></param>
 		public void Resume(string response)
 		{
+			if (this.State != DialogState.Waiting) return;
 			_response = response;
 			_resumeSignal.Release();
+		}
+
+		private async Task<string> GetClientResponse()
+		{
+			this.State = DialogState.Waiting;
+			await _resumeSignal.WaitAsync(_cancellation.Token);
+			this.State = DialogState.Active;
+			return _response;
 		}
 
 		/// <summary>
@@ -221,10 +247,7 @@ namespace Sabine.Zone.Scripting.Dialogues
 			_lastAction = DialogActionType.Input;
 
 			Send.ZC_WAIT_DIALOG(this.Player, this.Npc.Handle);
-
-			this.State = DialogState.Waiting;
-			await _resumeSignal.WaitAsync(_cancellation.Token);
-			this.State = DialogState.Active;
+			await GetClientResponse();
 		}
 
 		/// <summary>
@@ -299,14 +322,46 @@ namespace Sabine.Zone.Scripting.Dialogues
 		}
 
 		/// <summary>
+		/// Shows a menu with options to select from, returns the key
+		/// of the option selected.
+		/// </summary>
+		/// <param name="options">List of options to select from.</param>
+		/// <returns></returns>		
+		public async Task<string> Select(string prompt, IEnumerable<DialogOption> options)
+		{
+			var enabledOptions = options.Where(o => o.Enabled()).ToList();
+			if (enabledOptions.Count == 0)
+			{
+				this.Close();
+				return null; // Or throw
+			}
+
+			var optionsString = string.Join(":", enabledOptions.Select(o => o.Text));
+
+			Send.ZC_MENU_LIST(this.Player, this.Npc.Handle, optionsString);
+
+			var response = await GetClientResponse();
+			if (!int.TryParse(response, out var selectedIndex) || selectedIndex <= 0 || selectedIndex > enabledOptions.Count)
+			{
+				Log.Warning("Dialog.Select: Invalid response '{0}'.", response);
+				Close();
+				return null;
+			}
+
+			return enabledOptions[selectedIndex - 1].Key;
+		}
+
+		/// <summary>
 		/// Closes the dialog.
 		/// </summary>
 		/// <exception cref="OperationCanceledException"></exception>
 		public void Close()
 		{
 			_lastAction = DialogActionType.Close;
-
+			if (this.State == DialogState.Ended) return;
+			this.State = DialogState.Ended;
 			Send.ZC_CLOSE_DIALOG(this.Player, this.Npc.Handle);
+			_cancellation.Cancel();
 			throw new OperationCanceledException("Dialog closed by script.");
 		}
 
@@ -357,6 +412,23 @@ namespace Sabine.Zone.Scripting.Dialogues
 			this.Player.Vars.Temp.Set("Sabine.CurrentShop", shop);
 
 			this.Close();
+		}
+
+		public async Task Warp(string mapStringId, int x, int y)
+		{
+			this.Player.Warp(mapStringId, x, y);
+			await Task.Yield(); // Give time for the warp to process.
+		}
+
+		public async ValueTask DisposeAsync()
+		{
+			if (_connection.CurrentDialog == this)
+			{
+				_connection.CurrentDialog = null;
+			}
+			_cancellation.Dispose();
+			_resumeSignal.Dispose();
+			await ValueTask.CompletedTask;
 		}
 	}
 

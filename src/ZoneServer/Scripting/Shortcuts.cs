@@ -32,6 +32,9 @@ namespace Sabine.Zone.Scripting
 		public static DialogOption Option(string text, string key)
 			=> new(text, key);
 
+		public static DialogOption Option(string text, string key, Func<bool> enabledPredicate)
+			=> new(text, key) { Enabled = enabledPredicate };
+
 		/// <summary>
 		/// Returns a localized version of the given string.
 		/// </summary>
@@ -121,10 +124,12 @@ namespace Sabine.Zone.Scripting
 			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
 				throw new ArgumentException($"Map '{mapStringId}' not found.");
 
-			var npc = new Npc(classId);
-			npc.Name = name;
-			npc.Direction = direction;
-			npc.DialogFunc = dialogFunc;
+			var npc = new Npc(classId)
+			{
+				Name = name,
+				Direction = direction,
+				DialogFunc = dialogFunc
+			};
 
 			npc.Warp(map.Id, new Position(x, y));
 
@@ -148,8 +153,19 @@ namespace Sabine.Zone.Scripting
 
 			var npc = AddNpc(name, classId, mapStringId, x, y, direction, async dialog =>
 			{
-				dialog.OpenShop(shop);
-				await Task.Yield();
+				await using (dialog)
+				{
+					dialog.Msg(L("Welcome! How can I help you?"));
+					var response = await dialog.Select(Option("Buy", "buy"), Option("Sell", "sell"));
+					if (response == "buy")
+					{
+						dialog.OpenShop(shop, ShopOpenType.BuyOnly);
+					}
+					else if (response == "sell")
+					{
+						dialog.OpenShop(shop, ShopOpenType.SellOnly);
+					}
+				}
 			});
 
 			return (npc, shop);

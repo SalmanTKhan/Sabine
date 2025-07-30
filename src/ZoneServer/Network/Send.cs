@@ -15,6 +15,27 @@ using Yggdrasil.Util;
 
 namespace Sabine.Zone.Network
 {
+	public enum EnterError : byte
+	{
+		AccessDenied = 0
+	}
+
+	public enum PurchaseResult : byte
+	{
+		Success = 0,
+		NotEnoughZeny = 1,
+		Overweight = 2,
+		ItemCountOver = 3,
+		Unknown = 4,
+	}
+
+	public enum SellResult : byte
+	{
+		Success = 0,
+		Overweight = 1,
+		CannotSell = 2,
+	}
+
 	/// <summary>
 	/// Packet senders.
 	/// </summary>
@@ -32,6 +53,20 @@ namespace Sabine.Zone.Network
 			packet.PutInt(character.Id);
 			packet.AddPackedPosition(character.Position, 0);
 			packet.PutShort(0);
+
+			conn.Send(packet);
+		}
+
+		/// <summary>
+		/// Refuses connection request.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="reason"></param>
+		public static void ZC_REFUSE_ENTER(ZoneConnection conn, EnterError reason)
+		{
+			var packet = new Packet(Op.ZC_REFUSE_ENTER);
+
+			packet.PutByte((byte)reason);
 
 			conn.Send(packet);
 		}
@@ -186,6 +221,41 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Makes client close the connection and displays a message
+		/// for why this disconnect was requested.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="npcHandle"></param>
+		/// <param name="optionsString"></param>
+		public static void SC_NOTIFY_BAN(ZoneConnection conn, DisconnectReason reason)
+		{
+			var packet = new Packet(Op.SC_NOTIFY_BAN);
+			packet.PutByte((byte)reason);
+
+			conn.Send(packet);
+		}
+
+		/// <summary>
+		/// Accepts a request to quit the game.
+		/// </summary>
+		/// <param name="conn"></param>
+		public static void ZC_ACCEPT_QUIT(ZoneConnection conn)
+		{
+			var packet = new Packet(Op.ZC_ACCEPT_QUIT);
+			conn.Send(packet);
+		}
+
+		/// <summary>
+		/// Refuses a request to quit the game.
+		/// </summary>
+		/// <param name="conn"></param>
+		public static void ZC_REFUSE_QUIT(ZoneConnection conn)
+		{
+			var packet = new Packet(Op.ZC_REFUSE_QUIT);
+			conn.Send(packet);
+		}
+
+		/// <summary>
 		/// Makes character move from one position to the other on clients
 		/// of players around it.
 		/// </summary>
@@ -317,26 +387,6 @@ namespace Sabine.Zone.Network
 		/// </summary>
 		/// <param name="character"></param>
 		/// <param name="type"></param>
-		public static void ZC_LONGPAR_CHANGE(PlayerCharacter character, ParameterType type)
-		{
-			var value = character.Parameters.Get(type);
-
-			// Always display job level and EXP as 0 if the feature
-			// isn't enabled
-			if (type == ParameterType.JobExp || type == ParameterType.JobExpNeeded)
-			{
-				if (!SabineData.Features.IsEnabled("JobLevels"))
-					value = 0;
-			}
-
-			ZC_LONGPAR_CHANGE(character, type, value);
-		}
-
-		/// <summary>
-		/// Updates the given parameter on the client.
-		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="type"></param>
 		/// <param name="value"></param>
 		public static void ZC_PAR_CHANGE(PlayerCharacter character, ParameterType type, int value)
 		{
@@ -360,6 +410,26 @@ namespace Sabine.Zone.Network
 				packet.PutInt(value);
 
 			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates the given parameter on the client.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="type"></param>
+		public static void ZC_LONGPAR_CHANGE(PlayerCharacter character, ParameterType type)
+		{
+			var value = character.Parameters.Get(type);
+
+			// Always display job level and EXP as 0 if the feature
+			// isn't enabled
+			if (type == ParameterType.JobExp || type == ParameterType.JobExpNeeded)
+			{
+				if (!SabineData.Features.IsEnabled("JobLevels"))
+					value = 0;
+			}
+
+			ZC_LONGPAR_CHANGE(character, type, value);
 		}
 
 		/// <summary>
@@ -780,21 +850,6 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Makes client close the connection and displays a message
-		/// for why this disconnect was requested.
-		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="npcHandle"></param>
-		/// <param name="optionsString"></param>
-		public static void SC_NOTIFY_BAN(ZoneConnection conn, DisconnectReason reason)
-		{
-			var packet = new Packet(Op.SC_NOTIFY_BAN);
-			packet.PutByte((byte)reason);
-
-			conn.Send(packet);
-		}
-
-		/// <summary>
 		/// Either makes given item appear in character's inventory or
 		/// displays a message for why they couldn't pick up an item.
 		/// </summary>
@@ -947,6 +1002,30 @@ namespace Sabine.Zone.Network
 					packet.PutInt(sellPrice); // Skill-bonus adjusted price
 			}
 
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the result of a purchase request to the client.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="result"></param>
+		public static void ZC_PC_PURCHASE_RESULT(PlayerCharacter character, PurchaseResult result)
+		{
+			var packet = new Packet(Op.ZC_PC_PURCHASE_RESULT);
+			packet.PutByte((byte)result);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the result of a sell request to the client.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="result"></param>
+		public static void ZC_PC_SELL_RESULT(PlayerCharacter character, SellResult result)
+		{
+			var packet = new Packet(Op.ZC_PC_SELL_RESULT);
+			packet.PutByte((byte)result);
 			character.Connection.Send(packet);
 		}
 

@@ -69,5 +69,21 @@
 		/// /bo
 		/// </summary>
 		Paper = 12,
+
+		/// <summary>
+		/// Represents the Korean flag in the enumeration.
+		/// </summary>
+		KoreanFlag = 13,
+
+		/// <summary>
+		/// /go
+		/// </summary>
+		Go = 14,             // /go
+		OhMyGod = 15,        // /omg
+		Laugh = 16,          // /kik
+		Ugh = 17,            // /gg
+		ThumbsUp = 18,       // /no1
+		Thinking = 19,       // /hmm
+		Ok = 20,             // /ok
 	}
 }

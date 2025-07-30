@@ -48,6 +48,11 @@ namespace Sabine.Shared.Configuration
 		public WorldConf World { get; } = new();
 
 		/// <summary>
+		/// web.conf
+		/// </summary>
+		public WebConf Web { get; } = new();
+
+		/// <summary>
 		/// Loads all conf files.
 		/// </summary>
 		public void Load()
@@ -55,6 +60,7 @@ namespace Sabine.Shared.Configuration
 			this.Auth.Load("system/conf/auth.conf");
 			this.Char.Load("system/conf/char.conf");
 			this.Zone.Load("system/conf/zone.conf");
+			this.Web.Load("system/conf/web.conf");
 
 			this.Commands.Load("system/conf/commands.conf");
 			this.Database.Load("system/conf/database.conf");

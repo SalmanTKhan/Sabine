@@ -11,6 +11,16 @@
 		LanguageIncorrect = 0,
 
 		/// <summary>
+		/// Your Game's EXE file is not the latest version.
+		/// </summary>
+		OutdatedClient = 1,
+
+		/// <summary>
+		/// The server is temporarily blocking your connection.
+		/// </summary>
+		TemporarilyBlocked = 99,
+
+		/// <summary>
 		/// Shows message "Access Denied".
 		/// </summary>
 		AccessDenied = byte.MaxValue,

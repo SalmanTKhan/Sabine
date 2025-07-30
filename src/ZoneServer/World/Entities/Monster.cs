@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
 using Sabine.Zone.Network;
+using Sabine.Zone.World.Entities.Components.Characters;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
 
@@ -41,6 +42,8 @@ namespace Sabine.Zone.World.Entities
 
 			this.Data = data;
 			this.ApplyData();
+
+			this.Components.Add(new RecoveryComponent(this));
 		}
 
 		/// <summary>
@@ -226,7 +229,7 @@ namespace Sabine.Zone.World.Entities
 			{
 				// Let's fall back silently for now, since most AIs don't
 				// exist yet.
-				//Log.Warning("Monster.AttachAi: AI '{0}' not found, using fallback.", aiName);
+				Log.Warning("Monster.AttachAi: AI '{0}' not found, using fallback.", aiName);
 
 				var fallback = "Type01";
 				if (!ZoneServer.Instance.AiManager.TryCreateAi(fallback, out ai))

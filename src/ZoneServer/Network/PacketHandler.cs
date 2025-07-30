@@ -10,6 +10,7 @@ using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Events.Args;
+using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Entities;
@@ -55,6 +56,7 @@ namespace Sabine.Zone.Network
 			if (account == null)
 			{
 				Log.Debug("CZ_ENTER: Account '{0}' not found.", accountId);
+				Send.ZC_REFUSE_ENTER(conn, EnterError.AccessDenied);
 				conn.Close();
 				return;
 			}
@@ -62,6 +64,7 @@ namespace Sabine.Zone.Network
 			if (sessionId != account.SessionId)
 			{
 				Log.Warning("CZ_ENTER: User '{0}' tried to log in with an invalid session id.", account.Username);
+				Send.ZC_REFUSE_ENTER(conn, EnterError.AccessDenied);
 				conn.Close();
 				return;
 			}
@@ -70,6 +73,7 @@ namespace Sabine.Zone.Network
 			if (character == null)
 			{
 				Log.Warning("CZ_ENTER: User '{0}' tried to log in with a character that doesn't exist ({1}).", account.Username, characterId);
+				Send.ZC_REFUSE_ENTER(conn, EnterError.AccessDenied);
 				conn.Close();
 				return;
 			}
@@ -83,7 +87,7 @@ namespace Sabine.Zone.Network
 				if (!ZoneServer.Instance.World.Maps.TryGet(fallbackLocation.MapId, out map))
 				{
 					Log.Warning("CZ_ENTER: Fallback map not found either! Abort! Abort!!!");
-
+					Send.ZC_REFUSE_ENTER(conn, EnterError.AccessDenied);
 					conn.Close();
 					return;
 				}
@@ -172,6 +176,20 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Request to quit the game (older clients).
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQUEST_QUIT)]
+		public void CZ_REQUEST_QUIT(ZoneConnection conn, Packet packet)
+		{
+			// On modern clients, this might not be used, see CZ_REQ_DISCONNECT.
+			// For simplicity, we'll just accept and let the client close.
+			// The server should handle character saving on disconnection event.
+			Send.ZC_ACCEPT_QUIT(conn);
+		}
+
+		/// <summary>
 		/// Request to move to a new position.
 		/// </summary>
 		/// <param name="conn"></param>
@@ -242,6 +260,30 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Request for a character's name when hovering over them.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQNAME)]
+		public void CZ_REQNAME(ZoneConnection conn, Packet packet)
+		{
+			var handle = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var target = character.Map.GetCharacter(handle);
+
+			if (target == null)
+			{
+				// Don't warn, since this can easily happen when the client
+				// requests the name for a character that just disappeared.
+				//Log.Debug("CZ_REQNAME: User {0} requested the name of a character that doesn't exist.", conn.Account.Username);
+				return;
+			}
+
+			Send.ZC_ACK_REQNAME(character, target);
+		}
+
+		/// <summary>
 		/// Request to send a whisper chat message to another character.
 		/// </summary>
 		/// <param name="conn"></param>
@@ -267,338 +309,21 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Request for a character's name when hovering over them.
+		/// Request to broadcast a message to the whole server (GM command).
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQNAME)]
-		public void CZ_REQNAME(ZoneConnection conn, Packet packet)
-		{
-			var handle = packet.GetInt();
-
-			var character = conn.GetCurrentCharacter();
-			var target = character.Map.GetCharacter(handle);
-
-			if (target == null)
-			{
-				// Don't warn, since this can easily happen when the client
-				// requests the name for a character that just disappeared.
-				//Log.Debug("CZ_REQNAME: User {0} requested the name of a character that doesn't exist.", conn.Account.Username);
-				return;
-			}
-
-			Send.ZC_ACK_REQNAME(character, target);
-		}
-
-		/// <summary>
-		/// Request to increase a stat.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_STATUS_CHANGE)]
-		public void CZ_STATUS_CHANGE(ZoneConnection conn, Packet packet)
-		{
-			var type = (ParameterType)packet.GetShort();
-			var change = (int)packet.GetByte();
-
-			var character = conn.GetCurrentCharacter();
-			var parameters = character.Parameters;
-
-			var success = false;
-			var value = 0;
-
-			if (type < ParameterType.Str || type > ParameterType.Luk)
-			{
-				Log.Debug("CZ_STATUS_CHANGE: User '{0}' tried to assign points to invalid stat '{1}'.", conn.Account.Username, type);
-				goto L_End;
-			}
-
-			var pointsNeeded = parameters.GetStatPointsNeeded(type);
-			if (parameters.StatPoints < pointsNeeded)
-			{
-				Log.Debug("CZ_STATUS_CHANGE: User '{0}' tried to use more stat points than they have.", conn.Account.Username);
-				goto L_End;
-			}
-
-			value = parameters.Modify(type, change);
-			parameters.Modify(ParameterType.StatPoints, -pointsNeeded);
-
-			success = true;
-
-		L_End:
-			Send.ZC_STATUS_CHANGE_ACK(character, type, success, value);
-		}
-
-		/// <summary>
-		/// Request for the amount of players online via the /who command.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_USER_COUNT)]
-		public void CZ_REQ_USER_COUNT(ZoneConnection conn, Packet packet)
-		{
-			var count = ZoneServer.Instance.World.GetPlayerCount();
-			Send.ZC_USER_COUNT(conn, count);
-		}
-
-		/// <summary>
-		/// Request to use an emotion.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_EMOTION)]
-		public void CZ_REQ_EMOTION(ZoneConnection conn, Packet packet)
-		{
-			var emotion = (EmotionId)packet.GetByte();
-
-			if (!Enum.IsDefined(typeof(EmotionId), emotion))
-			{
-				Log.Warning("CZ_REQ_EMOTION: User '{0}' tried to use the invalid emotion '{1}'.", conn.Account.Username, emotion);
-				return;
-			}
-
-			var character = conn.GetCurrentCharacter();
-			Send.ZC_EMOTION(character, emotion);
-		}
-
-		/// <summary>
-		/// Request for an item's description.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_ITEM_EXPLANATION_BYNAME)]
-		public void CZ_REQ_ITEM_EXPLANATION_BYNAME(ZoneConnection conn, Packet packet)
-		{
-			var itemStringId = packet.GetString(16);
-
-			var character = conn.GetCurrentCharacter();
-
-			var itemNameData = SabineData.ItemNames.Find(a => a.AlphaName == itemStringId || a.BetaName == itemStringId);
-			if (itemNameData == null)
-			{
-				Log.Warning("CZ_REQ_ITEM_EXPLANATION_BYNAME: Item name data for '{0}' not found.", itemStringId);
-				return;
-			}
-
-			var itemData = SabineData.Items.Find(itemNameData.Id);
-			if (itemData == null)
-			{
-				Log.Warning("CZ_REQ_ITEM_EXPLANATION_BYNAME: Item data for '{0}' not found.", itemStringId);
-				return;
-			}
-
-			// The alpha client usually identifies items by their string
-			// id and converts that to a Korean name to find the assets
-			// for the item in the client. This works for the sprites
-			// and the name display, but not the description. The
-			// client sends the English string id for this request,
-			// but if you send that name back, you get an error that
-			// it can't find the texture for the item. Because of this,
-			// we need to send back the Korean name in this instance.
-			// The title of the item description window will be mangled
-			// this way, but that's how it has to be.
-			var name = itemNameData.KoreanName;
-
-			// Generate a description. We could put proper descriptions
-			// in a database, but this should work for now and it's kind
-			// of fun that you can just generate them. It would be good
-			// if someone could tell us what descriptions looked liked
-			// in the alpha, because the client seems to have no support
-			// for line-breaks.
-			var sb = new StringBuilder();
-
-			switch (itemData.Type)
-			{
-				case ItemType.Weapon:
-				case ItemType.RangedWeapon:
-				{
-					sb.AppendFormat("Attack:^777777 {0}-{1}^000000", itemData.AttackMin, itemData.AttackMax);
-					sb.AppendFormat(", Weight:^777777 {0:0.#}^000000", itemData.Weight / 10f);
-					sb.AppendFormat(", Required Level:^777777 {0}^000000", itemData.RequiredLevel);
-					sb.AppendFormat(", Jobs:^777777 {0}^000000", itemData.JobsAllowed);
-					break;
-				}
-				case ItemType.Armor:
-				{
-					sb.AppendFormat("Defense:^777777 {0}^000000", itemData.Defense);
-					sb.AppendFormat(", Weight:^777777 {0:0.#}^000000", itemData.Weight / 10f);
-					sb.AppendFormat(", Required Level:^777777 {0}^000000", itemData.RequiredLevel);
-					sb.AppendFormat(", Jobs:^777777 {0}^000000", itemData.JobsAllowed);
-					break;
-				}
-				default:
-				{
-					sb.AppendFormat("Weight:^777777 {0:0.#}^000000", itemData.Weight / 10f);
-					break;
-				}
-			}
-
-			Send.ZC_REQ_ITEM_EXPLANATION_ACK(character, name, sb.ToString());
-		}
-
-		/// <summary>
-		/// Request for starting a dialog with an NPC.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_CONTACTNPC)]
-		public void CZ_CONTACTNPC(ZoneConnection conn, Packet packet)
-		{
-			var targetHandle = packet.GetInt();
-			var b1 = packet.GetByte();
-
-			var character = conn.GetCurrentCharacter();
-			var target = character.Map.GetCharacter(targetHandle);
-
-			if (target == null)
-			{
-				Log.Debug("CZ_CONTACTNPC: User '{0}' tried to contact a non-existent target.", conn.Account.Username);
-				return;
-			}
-
-			if (target is not Npc npc)
-			{
-				Log.Debug("CZ_CONTACTNPC: User '{0}' tried to contact a non-NPC.", conn.Account.Username);
-				return;
-			}
-
-			//Log.Debug("CZ_CONTACTNPC: " + npcHandle);
-
-			//Send.ZC_SAY_DIALOG(character, npcHandle, "Hello, World!");
-			//Task.Delay(5000).ContinueWith(_ => Send.ZC_SAY_DIALOG(character, npcHandle, "Goodbye, World!"));
-			//Task.Delay(6000).ContinueWith(_ => Send.ZC_WAIT_DIALOG(character, npcHandle));
-			//Task.Delay(8000).ContinueWith(_ => Send.ZC_MENU_LIST(character, npcHandle, "Option 1", "Option 2", "End"));
-
-			if (npc.DialogFunc == null)
-				return;
-
-			conn.CurrentDialog = new Dialog(character, npc);
-			conn.CurrentDialog.Start();
-		}
-
-		/// <summary>
-		/// Chooses a menu item during a dialog.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_CHOOSE_MENU)]
-		public void CZ_CHOOSE_MENU(ZoneConnection conn, Packet packet)
-		{
-			var npcHandle = packet.GetInt();
-			var choice = packet.GetByte();
-
-			var character = conn.GetCurrentCharacter();
-			var npc = character.Map.GetCharacter(npcHandle);
-
-			if (character.IsDead)
-			{
-				// This packet is sent if the player clicks outside of the
-				// respawn dialog after death.
-				return;
-			}
-
-			// 0xFF is sent when there's no menu to choose anything from,
-			// so it's presumably a cancel action.
-
-			if (conn.CurrentDialog == null)
-			{
-				Log.Debug("CZ_CHOOSE_MENU: User '{0}' tried to choose a menu item without being in a dialog.", conn.Account.Username);
-				return;
-			}
-
-			conn.CurrentDialog.Resume(choice.ToString());
-		}
-
-		/// <summary>
-		/// Request to continue a paused dialog.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_NEXT_SCRIPT)]
-		public void CZ_REQ_NEXT_SCRIPT(ZoneConnection conn, Packet packet)
-		{
-			var npcHandle = packet.GetInt();
-
-			var character = conn.GetCurrentCharacter();
-			var npc = character.Map.GetCharacter(npcHandle);
-
-			if (conn.CurrentDialog == null)
-			{
-				Log.Debug("CZ_CHOOSE_MENU: User '{0}' tried to choose a menu item without being in a dialog.", conn.Account.Username);
-				return;
-			}
-
-			conn.CurrentDialog.Resume(null);
-		}
-
-		/// <summary>
-		/// Request to do an action, such as sitting down or attacking.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQUEST_ACT)]
-		public void CZ_REQUEST_ACT(ZoneConnection conn, Packet packet)
-		{
-			var targetHandle = packet.GetInt();
-			var action = (ActionType)packet.GetByte();
-
-			var character = conn.GetCurrentCharacter();
-
-			character.Controller.StopMove();
-
-			switch (action)
-			{
-				case ActionType.SitDown:
-				{
-					character.SitDown();
-					break;
-				}
-				case ActionType.StandUp:
-				{
-					character.StandUp();
-					break;
-				}
-				case ActionType.Attack:
-				case ActionType.AutoAttack:
-				{
-					// So far, I've seen Attack only on Alpha, and newer
-					// clients used AutoAttack. To not actually keep at-
-					// tacking when not intended, the client sends the
-					// packet CZ_CANCEL_LOCKON right after the ACT packet.
-
-					var target = character.Map.GetCharacter(targetHandle);
-					if (target == null)
-					{
-						Log.Debug("CZ_REQUEST_ACT: User '{0}' tried to attack a character who doesn't exist.", conn.Account.Username);
-						return;
-					}
-
-					var autoAttack = action == ActionType.AutoAttack;
-					if (Game.Version < Versions.Beta1)
-						autoAttack = false;
-
-					character.StartAttacking(target, autoAttack);
-					break;
-				}
-				default:
-				{
-					Log.Debug("CZ_REQUEST_ACT: Unknown action '{0}'.", action);
-					break;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Cancels the lock state on a target, to make the player character
-		/// stop attacking it.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_CANCEL_LOCKON)]
-		public void CZ_CANCEL_LOCKON(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_BROADCAST)]
+		public void CZ_BROADCAST(ZoneConnection conn, Packet packet)
 		{
 			var character = conn.GetCurrentCharacter();
-			character.StopAttacking();
+			// TODO: Add GM level check.
+			// if (character.Account.GMLevel < 1) return;
+
+			var len = packet.GetShort();
+			var text = packet.GetString(len - 4);
+
+			Send.ZC_BROADCAST(text);
 		}
 
 		/// <summary>
@@ -672,6 +397,7 @@ namespace Sabine.Zone.Network
 			var dropItem = new Item(item.ClassId, removedAmount);
 
 			character.Drop(dropItem);
+			Send.ZC_ITEM_THROW_ACK(character, item.InventoryId, removedAmount);
 		}
 
 		/// <summary>
@@ -789,39 +515,275 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Request to drop an item on the ground.
+		/// Request for an item's description.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.ZC_ITEM_THROW_ACK)]
-		public void ZC_ITEM_THROW_ACK(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_REQ_ITEM_EXPLANATION_BYNAME)]
+		public void CZ_REQ_ITEM_EXPLANATION_BYNAME(ZoneConnection conn, Packet packet)
 		{
-			var itemInvId = packet.GetShort();
+			var itemStringId = packet.GetString(16);
 
 			var character = conn.GetCurrentCharacter();
-			var item = character.Inventory.GetItem(itemInvId);
 
-			if (item == null)
+			var itemNameData = SabineData.ItemNames.Find(a => a.AlphaName == itemStringId || a.BetaName == itemStringId);
+			if (itemNameData == null)
 			{
-				// See CZ_USE_ITEM about negative responses.
-				Log.Debug("ZC_REQ_TAKEOFF_EQUIP_ACK: User '{0}' tried to unequip an item they don't have.", conn.Account.Username);
-				conn.Close();
+				Log.Warning("CZ_REQ_ITEM_EXPLANATION_BYNAME: Item name data for '{0}' not found.", itemStringId);
 				return;
 			}
 
-			character.Inventory.UnequipItem(item);
+			var itemData = SabineData.Items.Find(itemNameData.Id);
+			if (itemData == null)
+			{
+				Log.Warning("CZ_REQ_ITEM_EXPLANATION_BYNAME: Item data for '{0}' not found.", itemStringId);
+				return;
+			}
+
+			// The alpha client usually identifies items by their string
+			// id and converts that to a Korean name to find the assets
+			// for the item in the client. This works for the sprites
+			// and the name display, but not the description. The
+			// client sends the English string id for this request,
+			// but if you send that name back, you get an error that
+			// it can't find the texture for the item. Because of this,
+			// we need to send back the Korean name in this instance.
+			// The title of the item description window will be mangled
+			// this way, but that's how it has to be.
+			var name = itemNameData.KoreanName;
+
+			// Generate a description. We could put proper descriptions
+			// in a database, but this should work for now and it's kind
+			// of fun that you can just generate them. It would be good
+			// if someone could tell us what descriptions looked liked
+			// in the alpha, because the client seems to have no support
+			// for line-breaks.
+			var sb = new StringBuilder();
+
+			switch (itemData.Type)
+			{
+				case ItemType.Weapon:
+				case ItemType.RangedWeapon:
+				{
+					sb.AppendFormat("Attack:^777777 {0}-{1}^000000", itemData.AttackMin, itemData.AttackMax);
+					sb.AppendFormat(", Weight:^777777 {0:0.#}^000000", itemData.Weight / 10f);
+					sb.AppendFormat(", Required Level:^777777 {0}^000000", itemData.RequiredLevel);
+					sb.AppendFormat(", Jobs:^777777 {0}^000000", itemData.JobsAllowed);
+					break;
+				}
+				case ItemType.Armor:
+				{
+					sb.AppendFormat("Defense:^777777 {0}^000000", itemData.Defense);
+					sb.AppendFormat(", Weight:^777777 {0:0.#}^000000", itemData.Weight / 10f);
+					sb.AppendFormat(", Required Level:^777777 {0}^000000", itemData.RequiredLevel);
+					sb.AppendFormat(", Jobs:^777777 {0}^000000", itemData.JobsAllowed);
+					break;
+				}
+				default:
+				{
+					sb.AppendFormat("Weight:^777777 {0:0.#}^000000", itemData.Weight / 10f);
+					break;
+				}
+			}
+
+			Send.ZC_REQ_ITEM_EXPLANATION_ACK(character, name, sb.ToString());
 		}
 
 		/// <summary>
-		/// Notification that the player wants to close the storage.
+		/// Request to go back to the character server.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_CLOSE_STORE)]
-		public void CZ_CLOSE_STORE(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_RESTART)]
+		public void CZ_RESTART(ZoneConnection conn, Packet packet)
+		{
+			var type = (RestartType)packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+			Send.ZC_RESTART_ACK(character, type);
+
+			if (type == RestartType.SavePoint)
+			{
+				character.Heal();
+				character.Warp(character.SaveLocation);
+			}
+		}
+
+		/// <summary>
+		/// Request for starting a dialog with an NPC.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CONTACTNPC)]
+		public void CZ_CONTACTNPC(ZoneConnection conn, Packet packet)
+		{
+			var targetHandle = packet.GetInt();
+			var b1 = packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+			var target = character.Map.GetCharacter(targetHandle);
+
+			if (target == null)
+			{
+				Log.Debug("CZ_CONTACTNPC: User '{0}' tried to contact a non-existent target.", conn.Account.Username);
+				return;
+			}
+
+			if (target is not Npc npc)
+			{
+				Log.Debug("CZ_CONTACTNPC: User '{0}' tried to contact a non-NPC.", conn.Account.Username);
+				return;
+			}
+
+			//Log.Debug("CZ_CONTACTNPC: " + npcHandle);
+
+			//Send.ZC_SAY_DIALOG(character, npcHandle, "Hello, World!");
+			//Task.Delay(5000).ContinueWith(_ => Send.ZC_SAY_DIALOG(character, npcHandle, "Goodbye, World!"));
+			//Task.Delay(6000).ContinueWith(_ => Send.ZC_WAIT_DIALOG(character, npcHandle));
+			//Task.Delay(8000).ContinueWith(_ => Send.ZC_MENU_LIST(character, npcHandle, "Option 1", "Option 2", "End"));
+
+			if (npc.DialogFunc == null)
+				return;
+
+			character.StartDialog(npc);
+		}
+
+		/// <summary>
+		/// Chooses a menu item during a dialog.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CHOOSE_MENU)]
+		public void CZ_CHOOSE_MENU(ZoneConnection conn, Packet packet)
+		{
+			var npcHandle = packet.GetInt();
+			var choice = packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+			var npc = character.Map.GetCharacter(npcHandle);
+
+			if (character.IsDead)
+			{
+				// This packet is sent if the player clicks outside of the
+				// respawn dialog after death.
+				return;
+			}
+
+			// 0xFF is sent when there's no menu to choose anything from,
+			// so it's presumably a cancel action.
+
+			if (conn.CurrentDialog == null)
+			{
+				Log.Debug("CZ_CHOOSE_MENU: User '{0}' tried to choose a menu item without being in a dialog.", conn.Account.Username);
+				return;
+			}
+
+			conn.CurrentDialog.Resume(choice.ToString());
+		}
+
+		/// <summary>
+		/// Request to continue a paused dialog.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_NEXT_SCRIPT)]
+		public void CZ_REQ_NEXT_SCRIPT(ZoneConnection conn, Packet packet)
+		{
+			var npcHandle = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var npc = character.Map.GetCharacter(npcHandle);
+
+			if (conn.CurrentDialog == null)
+			{
+				Log.Debug("CZ_CHOOSE_MENU: User '{0}' tried to choose a menu item without being in a dialog.", conn.Account.Username);
+				return;
+			}
+
+			conn.CurrentDialog.Resume(null);
+		}
+
+		/// <summary>
+		/// Request to resend status info.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_STATUS)]
+		public void CZ_REQ_STATUS(ZoneConnection conn, Packet packet)
 		{
 			var character = conn.GetCurrentCharacter();
-			Send.ZC_CLOSE_STORE(character);
+			Send.ZC_STATUS(character);
+		}
+
+		/// <summary>
+		/// Request to increase a stat.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_STATUS_CHANGE)]
+		public void CZ_STATUS_CHANGE(ZoneConnection conn, Packet packet)
+		{
+			var type = (ParameterType)packet.GetShort();
+			var change = (int)packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+			var parameters = character.Parameters;
+
+			var success = false;
+			var value = 0;
+
+			if (type < ParameterType.Str || type > ParameterType.Luk)
+			{
+				Log.Debug("CZ_STATUS_CHANGE: User '{0}' tried to assign points to invalid stat '{1}'.", conn.Account.Username, type);
+				goto L_End;
+			}
+
+			var pointsNeeded = parameters.GetStatPointsNeeded(type);
+			if (parameters.StatPoints < pointsNeeded)
+			{
+				Log.Debug("CZ_STATUS_CHANGE: User '{0}' tried to use more stat points than they have.", conn.Account.Username);
+				goto L_End;
+			}
+
+			value = parameters.Modify(type, change);
+			parameters.Modify(ParameterType.StatPoints, -pointsNeeded);
+
+			success = true;
+
+		L_End:
+			Send.ZC_STATUS_CHANGE_ACK(character, type, success, value);
+		}
+
+		/// <summary>
+		/// Request to use an emotion.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_EMOTION)]
+		public void CZ_REQ_EMOTION(ZoneConnection conn, Packet packet)
+		{
+			var emotion = (EmotionId)packet.GetByte();
+
+			if (!Enum.IsDefined(typeof(EmotionId), emotion))
+			{
+				Log.Warning("CZ_REQ_EMOTION: User '{0}' tried to use the invalid emotion '{1}'.", conn.Account.Username, emotion);
+				return;
+			}
+
+			var character = conn.GetCurrentCharacter();
+			Send.ZC_EMOTION(character, emotion);
+		}
+
+		/// <summary>
+		/// Request for the amount of players online via the /who command.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_USER_COUNT)]
+		public void CZ_REQ_USER_COUNT(ZoneConnection conn, Packet packet)
+		{
+			var count = ZoneServer.Instance.World.GetPlayerCount();
+			Send.ZC_USER_COUNT(conn, count);
 		}
 
 		/// <summary>
@@ -893,8 +855,11 @@ namespace Sabine.Zone.Network
 			if (character.Parameters.Zeny < zenyCost)
 			{
 				Log.Debug("CZ_PC_PURCHASE_ITEMLIST: User '{0}' didn't have enough money to buy the selected items.", conn.Account.Username);
+				Send.ZC_PC_PURCHASE_RESULT(character, PurchaseResult.NotEnoughZeny);
 				return;
 			}
+
+			// TODO: Add overweight and item count checks.
 
 			foreach (var entry in buyItems)
 			{
@@ -906,6 +871,7 @@ namespace Sabine.Zone.Network
 			}
 
 			character.Parameters.Modify(ParameterType.Zeny, -zenyCost);
+			Send.ZC_PC_PURCHASE_RESULT(character, PurchaseResult.Success);
 		}
 
 		/// <summary>
@@ -956,26 +922,90 @@ namespace Sabine.Zone.Network
 			}
 
 			character.Parameters.Modify(ParameterType.Zeny, gainZeny);
+			Send.ZC_PC_SELL_RESULT(character, SellResult.Success);
 		}
 
 		/// <summary>
-		/// Request to go back to the character server.
+		/// Request to do an action, such as sitting down or attacking.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_RESTART)]
-		public void CZ_RESTART(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_REQUEST_ACT)]
+		public void CZ_REQUEST_ACT(ZoneConnection conn, Packet packet)
 		{
-			var type = (RestartType)packet.GetByte();
+			var targetHandle = packet.GetInt();
+			var action = (ActionType)packet.GetByte();
 
 			var character = conn.GetCurrentCharacter();
-			Send.ZC_RESTART_ACK(character, type);
 
-			if (type == RestartType.SavePoint)
+			character.Controller.StopMove();
+
+			switch (action)
 			{
-				character.Heal();
-				character.Warp(character.SaveLocation);
+				case ActionType.SitDown:
+				{
+					character.SitDown();
+					break;
+				}
+				case ActionType.StandUp:
+				{
+					character.StandUp();
+					break;
+				}
+				case ActionType.Attack:
+				case ActionType.AutoAttack:
+				{
+					// So far, I've seen Attack only on Alpha, and newer
+					// clients used AutoAttack. To not actually keep at-
+					// tacking when not intended, the client sends the
+					// packet CZ_CANCEL_LOCKON right after the ACT packet.
+
+					var target = character.Map.GetCharacter(targetHandle);
+					if (target == null)
+					{
+						Log.Debug("CZ_REQUEST_ACT: User '{0}' tried to attack a character who doesn't exist.", conn.Account.Username);
+						return;
+					}
+
+					var autoAttack = action == ActionType.AutoAttack;
+					if (Game.Version < Versions.Beta1)
+						autoAttack = false;
+
+					character.StartAttacking(target, autoAttack);
+					break;
+				}
+				default:
+				{
+					Log.Debug("CZ_REQUEST_ACT: Unknown action '{0}'.", action);
+					break;
+				}
 			}
+		}
+
+		/// <summary>
+		/// Cancels the lock state on a target, to make the player character
+		/// stop attacking it.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CANCEL_LOCKON)]
+		public void CZ_CANCEL_LOCKON(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+			character.StopAttacking();
+		}
+
+		/// <summary>
+		/// Notification that the player wants to close the storage.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CLOSE_STORE)]
+		public void CZ_CLOSE_STORE(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+			character.Vars.Temp.Remove("Sabine.CurrentShop");
+			Send.ZC_CLOSE_STORE(character);
 		}
 
 		/// <summary>

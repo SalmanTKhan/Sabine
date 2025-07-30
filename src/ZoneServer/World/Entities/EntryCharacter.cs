@@ -1,6 +1,6 @@
 ﻿using Sabine.Shared.Const;
 using Sabine.Shared.World;
-using Shared.Const;
+using Sabine.Shared.Const;
 
 namespace Sabine.Zone.World.Entities
 {

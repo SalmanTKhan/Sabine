@@ -7,13 +7,13 @@ namespace Sabine.Zone.Scripting
 	/// <summary>
 	/// General purpose script class.
 	/// </summary>
-	public class GeneralScript : IScript, IDisposable
+	public abstract class GeneralScript : IScript, IDisposable
 	{
 		/// <summary>
 		/// Initializes script.
 		/// </summary>
 		/// <returns></returns>
-		public bool Init()
+		public virtual bool Init()
 		{
 			this.Load();
 
@@ -25,7 +25,7 @@ namespace Sabine.Zone.Scripting
 		/// <summary>
 		/// Called when the script is being removed before a reload.
 		/// </summary>
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			OnAttribute.Unload(this, ZoneServer.Instance.ServerEvents);
 		}

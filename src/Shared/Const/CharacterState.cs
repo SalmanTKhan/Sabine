@@ -1,4 +1,4 @@
-﻿namespace Shared.Const
+﻿namespace Sabine.Shared.Const
 {
 	/// <summary>
 	/// Specifies a character's state.
