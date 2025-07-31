@@ -14,6 +14,26 @@ namespace Sabine.Shared.Const
 		Acolyte = 4,
 		Merchant = 5,
 		Thief = 6,
+
+		// 2-1
+		Knight = 7,
+		Priest = 8,
+		Wizard = 9,
+		Blacksmith = 10,
+		Hunter = 11,
+		Assassin = 12,
+		// 13 is unused
+		// 2-2
+		Crusader = 14,
+		Monk = 15,
+		Sage = 16,
+		Rogue = 17,
+		Alchemist = 18,
+		Bard = 19,
+		Dancer = 20,
+		// 21 is unused
+		Wedding = 22,
+		SuperNovice = 23,
 	}
 
 	/// <summary>

@@ -209,12 +209,12 @@ namespace Sabine.Zone.Scripting.Dialogues
 		/// <returns></returns>
 		public async Task Talk(string message)
 		{
-			var pages = message.Split(new string[] { "<p/>" }, StringSplitOptions.None);
+			var pages = message.Split(["<p/>"], StringSplitOptions.None);
 
 			for (var i = 0; i < pages.Length; i++)
 			{
 				var page = pages[i];
-				var paragraphs = page.Split(new string[] { "<br/>" }, StringSplitOptions.None);
+				var paragraphs = page.Split(["<br/>"], StringSplitOptions.None);
 
 				this.MsgNpcName();
 				foreach (var paragraph in paragraphs)

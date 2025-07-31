@@ -1,7 +1,4 @@
-﻿using System.Collections;
-using Sabine.Zone.World.Entities;
-
-#pragma warning disable IDE0009
+﻿#pragma warning disable IDE0009
 
 namespace Sabine.Zone.Ais.Impl
 {

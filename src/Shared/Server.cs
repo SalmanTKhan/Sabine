@@ -189,6 +189,8 @@ namespace Sabine.Shared
 			this.LoadDataFile(SabineData.Jobs, "jobs.txt");
 			this.LoadDataFile(SabineData.Monsters, "monsters.txt");
 			this.LoadDataFile(SabineData.Maps, "maps.txt");
+			this.LoadDataFile(SabineData.Skills, "skills.txt");
+			this.LoadDataFile(SabineData.SkillTree, "skill_tree.txt");
 
 			var cacheFileName = "map_cache.dat";
 			for (var i = 0; i <= Game.Version; ++i)

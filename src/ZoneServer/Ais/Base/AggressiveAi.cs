@@ -1,36 +1,32 @@
 ﻿using System.Linq;
-using Sabine.Zone.Ais.Base;
-using Sabine.Zone.Ais.Impl;
 using Sabine.Zone.World.Entities;
 
 #pragma warning disable IDE0009
 
-namespace Sabine.Zone.Ais.Impl
+namespace Sabine.Zone.Ais.Base
 {
 	/// <summary>
-	/// AI Type 12: Mobile Guardian
+	/// Base class for AIs that are aggressive and attack players on sight.
 	/// </summary>
-	/// <remarks>
-	/// Aegis: 12
-	/// Behavior: Like Type 05 (mobile, aggressive), but only attacks
-	/// players who are not in the same guild as the monster.
-	/// Used for castle guardians.
-	/// </remarks>
-	[Ai("Type12")]
-	public class Type12 : AggressiveAi
+	public abstract class AggressiveAi : ReactiveAi
 	{
-		protected override void CheckForTargets(CallbackState state)
+		protected override void Init()
+		{
+			base.Init(); // Hooks CheckAttacks
+			During("Idle", CheckForTargets);
+		}
+
+		/// <summary>
+		/// Checks for nearby players and starts combat if any are found.
+		/// </summary>
+		protected virtual void CheckForTargets(CallbackState state)
 		{
 			if (state.Handled || _targetCharacterHandle != 0) return;
-
-			var myGuildId = Character.GuildId;
-			if (myGuildId == 0) return;
 
 			var chaseRange = (Character as Monster)?.Data.ChaseRange ?? 12;
 
 			var players = Character.Map.GetPlayers(p =>
 				!p.IsDead &&
-				p.GuildId != myGuildId &&
 				p.Position.InRange(Character.Position, chaseRange));
 
 			if (players.Any())

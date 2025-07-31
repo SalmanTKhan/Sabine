@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Linq;
+﻿using System.Linq;
 using Sabine.Zone.World.Entities;
 
 #pragma warning disable IDE0009
@@ -17,7 +15,7 @@ namespace Sabine.Zone.Ais.Impl
 	/// comes into its immediate attack range, it will switch to the closer enemy.
 	/// </remarks>
 	[Ai("Type21")]
-	public class Type21 : Type20 // Inherits from target-switching anti-magic AI
+	public class Type21 : Type20
 	{
 		protected override void Init()
 		{
@@ -45,7 +43,6 @@ namespace Sabine.Zone.Ais.Impl
 				{
 					var newTarget = closerTargets.OrderBy(p => p.Position.GetDistance(Character.Position)).First();
 					// Switch to the opportunistic target
-					_targetCharacterHandle = newTarget.Handle;
 					StartRoutine("Combat", Combat(newTarget.Handle));
 					state.Handled = true;
 				}

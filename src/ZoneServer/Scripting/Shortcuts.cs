@@ -10,6 +10,7 @@ using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Entities;
 using Sabine.Zone.World.Shops;
 using Sabine.Zone.World.Spawning;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Scripting
 {
@@ -356,5 +357,27 @@ namespace Sabine.Zone.Scripting
 		/// <returns></returns>
 		public static TimeSpan Milliseconds(double milliseconds)
 			=> TimeSpan.FromMilliseconds(milliseconds);
+
+		/// <summary>
+		/// Generates a random integer within a specified range.
+		/// </summary>
+		/// <param name="max">The exclusive upper bound of the random number to be generated. Must be greater than or equal to 0.</param>
+		/// <returns>A random integer greater than or equal to 0 and less than <paramref name="max"/>.</returns>
+		public static int Random(int max)
+			=> Random(0, max);
+
+		/// <summary>
+		/// Generates a random integer within a specified range.
+		/// </summary>
+		/// <param name="min">The inclusive lower bound of the random number returned.</param>
+		/// <param name="max">The exclusive upper bound of the random number returned. Must be greater than <paramref name="min"/>.</param>
+		/// <returns>A random integer greater than or equal to <paramref name="min"/> and less than <paramref name="max"/>.</returns>
+		/// <exception cref="ArgumentException">Thrown if <paramref name="min"/> is greater than or equal to <paramref name="max"/>.</exception>
+		public static int Random(int min, int max)
+		{
+			if (min >= max)
+				throw new ArgumentException("Min must be less than max.");
+			return RandomProvider.Get().Next(min, max);
+		}
 	}
 }

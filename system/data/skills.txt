@@ -1,0 +1,112 @@
+// Sabine
+// Database File
+// 
+// This file contains core data for game skills, derived from various
+// early client and server data files.
+// 
+// Fields:
+//   id:
+//     The numeric ID of the skill, used by the client for identification.
+//   skillId:
+//     The internal string identifier for the skill (Aegis name).
+//   name:
+//     The English name of the skill.
+//   koreanName:
+//     The Korean name of the skill.
+//   maxLevel:
+//     The maximum level the skill can reach.
+//   type:
+//     The general category of the skill (e.g., Passive, Attack, Support).
+//   target:
+//     The type of target the skill can be used on.
+//   range:
+//     The effective range of the skill. -1 indicates weapon range.
+//   element:
+//     The elemental property of the skill.
+//   costs:
+//     An object detailing the resources required to use the skill. Values
+//     are arrays corresponding to each skill level.
+//   flags:
+//     An object containing boolean flags for various skill properties.
+//   versionMin, versionMax:
+//     (Optional) The minimum and maximum client version this skill is
+//     available for. If omitted, the skill is available in all versions.
+//---------------------------------------------------------------------------
+
+[
+// Novice Skills
+//---------------------------------------------------------------------------
+{ id: 1, skillId: "NV_BASIC", name: "Basic Skills", koreanName: "기본기능", maxLevel: 9, type: "Passive", "versionMin": 200 },
+{ id: 142, skillId: "NV_FIRSTAID", name: "First Aid", koreanName: "응급치료", maxLevel: 1, type: "Support", target: "Self", costs: { sp: [3] }, "versionMin": 200 },
+{ id: 143, skillId: "NV_TRICKDEAD", name: "Play Dead", koreanName: "죽은척하기", maxLevel: 1, type: "Support", target: "Self", costs: { sp: [5] }, "versionMin": 200 },
+
+// Swordman Skills
+//---------------------------------------------------------------------------
+{ id: 2, skillId: "SM_SWORD", name: "Sword Mastery", koreanName: "검 수련", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 3, skillId: "SM_TWOHAND", name: "Two-Handed Sword Mastery", koreanName: "양손검 수련", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 4, skillId: "SM_RECOVERY", name: "Increase HP Recovery", koreanName: "HP회복력 향상", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 5, skillId: "SM_BASH", name: "Bash", koreanName: "배쉬", maxLevel: 10, type: "Attack", target: "Enemy", range: -1, element: "Weapon", costs: { sp: [8, 8, 8, 8, 8, 15, 15, 15, 15, 15], "versionMin": 200 }, flags: { castCancel: false }, "versionMin": 200 },
+{ id: 6, skillId: "SM_PROVOKE", name: "Provoke", koreanName: "프로보크", maxLevel: 10, type: "Support", target: "Enemy", range: 8, costs: { sp: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13] }, "versionMin": 200 },
+{ id: 7, skillId: "SM_MAGNUM", name: "Magnum Break", koreanName: "매그넘 브레이크", maxLevel: 10, type: "Attack", target: "Self", range: -1, element: "Fire", costs: { sp: [30], hp: [20, 20, 19, 19, 18, 18, 17, 17, 16, 16], "versionMin": 200 }, flags: { castCancel: false, splash: true, splashArea: 5 }, "versionMin": 200 },
+{ id: 8, skillId: "SM_ENDURE", name: "Endure", koreanName: "인듀어", maxLevel: 10, type: "Support", target: "Self", costs: { sp: [10] }, "versionMin": 200 },
+
+// Mage Skills
+//---------------------------------------------------------------------------
+{ id: 9, skillId: "MG_SRECOVERY", name: "Increase SP Recovery", koreanName: "SP회복력 향상", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 10, skillId: "MG_SIGHT", name: "Sight", koreanName: "사이트", maxLevel: 1, type: "Support", target: "Self", range: 8, element: "Fire", costs: { sp: [10], "versionMin": 200 }, flags: { castCancel: true, splash: true, splashArea: 7 }, "versionMin": 200 },
+{ id: 11, skillId: "MG_NAPALMBEAT", name: "Napalm Beat", koreanName: "네이팜 비트", maxLevel: 10, type: "Attack", target: "Enemy", range: 8, element: "Ghost", costs: { sp: [9, 9, 9, 12, 12, 12, 15, 15, 15, 18], "versionMin": 200 }, flags: { castCancel: true, splash: true, splashArea: 3 }, "versionMin": 200 },
+{ id: 12, skillId: "MG_SAFETYWALL", name: "Safety Wall", koreanName: "세이프티 월", maxLevel: 10, type: "Support", target: "Ground", range: 8, element: "Ghost", costs: { sp: [30, 30, 30, 35, 35, 35, 40, 40, 40, 40], items: [{ name: "Blue Gemstone", amount: 1 }], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 13, skillId: "MG_SOULSTRIKE", name: "Soul Strike", koreanName: "소울 스트라이크", maxLevel: 10, type: "Attack", target: "Enemy", range: 8, element: "Ghost", costs: { sp: [8, 12, 15, 18, 20, 22, 23, 24, 25, 25], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 14, skillId: "MG_COLDBOLT", name: "Cold Bolt", koreanName: "콜드볼트", maxLevel: 10, type: "Attack", target: "Enemy", range: 8, element: "Water", costs: { sp: [12, 14, 16, 18, 20, 22, 24, 26, 28, 30], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 15, skillId: "MG_FROSTDIVER", name: "Frost Diver", koreanName: "프로스트 다이버", maxLevel: 10, type: "Attack", target: "Enemy", range: 8, element: "Water", costs: { sp: [25, 24, 23, 22, 21, 20, 19, 18, 17, 16], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 16, skillId: "MG_STONECURSE", name: "Stone Curse", koreanName: "스톤 커스", maxLevel: 10, type: "Support", target: "Enemy", range: 2, element: "Earth", costs: { sp: [25, 24, 23, 22, 21, 20, 19, 18, 17, 16], items: [{ name: "Red Gemstone", amount: 1 }], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 17, skillId: "MG_FIREBALL", name: "Fire Ball", koreanName: "화이어 볼", maxLevel: 10, type: "Attack", target: "Enemy", range: 8, element: "Fire", costs: { sp: [25, 25, 25, 25, 25, 25, 25, 25, 25, 25], "versionMin": 200 }, flags: { castCancel: true, splash: true, splashArea: 3 }, "versionMin": 200 },
+{ id: 18, skillId: "MG_FIREWALL", name: "Fire Wall", koreanName: "화이어 월", maxLevel: 10, type: "Attack", target: "Ground", range: 8, element: "Fire", costs: { sp: [40, 40, 40, 40, 40, 40, 40, 40, 40, 40], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 19, skillId: "MG_FIREBOLT", name: "Fire Bolt", koreanName: "화이어 볼트", maxLevel: 10, type: "Attack", target: "Enemy", range: 8, element: "Fire", costs: { sp: [12, 14, 16, 18, 20, 22, 24, 26, 28, 30], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 20, skillId: "MG_LIGHTNINGBOLT", name: "Lightning Bolt", koreanName: "라이트닝 볼트", maxLevel: 10, type: "Attack", target: "Enemy", range: 8, element: "Wind", costs: { sp: [12, 14, 16, 18, 20, 22, 24, 26, 28, 30], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 21, skillId: "MG_THUNDERSTORM", name: "Thunder Storm", koreanName: "썬더스톰", maxLevel: 10, type: "Attack", target: "Ground", range: 5, element: "Wind", costs: { sp: [29, 32, 35, 38, 41, 44, 47, 50, 53, 56], "versionMin": 200 }, flags: { castCancel: true, splash: true, splashArea: 5 }, "versionMin": 200 },
+
+// Acolyte Skills
+//---------------------------------------------------------------------------
+{ id: 22, skillId: "AL_DP", name: "Divine Protection", koreanName: "디바인 프로텍션", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 23, skillId: "AL_DEMONBANE", name: "Demonbane", koreanName: "데몬베인", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 24, skillId: "AL_RUWACH", name: "Ruwach", koreanName: "루아흐", maxLevel: 1, type: "Support", target: "Self", range: 8, costs: { sp: [10], "versionMin": 200 }, flags: { castCancel: true, splash: true, splashArea: 5 }, "versionMin": 200 },
+{ id: 25, skillId: "AL_PNEUMA", name: "Pneuma", koreanName: "프뉴마", maxLevel: 1, type: "Support", target: "Ground", range: 8, costs: { sp: [10], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 26, skillId: "AL_TELEPORT", name: "Teleportation", koreanName: "텔레포테이션", maxLevel: 2, type: "Support", target: "Self", costs: { sp: [10, 9], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 27, skillId: "AL_WARP", name: "Warp Portal", koreanName: "워프 포탈", maxLevel: 4, type: "Support", target: "Ground", range: 5, costs: { sp: [35, 35, 35, 35], items: [{ name: "Blue Gemstone", amount: 1 }], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 28, skillId: "AL_HEAL", name: "Heal", koreanName: "힐", maxLevel: 10, type: "Support", target: "Ally", range: 8, costs: { sp: [13, 16, 19, 22, 25, 28, 31, 34, 37, 40], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 29, skillId: "AL_INCAGI", name: "Speed Up", koreanName: "민첩성 증가", maxLevel: 10, type: "Support", target: "Ally", range: 8, costs: { sp: [18, 21, 24, 27, 30, 33, 36, 39, 42, 45], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 30, skillId: "AL_DECAGI", name: "Speed Down", koreanName: "민첩성 감소", maxLevel: 10, type: "Support", target: "Enemy", range: 8, costs: { sp: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 31, skillId: "AL_HOLYWATER", name: "Aqua Benedicta", koreanName: "아쿠아 베네딕타", maxLevel: 1, type: "Support", target: "Self", range: 1, costs: { sp: [10], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 32, skillId: "AL_CRUCIS", name: "Signum Crucis", koreanName: "시그넘 크루시스", maxLevel: 10, type: "Support", target: "Self", range: 8, costs: { sp: [35, 35, 35, 35, 35, 35, 35, 35, 35, 35], "versionMin": 200 }, flags: { castCancel: true, splash: true, splashArea: 19 }, "versionMin": 200 },
+{ id: 33, skillId: "AL_ANGELUS", name: "Angelus", koreanName: "안젤루스", maxLevel: 10, type: "Support", target: "Self", costs: { sp: [14, 18, 22, 26, 30, 34, 38, 42, 46, 50], "versionMin": 200 }, flags: { castCancel: true, splash: true, splashArea: 19 }, "versionMin": 200 },
+{ id: 34, skillId: "AL_BLESSING", name: "Blessing", koreanName: "블레싱", maxLevel: 10, type: "Support", target: "Ally", range: 8, costs: { sp: [28, 32, 36, 40, 44, 48, 52, 56, 60, 64], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+{ id: 35, skillId: "AL_CURE", name: "Cure", koreanName: "큐어", maxLevel: 1, type: "Support", target: "Ally", range: 8, costs: { sp: [15], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+
+// Merchant Skills
+//---------------------------------------------------------------------------
+{ id: 36, skillId: "MC_INCCARRY", name: "Enlarge Weight Limit", koreanName: "소지한계량 증가", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 37, skillId: "MC_DISCOUNT", name: "Discount", koreanName: "디스카운트", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 38, skillId: "MC_OVERCHARGE", name: "Overcharge", koreanName: "오버차지", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 39, skillId: "MC_PUSHCART", name: "Pushcart", koreanName: "푸쉬카트", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 40, skillId: "MC_IDENTIFY", name: "Identify", koreanName: "아이템 감정", maxLevel: 1, type: "Support", target: "Self", costs: { sp: [15] }, "versionMin": 200 },
+{ id: 41, skillId: "MC_VENDING", name: "Vending", koreanName: "노점개설", maxLevel: 10, type: "Support", target: "Self", costs: { sp: [30] }, "versionMin": 200 },
+{ id: 42, skillId: "MC_MAMMONITE", name: "Mammonite", koreanName: "매머나이트", maxLevel: 10, type: "Attack", target: "Enemy", range: -2, element: "Neutral", costs: { zeny: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000], "versionMin": 200 }, flags: { castCancel: false }, "versionMin": 200 },
+
+// Archer Skills
+//---------------------------------------------------------------------------
+{ id: 43, skillId: "AC_OWL", name: "Owl's Eye", koreanName: "올빼미의 눈", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 44, skillId: "AC_VULTURE", name: "Vulture's Eye", koreanName: "독수리의 눈", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 45, skillId: "AC_CONCENTRATION", name: "Attention Concentrate", koreanName: "집중력 향상", maxLevel: 10, type: "Support", target: "Self", costs: { sp: [25, 30, 35, 40, 45, 50, 55, 60, 65, 70] }, "versionMin": 200 },
+{ id: 46, skillId: "AC_DOUBLE", name: "Double Strafing", koreanName: "더블 스트레이핑", maxLevel: 10, type: "Attack", target: "Enemy", range: -3, element: "Weapon", costs: { sp: [12, 12, 12, 12, 12, 12, 12, 12, 12, 12] }, "versionMin": 200 },
+{ id: 47, skillId: "AC_SHOWER", name: "Arrow Shower", koreanName: "애로우 샤워", maxLevel: 10, type: "Attack", target: "Enemy", range: -3, element: "Weapon", costs: { sp: [15, 15, 15, 15, 15, 15, 15, 15, 15, 15], "versionMin": 200 }, flags: { splash: true, splashArea: 3, knockback: 1 }, "versionMin": 200 },
+
+// Thief Skills
+//---------------------------------------------------------------------------
+{ id: 48, skillId: "TF_DOUBLE", name: "Double Slash", koreanName: "더블 어택", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 49, skillId: "TF_MISS", name: "Dodge Increase", koreanName: "회피율 증가", maxLevel: 10, type: "Passive", "versionMin": 200 },
+{ id: 50, skillId: "TF_STEAL", name: "Steal", koreanName: "스틸", maxLevel: 10, type: "Support", target: "Enemy", range: 1, costs: { sp: [10] }, "versionMin": 200 },
+{ id: 51, skillId: "TF_HIDING", name: "Hiding", koreanName: "하이딩", maxLevel: 10, type: "Support", target: "Self", costs: { sp: [10] }, "versionMin": 200 },
+{ id: 52, skillId: "TF_POISON", name: "Envenom", koreanName: "인베넘", maxLevel: 10, type: "Attack", target: "Enemy", range: 3, element: "Poison", costs: { sp: [12] }, "versionMin": 200 },
+{ id: 53, skillId: "TF_DETOXIFY", name: "Detoxify", koreanName: "해독", maxLevel: 1, type: "Support", target: "Ally", range: 10, costs: { sp: [10], "versionMin": 200 }, flags: { castCancel: true }, "versionMin": 200 },
+]

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Linq;
+﻿using System.Linq;
 using Sabine.Zone.World.Entities;
 
 #pragma warning disable IDE0009
@@ -17,19 +15,17 @@ namespace Sabine.Zone.Ais.Impl
 	/// Used for castle guardians.
 	/// </remarks>
 	[Ai("Type11")]
-	public class Type11 : Type10 // Inherits immobile combat logic
+	public class Type11 : Type10
 	{
-		private void CheckForTargetsInRange(CallbackState state)
+		protected override void CheckForTargetsInRange(CallbackState state)
 		{
 			if (state.Handled || _targetCharacterHandle != 0) return;
 
-			// Guardians are associated with a guild.
-			var myGuildId = (Character as Monster)?.GuildId ?? 0;
-			if (myGuildId == 0) return; // Not a guardian if no guild is set.
+			var myGuildId = Character.GuildId;
+			if (myGuildId == 0) return;
 
 			var attackRange = ((Character as Monster)?.Data.AttackRange ?? 1);
 
-			// Assuming PlayerCharacter has a GuildId property.
 			var players = Character.Map.GetPlayers(p =>
 				!p.IsDead &&
 				p.GuildId != myGuildId &&

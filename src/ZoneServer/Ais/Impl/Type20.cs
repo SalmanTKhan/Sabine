@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Linq;
+﻿using System.Linq;
 using Sabine.Zone.World.Entities;
 
 #pragma warning disable IDE0009
@@ -16,11 +14,11 @@ namespace Sabine.Zone.Ais.Impl
 	/// a player who starts casting a spell nearby.
 	/// </remarks>
 	[Ai("Type20")]
-	public class Type20 : Type19 // Inherits from aggressive anti-magic
+	public class Type20 : Type19
 	{
 		protected override void Init()
 		{
-			base.Init(); // Sets up Idle checks
+			base.Init();
 			During("Combat", CheckForCastersAndSwitch);
 		}
 
@@ -40,7 +38,6 @@ namespace Sabine.Zone.Ais.Impl
 			{
 				var newTarget = casters.OrderBy(p => p.Position.GetDistance(Character.Position)).First();
 				// Switch target
-				_targetCharacterHandle = newTarget.Handle;
 				StartRoutine("Combat", Combat(newTarget.Handle)); // Restarts HuntDown on new target
 				state.Handled = true;
 			}

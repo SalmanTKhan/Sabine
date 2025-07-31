@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Linq;
 using Sabine.Shared.World;
+using Sabine.Zone.Ais.Base;
+using Sabine.Zone.Ais.Impl;
 using Sabine.Zone.World.Entities;
 
 #pragma warning disable IDE0009
@@ -17,44 +19,18 @@ namespace Sabine.Zone.Ais.Impl
 	/// It picks up items, attacks back when hit, and helps friends in need.
 	/// </remarks>
 	[Ai("Type07")]
-	public class Type07 : MonsterAi
+	public class Type07 : ReactiveAi
 	{
-		private int _targetCharacterHandle;
 		private int _targetItemHandle;
 
 		protected override void Init()
 		{
-			During("Idle", CheckAttacks);
-			During("PickUpItem", CheckAttacks);
-
+			base.Init(); // Hooks CheckAttacks
 			During("Idle", CheckFriendAttacks);
-
 			During("Idle", CheckNearbyItems);
+
 			During("PickUpItem", CheckTargetItem);
-		}
-
-		protected override void Start()
-		{
-			StartRoutine("Idle", Idle());
-		}
-
-		private IEnumerable Idle()
-		{
-			while (true)
-			{
-				yield return Wait(3000, 10000);
-				yield return Wander(5);
-			}
-		}
-
-		private IEnumerable Combat(int handle)
-		{
-			_targetCharacterHandle = handle;
-			yield return HuntDown(handle);
-			_targetCharacterHandle = 0;
-			Character.AttackerHandleTest = 0;
-
-			StartRoutine("Idle", Idle());
+			During("PickUpItem", base.CheckAttacks); // Can be attacked while looting
 		}
 
 		private IEnumerable PickUpItem(int handle, Position pos)
@@ -64,18 +40,6 @@ namespace Sabine.Zone.Ais.Impl
 			yield return PickUp(handle);
 
 			StartRoutine("Idle", Idle());
-		}
-
-		private void CheckAttacks(CallbackState state)
-		{
-			if (state.Handled || _targetCharacterHandle != 0) return;
-
-			if (Character.AttackerHandleTest != 0)
-			{
-				_targetCharacterHandle = Character.AttackerHandleTest;
-				StartRoutine("Combat", Combat(_targetCharacterHandle));
-				state.Handled = true;
-			}
 		}
 
 		private void CheckFriendAttacks(CallbackState state)
@@ -91,8 +55,7 @@ namespace Sabine.Zone.Ais.Impl
 			if (friends.Any())
 			{
 				var friend = friends.First();
-				_targetCharacterHandle = friend.AttackerHandleTest;
-				StartRoutine("Combat", Combat(_targetCharacterHandle));
+				StartRoutine("Combat", Combat(friend.AttackerHandleTest));
 				state.Handled = true;
 			}
 		}
@@ -110,6 +73,8 @@ namespace Sabine.Zone.Ais.Impl
 
 		private void CheckTargetItem(CallbackState state)
 		{
+			if (state.Handled) return;
+
 			if (!EntityExists(_targetItemHandle))
 			{
 				_targetItemHandle = 0;

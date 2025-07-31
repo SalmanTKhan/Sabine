@@ -17,8 +17,6 @@ namespace Sabine.Zone.Ais.Impl
 	[Ai("Type06")]
 	public class Type06 : MonsterAi
 	{
-		private int _targetCharacterHandle;
-
 		protected override void Init()
 		{
 			During("Idle", CheckAttacks);
@@ -29,14 +27,14 @@ namespace Sabine.Zone.Ais.Impl
 			StartRoutine("Idle", Idle());
 		}
 
-		private IEnumerable Idle()
+		protected virtual IEnumerable Idle()
 		{
 			// Infinite wait, this monster is stationary.
 			while (true)
 				yield return true;
 		}
 
-		private IEnumerable Combat(int handle)
+		protected virtual IEnumerable Combat(int handle)
 		{
 			_targetCharacterHandle = handle;
 			var attacker = Character;
@@ -66,14 +64,13 @@ namespace Sabine.Zone.Ais.Impl
 			StartRoutine("Idle", Idle());
 		}
 
-		private void CheckAttacks(CallbackState state)
+		protected void CheckAttacks(CallbackState state)
 		{
 			if (_targetCharacterHandle != 0) return;
 
 			if (Character.AttackerHandleTest != 0)
 			{
-				_targetCharacterHandle = Character.AttackerHandleTest;
-				StartRoutine("Combat", Combat(_targetCharacterHandle));
+				StartRoutine("Combat", Combat(Character.AttackerHandleTest));
 				state.Handled = true;
 			}
 		}

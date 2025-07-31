@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using Sabine.Zone.Ais.Base;
+using Sabine.Zone.Ais.Impl;
 
 #pragma warning disable IDE0009
 
@@ -10,20 +11,12 @@ namespace Sabine.Zone.Ais.Impl
 	/// <remarks>
 	/// Aegis: 01
 	/// Athena: 0x0081 (MD_CANMOVE|MD_CANATTACK)
+	/// Behavior: Wanders around passively, but will fight back if attacked.
 	/// </remarks>
 	[Ai("Type01")]
-	public class Type01 : MonsterAi
+	public class Type01 : ReactiveAi
 	{
-		protected override void Start()
-		{
-			this.StartRoutine("Idle", this.Idle());
-		}
-
-		protected IEnumerable Idle()
-		{
-			yield return Wait(3000, 10000);
-			yield return Wander(5);
-		}
+		// All behavior is inherited from ReactiveAi.
 	}
 }
 

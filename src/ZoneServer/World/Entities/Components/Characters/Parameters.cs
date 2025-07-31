@@ -10,6 +10,7 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 	/// </summary>
 	public abstract class Parameters
 	{
+		#region Base Stats
 		/// <summary>
 		/// Gets or sets the character's STR stat.
 		/// </summary>
@@ -125,7 +126,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			set { _skillPoints = Math.Max(0, value); }
 		}
 		private int _skillPoints = 0;
+		#endregion
 
+		#region Vitals and Capacity
 		/// <summary>
 		/// Returns the character's current weight.
 		/// </summary>
@@ -182,7 +185,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			set { _spMax = Math.Max(1, value); }
 		}
 		private int _spMax = 10;
+		#endregion
 
+		#region Combat Stats
 		/// <summary>
 		/// Returns the character's current attack.
 		/// </summary>
@@ -220,48 +225,6 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		public int Defense { get; set; }
 
 		/// <summary>
-		/// Gets or sets the character's base experience points.
-		/// </summary>
-		public int BaseExp { get; set; }
-
-		/// <summary>
-		/// Gets or sets the character's job experience points.
-		/// </summary>
-		public int JobExp { get; set; }
-
-		/// <summary>
-		/// Returns the amount of experience points necessary to reach
-		/// the next base level.
-		/// </summary>
-		public int BaseExpNeeded { get; set; } = 9;
-
-		/// <summary>
-		/// Returns the amount of experience points necessary to reach
-		/// the next job level.
-		/// </summary>
-		public int JobExpNeeded { get; set; }
-
-		/// <summary>
-		/// Gets or sets the character's current base level.
-		/// </summary>
-		public int BaseLevel { get; set; } = 1;
-
-		/// <summary>
-		/// Gets or sets the character's current base level.
-		/// </summary>
-		public int JobLevel { get; set; } = 1;
-
-		/// <summary>
-		/// Gets or sets how many Zeny the character has.
-		/// </summary>
-		public int Zeny
-		{
-			get => _zeny;
-			set { _zeny = Math.Max(0, value); }
-		}
-		private int _zeny = 0;
-
-		/// <summary>
 		/// Gets or sets the character's hit value, which determines how
 		/// likely they are to hit or miss an enemy.
 		/// </summary>
@@ -293,6 +256,234 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		/// Gets or sets the character's attack speed value.
 		/// </summary>
 		public int Aspd { get; set; } = 150;
+		#endregion
+
+		#region Levels and Experience
+		/// <summary>
+		/// Gets or sets the character's base experience points.
+		/// </summary>
+		public int BaseExp { get; set; }
+
+		/// <summary>
+		/// Gets or sets the character's job experience points.
+		/// </summary>
+		public int JobExp { get; set; }
+
+		/// <summary>
+		/// Returns the amount of experience points necessary to reach
+		/// the next base level.
+		/// </summary>
+		public int BaseExpNeeded { get; set; } = 9;
+
+		/// <summary>
+		/// Returns the amount of experience points necessary to reach
+		/// the next job level.
+		/// </summary>
+		public int JobExpNeeded { get; set; }
+
+		/// <summary>
+		/// Gets or sets the character's current base level.
+		/// </summary>
+		public int BaseLevel { get; set; } = 1;
+
+		/// <summary>
+		/// Gets or sets the character's current base level.
+		/// </summary>
+		public int JobLevel { get; set; } = 1;
+		#endregion
+
+		#region Currencies and Identity
+		/// <summary>
+		/// Gets or sets how many Zeny the character has.
+		/// </summary>
+		public int Zeny
+		{
+			get => _zeny;
+			set { _zeny = Math.Max(0, value); }
+		}
+		private int _zeny = 0;
+
+		/// <summary>
+		/// Gets or sets the character's karma value.
+		/// </summary>
+		public int Karma { get; set; }
+
+		/// <summary>
+		/// Gets or sets the character's manner value.
+		/// </summary>
+		public int Manner { get; set; }
+
+		/// <summary>
+		/// Gets or sets the character's class ID.
+		/// </summary>
+		public int Class { get; set; }
+
+		/// <summary>
+		/// Gets or sets the character's sex.
+		/// </summary>
+		public int Sex { get; set; }
+		#endregion
+
+		#region Bonus Stats and Sub-Stats
+		/// <summary>Gets or sets the bonus STR from equipment and buffs.</summary>
+		public int BonusStr { get; set; }
+		/// <summary>Gets or sets the bonus AGI from equipment and buffs.</summary>
+		public int BonusAgi { get; set; }
+		/// <summary>Gets or sets the bonus VIT from equipment and buffs.</summary>
+		public int BonusVit { get; set; }
+		/// <summary>Gets or sets the bonus INT from equipment and buffs.</summary>
+		public int BonusInt { get; set; }
+		/// <summary>Gets or sets the bonus DEX from equipment and buffs.</summary>
+		public int BonusDex { get; set; }
+		/// <summary>Gets or sets the bonus LUK from equipment and buffs.</summary>
+		public int BonusLuk { get; set; }
+
+		/// <summary>Gets or sets the character's status attack power.</summary>
+		public int AttackPower { get; set; }
+		/// <summary>Gets or sets the character's weapon attack power.</summary>
+		public int AttackPower2 { get; set; }
+		/// <summary>Gets or sets the character's status magic attack power.</summary>
+		public int MagicAttackPower { get; set; }
+		/// <summary>Gets or sets the character's weapon magic attack power.</summary>
+		public int MagicAttackPower2 { get; set; }
+		/// <summary>Gets or sets the character's soft defense.</summary>
+		public int Defense1 { get; set; }
+		/// <summary>Gets or sets the character's hard defense.</summary>
+		public int Defense2 { get; set; }
+		/// <summary>Gets or sets the character's soft magic defense.</summary>
+		public int MagicDefense { get; set; }
+		/// <summary>Gets or sets the character's hard magic defense.</summary>
+		public int MagicDefense2 { get; set; }
+		/// <summary>Gets or sets the character's perfect dodge chance.</summary>
+		public int Flee2 { get; set; }
+		/// <summary>Gets or sets the character's critical chance.</summary>
+		public int Critical { get; set; }
+		#endregion
+
+		#region Misc Basic Parameters
+		/// <summary>Gets or sets the character's 'upper' state.</summary>
+		public int Upper { get; set; }
+		/// <summary>Gets or sets the character's partner ID.</summary>
+		public int Partner { get; set; }
+		/// <summary>Gets or sets the character's cart state.</summary>
+		public int Cart { get; set; }
+		/// <summary>Gets or sets the character's fame points.</summary>
+		public int Fame
+		{
+			get => _fame;
+			set { _fame = Math.Max(0, value); }
+		}
+		private int _fame = 0;
+		/// <summary>Gets or sets the character's unbreakable equipment flags.</summary>
+		public int Unbreakable { get; set; }
+		/// <summary>Gets or sets the character's cart info flags.</summary>
+		public int CartInfo { get; set; }
+		#endregion
+
+		#region Special Parameters
+		/// <summary>Gets or sets whether the character is sitting.</summary>
+		public int Sitting { get; set; }
+		/// <summary>Gets or sets the amount of zeny in the bank vault.</summary>
+		public int BankVault
+		{
+			get => _bankVault;
+			set { _bankVault = Math.Max(0, value); }
+		}
+		private int _bankVault = 0;
+		/// <summary>Gets or sets the number of bronze roulette credits.</summary>
+		public int RouletteBronze { get; set; }
+		/// <summary>Gets or sets the number of silver roulette credits.</summary>
+		public int RouletteSilver { get; set; }
+		/// <summary>Gets or sets the number of gold roulette credits.</summary>
+		public int RouletteGold { get; set; }
+		/// <summary>Gets or sets the character's cash points.</summary>
+		public int CashPoints
+		{
+			get => _cashPoints;
+			set { _cashPoints = Math.Max(0, value); }
+		}
+		private int _cashPoints = 0;
+		/// <summary>Gets or sets the character's kafra points.</summary>
+		public int KafraPoints
+		{
+			get => _kafraPoints;
+			set { _kafraPoints = Math.Max(0, value); }
+		}
+		private int _kafraPoints = 0;
+		/// <summary>Gets or sets the character's death counter.</summary>
+		public int PlayerDieCounter { get; set; }
+		/// <summary>Gets or sets the character's cooking mastery level.</summary>
+		public int CookMastery { get; set; }
+		/// <summary>Gets or sets the character's achievement level.</summary>
+		public int AchievementLevel { get; set; }
+		#endregion
+
+		#region Mercenary Parameters
+		/// <summary>Gets or sets the mercenary's flee stat.</summary>
+		public int MercFlee { get; set; }
+		/// <summary>Gets or sets the mercenary's kill count.</summary>
+		public int MercKills { get; set; }
+		/// <summary>Gets or sets the mercenary's faith/loyalty.</summary>
+		public int MercFaith { get; set; }
+		#endregion
+
+		#region 4th Job Parameters
+		/// <summary>Gets or sets the character's POW trait stat.</summary>
+		public int Pow { get => _pow; set { _pow = Math.Max(1, value); } }
+		private int _pow = 1;
+		/// <summary>Gets or sets the character's STA trait stat.</summary>
+		public int Sta { get => _sta; set { _sta = Math.Max(1, value); } }
+		private int _sta = 1;
+		/// <summary>Gets or sets the character's WIS trait stat.</summary>
+		public int Wis { get => _wis; set { _wis = Math.Max(1, value); } }
+		private int _wis = 1;
+		/// <summary>Gets or sets the character's SPL trait stat.</summary>
+		public int Spl { get => _spl; set { _spl = Math.Max(1, value); } }
+		private int _spl = 1;
+		/// <summary>Gets or sets the character's CON trait stat.</summary>
+		public int Con { get => _con; set { _con = Math.Max(1, value); } }
+		private int _con = 1;
+		/// <summary>Gets or sets the character's CRT trait stat.</summary>
+		public int Crt { get => _crt; set { _crt = Math.Max(1, value); } }
+		private int _crt = 1;
+
+		/// <summary>Gets or sets the character's P.ATK sub-stat.</summary>
+		public int Patk { get; set; }
+		/// <summary>Gets or sets the character's S.MATK sub-stat.</summary>
+		public int Smatk { get; set; }
+		/// <summary>Gets or sets the character's RES sub-stat.</summary>
+		public int Res { get; set; }
+		/// <summary>Gets or sets the character's MRES sub-stat.</summary>
+		public int Mres { get; set; }
+		/// <summary>Gets or sets the character's H.PLUS sub-stat.</summary>
+		public int Hplus { get; set; }
+		/// <summary>Gets or sets the character's C.RATE sub-stat.</summary>
+		public int Crate { get; set; }
+
+		/// <summary>Gets or sets the character's available trait points.</summary>
+		public int TraitPoint { get => _traitPoint; set { _traitPoint = Math.Max(0, value); } }
+		private int _traitPoint = 0;
+
+		/// <summary>Gets or sets the character's current AP.</summary>
+		public int AP { get => _ap; set { _ap = Math2.Clamp(0, this.MaxAP, value); } }
+		private int _ap = 0;
+		/// <summary>Gets or sets the character's maximum AP.</summary>
+		public int MaxAP { get => _maxAP; set { _maxAP = Math.Max(1, value); } }
+		private int _maxAP = 1;
+
+		/// <summary>Gets or sets the bonus POW from equipment and buffs.</summary>
+		public int BonusPow { get; set; }
+		/// <summary>Gets or sets the bonus STA from equipment and buffs.</summary>
+		public int BonusSta { get; set; }
+		/// <summary>Gets or sets the bonus WIS from equipment and buffs.</summary>
+		public int BonusWis { get; set; }
+		/// <summary>Gets or sets the bonus SPL from equipment and buffs.</summary>
+		public int BonusSpl { get; set; }
+		/// <summary>Gets or sets the bonus CON from equipment and buffs.</summary>
+		public int BonusCon { get; set; }
+		/// <summary>Gets or sets the bonus CRT from equipment and buffs.</summary>
+		public int BonusCrt { get; set; }
+		#endregion
 
 		/// <summary>
 		/// Returns the value for the given parameter.
@@ -307,6 +498,8 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.Speed: return this.Speed;
 				case ParameterType.BaseExp: return this.BaseExp;
 				case ParameterType.JobExp: return this.JobExp;
+				case ParameterType.Karma: return this.Karma;
+				case ParameterType.Manner: return this.Manner;
 				case ParameterType.Hp: return this.Hp;
 				case ParameterType.HpMax: return this.HpMax;
 				case ParameterType.Sp: return this.Sp;
@@ -320,7 +513,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.Int: return this.Int;
 				case ParameterType.Dex: return this.Dex;
 				case ParameterType.Luk: return this.Luk;
+				case ParameterType.Class: return this.Class;
 				case ParameterType.Zeny: return this.Zeny;
+				case ParameterType.Sex: return this.Sex;
 				case ParameterType.BaseExpNeeded: return this.BaseExpNeeded;
 				case ParameterType.JobExpNeeded: return this.JobExpNeeded;
 				case ParameterType.Weight: return this.Weight;
@@ -329,7 +524,68 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.AttackMax: return this.AttackMax;
 				case ParameterType.Defense: return this.Defense;
 				case ParameterType.MagicAttack: return this.MagicAttack;
+				// NOTE: The following BonusStat enums have values that conflict with the parameters above.
+				// They are omitted from this switch to prevent compile errors.
+				// case ParameterType.BonusStr:
+				// case ParameterType.BonusAgi:
+				// case ParameterType.BonusVit:
+				// case ParameterType.BonusInt:
+				case ParameterType.BonusDex: return this.BonusDex;
+				case ParameterType.BonusLuk: return this.BonusLuk;
+				case ParameterType.AttackPower: return this.AttackPower;
+				case ParameterType.AttackPower2: return this.AttackPower2;
+				case ParameterType.MagicAttackPower: return this.MagicAttackPower;
+				case ParameterType.MagicAttackPower2: return this.MagicAttackPower2;
+				case ParameterType.Defense1: return this.Defense1;
+				case ParameterType.Defense2: return this.Defense2;
+				case ParameterType.MagicDefense: return this.MagicDefense;
+				case ParameterType.MagicDefense2: return this.MagicDefense2;
+				case ParameterType.Hit: return this.Hit;
+				case ParameterType.Flee: return this.Flee;
+				case ParameterType.Flee2: return this.Flee2;
+				case ParameterType.Critical: return this.Critical;
+				case ParameterType.Aspd: return this.Aspd;
 				case ParameterType.JobLevel: return this.JobLevel;
+				case ParameterType.Upper: return this.Upper;
+				case ParameterType.Partner: return this.Partner;
+				case ParameterType.Cart: return this.Cart;
+				case ParameterType.Fame: return this.Fame;
+				case ParameterType.Unbreakable: return this.Unbreakable;
+				case ParameterType.CartInfo: return this.CartInfo;
+				case ParameterType.Sitting: return this.Sitting;
+				case ParameterType.BankVault: return this.BankVault;
+				case ParameterType.RouletteBronze: return this.RouletteBronze;
+				case ParameterType.RouletteSilver: return this.RouletteSilver;
+				case ParameterType.RouletteGold: return this.RouletteGold;
+				case ParameterType.CashPoints: return this.CashPoints;
+				case ParameterType.KafraPoints: return this.KafraPoints;
+				case ParameterType.PlayerDieCounter: return this.PlayerDieCounter;
+				case ParameterType.CookMastery: return this.CookMastery;
+				case ParameterType.AchievementLevel: return this.AchievementLevel;
+				case ParameterType.MercFlee: return this.MercFlee;
+				case ParameterType.MercKills: return this.MercKills;
+				case ParameterType.MercFaith: return this.MercFaith;
+				case ParameterType.Pow: return this.Pow;
+				case ParameterType.Sta: return this.Sta;
+				case ParameterType.Wis: return this.Wis;
+				case ParameterType.Spl: return this.Spl;
+				case ParameterType.Con: return this.Con;
+				case ParameterType.Crt: return this.Crt;
+				case ParameterType.Patk: return this.Patk;
+				case ParameterType.Smatk: return this.Smatk;
+				case ParameterType.Res: return this.Res;
+				case ParameterType.Mres: return this.Mres;
+				case ParameterType.Hplus: return this.Hplus;
+				case ParameterType.Crate: return this.Crate;
+				case ParameterType.TraitPoint: return this.TraitPoint;
+				case ParameterType.AP: return this.AP;
+				case ParameterType.MaxAP: return this.MaxAP;
+				case ParameterType.BonusPow: return this.BonusPow;
+				case ParameterType.BonusSta: return this.BonusSta;
+				case ParameterType.BonusWis: return this.BonusWis;
+				case ParameterType.BonusSpl: return this.BonusSpl;
+				case ParameterType.BonusCon: return this.BonusCon;
+				case ParameterType.BonusCrt: return this.BonusCrt;
 
 				default:
 					throw new ArgumentException($"Invalid parameter type '{type}'.");
@@ -351,6 +607,8 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.Speed: this.Speed = value; break;
 				case ParameterType.BaseExp: this.BaseExp = value; break;
 				case ParameterType.JobExp: this.JobExp = value; break;
+				case ParameterType.Karma: this.Karma = value; break;
+				case ParameterType.Manner: this.Manner = value; break;
 				case ParameterType.Hp: this.Hp = value; break;
 				case ParameterType.HpMax: this.HpMax = value; break;
 				case ParameterType.Sp: this.Sp = value; break;
@@ -364,7 +622,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.Int: this.Int = value; break;
 				case ParameterType.Dex: this.Dex = value; break;
 				case ParameterType.Luk: this.Luk = value; break;
+				case ParameterType.Class: this.Class = value; break;
 				case ParameterType.Zeny: this.Zeny = value; break;
+				case ParameterType.Sex: this.Sex = value; break;
 				case ParameterType.BaseExpNeeded: this.BaseExpNeeded = value; break;
 				case ParameterType.JobExpNeeded: this.JobExpNeeded = value; break;
 				case ParameterType.Weight: this.Weight = value; break;
@@ -373,7 +633,62 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.AttackMax: this.AttackMax = value; break;
 				case ParameterType.Defense: this.Defense = value; break;
 				case ParameterType.MagicAttack: this.MagicAttack = value; break;
+				case ParameterType.BonusDex: this.BonusDex = value; break;
+				case ParameterType.BonusLuk: this.BonusLuk = value; break;
+				case ParameterType.AttackPower: this.AttackPower = value; break;
+				case ParameterType.AttackPower2: this.AttackPower2 = value; break;
+				case ParameterType.MagicAttackPower: this.MagicAttackPower = value; break;
+				case ParameterType.MagicAttackPower2: this.MagicAttackPower2 = value; break;
+				case ParameterType.Defense1: this.Defense1 = value; break;
+				case ParameterType.Defense2: this.Defense2 = value; break;
+				case ParameterType.MagicDefense: this.MagicDefense = value; break;
+				case ParameterType.MagicDefense2: this.MagicDefense2 = value; break;
+				case ParameterType.Hit: this.Hit = value; break;
+				case ParameterType.Flee: this.Flee = value; break;
+				case ParameterType.Flee2: this.Flee2 = value; break;
+				case ParameterType.Critical: this.Critical = value; break;
+				case ParameterType.Aspd: this.Aspd = value; break;
 				case ParameterType.JobLevel: this.JobLevel = value; break;
+				case ParameterType.Upper: this.Upper = value; break;
+				case ParameterType.Partner: this.Partner = value; break;
+				case ParameterType.Cart: this.Cart = value; break;
+				case ParameterType.Fame: this.Fame = value; break;
+				case ParameterType.Unbreakable: this.Unbreakable = value; break;
+				case ParameterType.CartInfo: this.CartInfo = value; break;
+				case ParameterType.Sitting: this.Sitting = value; break;
+				case ParameterType.BankVault: this.BankVault = value; break;
+				case ParameterType.RouletteBronze: this.RouletteBronze = value; break;
+				case ParameterType.RouletteSilver: this.RouletteSilver = value; break;
+				case ParameterType.RouletteGold: this.RouletteGold = value; break;
+				case ParameterType.CashPoints: this.CashPoints = value; break;
+				case ParameterType.KafraPoints: this.KafraPoints = value; break;
+				case ParameterType.PlayerDieCounter: this.PlayerDieCounter = value; break;
+				case ParameterType.CookMastery: this.CookMastery = value; break;
+				case ParameterType.AchievementLevel: this.AchievementLevel = value; break;
+				case ParameterType.MercFlee: this.MercFlee = value; break;
+				case ParameterType.MercKills: this.MercKills = value; break;
+				case ParameterType.MercFaith: this.MercFaith = value; break;
+				case ParameterType.Pow: this.Pow = value; break;
+				case ParameterType.Sta: this.Sta = value; break;
+				case ParameterType.Wis: this.Wis = value; break;
+				case ParameterType.Spl: this.Spl = value; break;
+				case ParameterType.Con: this.Con = value; break;
+				case ParameterType.Crt: this.Crt = value; break;
+				case ParameterType.Patk: this.Patk = value; break;
+				case ParameterType.Smatk: this.Smatk = value; break;
+				case ParameterType.Res: this.Res = value; break;
+				case ParameterType.Mres: this.Mres = value; break;
+				case ParameterType.Hplus: this.Hplus = value; break;
+				case ParameterType.Crate: this.Crate = value; break;
+				case ParameterType.TraitPoint: this.TraitPoint = value; break;
+				case ParameterType.AP: this.AP = value; break;
+				case ParameterType.MaxAP: this.MaxAP = value; break;
+				case ParameterType.BonusPow: this.BonusPow = value; break;
+				case ParameterType.BonusSta: this.BonusSta = value; break;
+				case ParameterType.BonusWis: this.BonusWis = value; break;
+				case ParameterType.BonusSpl: this.BonusSpl = value; break;
+				case ParameterType.BonusCon: this.BonusCon = value; break;
+				case ParameterType.BonusCrt: this.BonusCrt = value; break;
 
 				default:
 					throw new ArgumentException($"Invalid parameter type '{type}'.");
@@ -403,6 +718,8 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.Speed: this.Speed += modifier; break;
 				case ParameterType.BaseExp: this.BaseExp += modifier; break;
 				case ParameterType.JobExp: this.JobExp += modifier; break;
+				case ParameterType.Karma: this.Karma += modifier; break;
+				case ParameterType.Manner: this.Manner += modifier; break;
 				case ParameterType.Hp: this.Hp += modifier; break;
 				case ParameterType.HpMax: this.HpMax += modifier; break;
 				case ParameterType.Sp: this.Sp += modifier; break;
@@ -416,7 +733,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.Int: this.Int += modifier; break;
 				case ParameterType.Dex: this.Dex += modifier; break;
 				case ParameterType.Luk: this.Luk += modifier; break;
+				case ParameterType.Class: this.Class += modifier; break;
 				case ParameterType.Zeny: this.Zeny = Math2.AddChecked(this.Zeny, modifier); break;
+				case ParameterType.Sex: this.Sex += modifier; break;
 				case ParameterType.BaseExpNeeded: this.BaseExpNeeded += modifier; break;
 				case ParameterType.JobExpNeeded: this.JobExpNeeded += modifier; break;
 				case ParameterType.Weight: this.Weight += modifier; break;
@@ -425,7 +744,62 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				case ParameterType.AttackMax: this.AttackMax += modifier; break;
 				case ParameterType.Defense: this.Defense += modifier; break;
 				case ParameterType.MagicAttack: this.MagicAttack += modifier; break;
+				case ParameterType.BonusDex: this.BonusDex += modifier; break;
+				case ParameterType.BonusLuk: this.BonusLuk += modifier; break;
+				case ParameterType.AttackPower: this.AttackPower += modifier; break;
+				case ParameterType.AttackPower2: this.AttackPower2 += modifier; break;
+				case ParameterType.MagicAttackPower: this.MagicAttackPower += modifier; break;
+				case ParameterType.MagicAttackPower2: this.MagicAttackPower2 += modifier; break;
+				case ParameterType.Defense1: this.Defense1 += modifier; break;
+				case ParameterType.Defense2: this.Defense2 += modifier; break;
+				case ParameterType.MagicDefense: this.MagicDefense += modifier; break;
+				case ParameterType.MagicDefense2: this.MagicDefense2 += modifier; break;
+				case ParameterType.Hit: this.Hit += modifier; break;
+				case ParameterType.Flee: this.Flee += modifier; break;
+				case ParameterType.Flee2: this.Flee2 += modifier; break;
+				case ParameterType.Critical: this.Critical += modifier; break;
+				case ParameterType.Aspd: this.Aspd += modifier; break;
 				case ParameterType.JobLevel: this.JobLevel += modifier; break;
+				case ParameterType.Upper: this.Upper += modifier; break;
+				case ParameterType.Partner: this.Partner += modifier; break;
+				case ParameterType.Cart: this.Cart += modifier; break;
+				case ParameterType.Fame: this.Fame += modifier; break;
+				case ParameterType.Unbreakable: this.Unbreakable += modifier; break;
+				case ParameterType.CartInfo: this.CartInfo += modifier; break;
+				case ParameterType.Sitting: this.Sitting += modifier; break;
+				case ParameterType.BankVault: this.BankVault += modifier; break;
+				case ParameterType.RouletteBronze: this.RouletteBronze += modifier; break;
+				case ParameterType.RouletteSilver: this.RouletteSilver += modifier; break;
+				case ParameterType.RouletteGold: this.RouletteGold += modifier; break;
+				case ParameterType.CashPoints: this.CashPoints += modifier; break;
+				case ParameterType.KafraPoints: this.KafraPoints += modifier; break;
+				case ParameterType.PlayerDieCounter: this.PlayerDieCounter += modifier; break;
+				case ParameterType.CookMastery: this.CookMastery += modifier; break;
+				case ParameterType.AchievementLevel: this.AchievementLevel += modifier; break;
+				case ParameterType.MercFlee: this.MercFlee += modifier; break;
+				case ParameterType.MercKills: this.MercKills += modifier; break;
+				case ParameterType.MercFaith: this.MercFaith += modifier; break;
+				case ParameterType.Pow: this.Pow += modifier; break;
+				case ParameterType.Sta: this.Sta += modifier; break;
+				case ParameterType.Wis: this.Wis += modifier; break;
+				case ParameterType.Spl: this.Spl += modifier; break;
+				case ParameterType.Con: this.Con += modifier; break;
+				case ParameterType.Crt: this.Crt += modifier; break;
+				case ParameterType.Patk: this.Patk += modifier; break;
+				case ParameterType.Smatk: this.Smatk += modifier; break;
+				case ParameterType.Res: this.Res += modifier; break;
+				case ParameterType.Mres: this.Mres += modifier; break;
+				case ParameterType.Hplus: this.Hplus += modifier; break;
+				case ParameterType.Crate: this.Crate += modifier; break;
+				case ParameterType.TraitPoint: this.TraitPoint += modifier; break;
+				case ParameterType.AP: this.AP += modifier; break;
+				case ParameterType.MaxAP: this.MaxAP += modifier; break;
+				case ParameterType.BonusPow: this.BonusPow += modifier; break;
+				case ParameterType.BonusSta: this.BonusSta += modifier; break;
+				case ParameterType.BonusWis: this.BonusWis += modifier; break;
+				case ParameterType.BonusSpl: this.BonusSpl += modifier; break;
+				case ParameterType.BonusCon: this.BonusCon += modifier; break;
+				case ParameterType.BonusCrt: this.BonusCrt += modifier; break;
 
 				default:
 					throw new ArgumentException($"Unsupported parameter type '{type}'.");

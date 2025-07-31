@@ -1,5 +1,6 @@
-﻿using System.Collections;
-using System.Linq;
+﻿using System.Linq;
+using Sabine.Zone.Ais.Base;
+using Sabine.Zone.Ais.Impl;
 using Sabine.Zone.World.Entities;
 
 #pragma warning disable IDE0009
@@ -15,49 +16,12 @@ namespace Sabine.Zone.Ais.Impl
 	/// who starts casting a spell in its vicinity.
 	/// </remarks>
 	[Ai("Type17")]
-	public class Type17 : MonsterAi
+	public class Type17 : ReactiveAi
 	{
-		private int _targetCharacterHandle;
-
 		protected override void Init()
 		{
-			During("Idle", CheckAttacks);
+			base.Init(); // Hooks CheckAttacks
 			During("Idle", CheckForCasters);
-		}
-
-		protected override void Start()
-		{
-			StartRoutine("Idle", Idle());
-		}
-
-		private IEnumerable Idle()
-		{
-			while (true)
-			{
-				yield return Wait(3000, 10000);
-				yield return Wander(5);
-			}
-		}
-
-		private IEnumerable Combat(int handle)
-		{
-			_targetCharacterHandle = handle;
-			yield return HuntDown(handle);
-			_targetCharacterHandle = 0;
-			Character.AttackerHandleTest = 0;
-			StartRoutine("Idle", Idle());
-		}
-
-		private void CheckAttacks(CallbackState state)
-		{
-			if (state.Handled || _targetCharacterHandle != 0) return;
-
-			if (Character.AttackerHandleTest != 0)
-			{
-				_targetCharacterHandle = Character.AttackerHandleTest;
-				StartRoutine("Combat", Combat(_targetCharacterHandle));
-				state.Handled = true;
-			}
 		}
 
 		private void CheckForCasters(CallbackState state)
@@ -72,7 +36,6 @@ namespace Sabine.Zone.Ais.Impl
 			if (players.Any())
 			{
 				var target = players.OrderBy(p => p.Position.GetDistance(Character.Position)).First();
-				_targetCharacterHandle = target.Handle;
 				StartRoutine("Combat", Combat(target.Handle));
 				state.Handled = true;
 			}

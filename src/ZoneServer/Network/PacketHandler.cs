@@ -14,6 +14,7 @@ using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Entities.Components.Characters;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Logging;
 
@@ -604,8 +605,9 @@ namespace Sabine.Zone.Network
 
 			if (type == RestartType.SavePoint)
 			{
-				character.Heal();
+				character.Heal(character.Parameters.HpMax / 2, 0);
 				character.Warp(character.SaveLocation);
+				character.State = CharacterState.Standing;
 			}
 		}
 

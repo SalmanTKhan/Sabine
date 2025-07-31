@@ -46,5 +46,15 @@ namespace Sabine.Shared.Data
 		/// db/monsters.txt
 		/// </summary>
 		public static MonsterDb Monsters { get; } = new();
+
+		/// <summary>
+		/// db/skills.txt
+		/// </summary>
+		public static SkillDb Skills { get; } = new();
+
+		/// <summary>
+		/// db/skill_tree.txt
+		/// </summary>
+		public static SkillTreeDb SkillTree { get; } = new();
 	}
 }

@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections;
-using System.Linq;
+﻿using System.Linq;
+using Sabine.Zone.Ais.Base;
+using Sabine.Zone.Ais.Impl;
 using Sabine.Zone.World.Entities;
 
 #pragma warning disable IDE0009
@@ -16,9 +16,9 @@ namespace Sabine.Zone.Ais.Impl
 	/// players who are casting spells.
 	/// </remarks>
 	[Ai("Type19")]
-	public class Type19 : Type05 // Inherits mobile aggressive base
+	public class Type19 : AggressiveAi
 	{
-		private void CheckForTargets(CallbackState state)
+		protected override void CheckForTargets(CallbackState state)
 		{
 			if (state.Handled || _targetCharacterHandle != 0) return;
 
@@ -44,7 +44,6 @@ namespace Sabine.Zone.Ais.Impl
 
 			if (target != null)
 			{
-				_targetCharacterHandle = target.Handle;
 				StartRoutine("Combat", Combat(target.Handle));
 				state.Handled = true;
 			}
