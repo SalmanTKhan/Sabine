@@ -1,0 +1,25 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: CZ_USE_SKILL.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+if (CLIENT_VERSION > BETA2) {
+    short skillId;
+    short level;
+} else {
+    short level;
+    short skillId;
+}
+int targetId;
