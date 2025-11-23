@@ -204,21 +204,30 @@ namespace Sabine.Zone.Ais
 		/// it can wander to.
 		/// </summary>
 		/// <param name="range"></param>
+		/// <param name="wanderPos"></param>
 		/// <returns></returns>
 		protected bool TryFindWanderPosition(int range, out Position wanderPos)
 		{
 			var curPos = this.Character.Position;
+			var map = this.Character.Map;
+			var mapWidth = map.CacheData.Width;
+			var mapHeight = map.CacheData.Height;
+
 			wanderPos = new Position(0, 0);
 
-			// TODO: Get a random passable from the tile data?
 			for (var i = 0; i < 100; ++i)
 			{
 				wanderPos = curPos.GetRandomInRange(_wanderMinDistance, range);
 
-				if (!this.Character.Map.IsPassable(wanderPos))
+				// Validate position is within map bounds
+				if (wanderPos.X < 0 || wanderPos.X >= mapWidth ||
+					wanderPos.Y < 0 || wanderPos.Y >= mapHeight)
 					continue;
 
-				if (this.Character.Map.PathFinder.PathExists(curPos, wanderPos))
+				if (!map.IsPassable(wanderPos))
+					continue;
+
+				if (map.PathFinder.PathExists(curPos, wanderPos))
 					return true;
 			}
 

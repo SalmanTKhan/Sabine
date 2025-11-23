@@ -1,0 +1,19 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: CZ_STATUS_CHANGE.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+ParameterType statusID;
+byte changeAmount;

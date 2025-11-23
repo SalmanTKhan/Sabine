@@ -1,0 +1,36 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_NOTIFY_MOVE.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "inc/common.bt"
+#include "inc/versions.bt"
+
+ClientHeaderFixed header;
+
+int handle;
+
+// The coordinate format changed in Beta2? (Hypothetical example)
+if (CLIENT_VERSION < BETA2) {
+    short x;
+    short y;
+} else {
+    // Packed coordinates (3 bytes) used in later versions
+    ubyte p1;
+    ubyte p2;
+    ubyte p3;
+    
+    local int x = (p1 << 2) | (p2 >> 6);
+    local int y = ((p2 & 0x3F) << 4) | (p3 >> 4);
+    Printf("Coords: %d, %d\n", x, y);
+}
+
+int tick;

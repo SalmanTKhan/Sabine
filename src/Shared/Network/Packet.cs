@@ -21,6 +21,11 @@ namespace Sabine.Shared.Network
 		public Op Op { get; set; }
 
 		/// <summary>
+		/// Gets the number of elements in the buffer.
+		/// </summary>
+		public int Length => _buffer.Length;
+
+		/// <summary>
 		/// Creates new packet to write to.
 		/// </summary>
 		/// <param name="op"></param>

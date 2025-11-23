@@ -1,0 +1,26 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_STATUS.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Full Stats Update
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+short point <comment="Status Points">;
+ubyte str; ubyte standard_str;
+ubyte agi; ubyte standard_agi;
+ubyte vit; ubyte standard_vit;
+ubyte int_; ubyte standard_int;
+ubyte dex; ubyte standard_dex;
+ubyte luk; ubyte standard_luk;
+short atk; short atk_bonus;
+short def; short def_bonus; // or matk depending on version?
+
+if (CLIENT_VERSION >= BETA1) {
+    ubyte padding[24];
+}

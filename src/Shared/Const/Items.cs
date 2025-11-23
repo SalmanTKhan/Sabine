@@ -127,12 +127,43 @@ namespace Sabine.Shared.Const
 		ShadowAccRight = 0x100000,
 		ShadowAccLeft = 0x200000,
 
+		ShadowAccessories = ShadowAccLeft | ShadowAccRight,
+
 		// Old client compatibility aliases
 		Head = HeadLow | HeadMid | HeadTop,
 		Accessory1 = AccessoryLeft,
 		Accessory2 = AccessoryRight,
 		Robe = Garment,
 		Accessories = Accessory1 | Accessory2,
+	}
+
+	public enum WeaponType
+	{
+		// A good practice is to have a default/unknown value at 0.
+		Unknown = 0,
+
+		Dagger = 1,
+		OneHandedSword = 2,
+		TwoHandedSword = 3,
+		OneHandedSpear = 4,
+		TwoHandedSpear = 5,
+		OneHandedAxe = 6,
+		TwoHandedAxe = 7,
+		Mace = 8,
+		// LookId 9 is intentionally skipped as in the original code
+		Staff = 10,
+		Bow = 11,
+		Knuckle = 12,
+		Instrument = 13,
+		Whip = 14,
+		Book = 15,
+		Katar = 16,
+		Revolver = 17,
+		Rifle = 18,
+		GatlingGun = 19,
+		Shotgun = 20,
+		GrenadeLauncher = 21,
+		Shuriken = 22
 	}
 
 	/// <summary>

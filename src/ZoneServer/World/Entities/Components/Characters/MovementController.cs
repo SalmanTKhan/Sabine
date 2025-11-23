@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Sabine.Shared.Const;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
 using Yggdrasil.Extensions;
@@ -251,6 +252,56 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			{
 				var warp = warps[0];
 				character.Warp(warp.WarpDestination);
+			}
+		}
+
+		/// <summary>
+		/// Knocks the character back from a source position.
+		/// </summary>
+		public void Knockback(Position source, int distance)
+		{
+			if (this.Character.State == CharacterState.Dead) return;
+			// Add check for "Endure" state or Boss status which prevents knockback
+
+			var current = this.Character.Position;
+
+			// Calculate direction vector
+			int dx = current.X - source.X;
+			int dy = current.Y - source.Y;
+
+			// Normalize somewhat to get a direction
+			if (dx == 0 && dy == 0)
+			{
+				// Source and target on same cell, pick random direction or default East
+				dx = 1;
+			}
+
+			// Simple grid based knockback logic
+			int dirX = Math.Sign(dx);
+			int dirY = Math.Sign(dy);
+
+			var newPos = new Position(
+				(short)(current.X + (dirX * distance)),
+				(short)(current.Y + (dirY * distance))
+			);
+
+			// Validate the final position (is it walkable?)
+			// If the full distance isn't walkable, find the furthest walkable cell in that line
+			// For simplicity here, we check the final destination. 
+			// Real implementation should raycast.
+			if (this.Character.Map.IsPassable(newPos))
+			{
+				this.StopMove(); // Stop current pathing
+				this.Character.Position = newPos;
+
+				// Notify client of forced position change
+				Send.ZC_NOTIFY_MOVE(this.Character, current, newPos);
+
+				if (this.Character is PlayerCharacter pc)
+				{
+					// Update client's view of self
+					Send.ZC_NOTIFY_PLAYERMOVE(pc, current, newPos);
+				}
 			}
 		}
 	}

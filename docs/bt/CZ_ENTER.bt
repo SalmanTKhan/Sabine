@@ -1,0 +1,17 @@
+//------------------------------------------------
+//      File: CZ_ENTER.bt
+//   Purpose: Zone Server Login
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+int accountId;
+int charId;
+int sessionId;
+
+// Logic handles versions. Assuming > Beta1 based on modern defaults
+// If using Alpha/Pre-Beta1, comment out 'clientTick'.
+int clientTick; 
+
+byte sex <comment="0: Female, 1: Male">;

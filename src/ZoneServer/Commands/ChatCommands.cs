@@ -73,6 +73,9 @@ namespace Sabine.Zone.Commands
 		{
 			Log.Debug("Hello, test!");
 
+			if (Enum.TryParse<SkillId>(args.Get(0), out var skillId))
+				sender.Skills.Add(skillId, 1, SkillPerm.Temporary);
+
 			return CommandResult.Okay;
 		}
 

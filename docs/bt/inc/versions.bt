@@ -1,0 +1,14 @@
+enum <int> PACKET_VER {
+    ALPHA = 100,
+    BETA1 = 200,
+    BETA2 = 300,
+    EP3   = 400,
+    EP3_2 = 500,
+    EP4   = 600,
+    EP8   = 700
+};
+
+// Default version if not set. 
+// You can change this variable in the main template before including this file
+// or set it via 010 Editor Scripts.
+local int CLIENT_VERSION = BETA1;

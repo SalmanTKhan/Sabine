@@ -1,0 +1,10 @@
+//------------------------------------------------
+//      File: CZ_WHISPER.bt
+//   Purpose: Send Private Message
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderDynamic header;
+
+char receiver[24] <comment="Target Name">; // Often 24 in later versions, logic says 16 in older?
+string message;

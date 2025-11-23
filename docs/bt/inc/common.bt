@@ -1,0 +1,30 @@
+//------------------------------------------------
+//--- 010 Editor v15.0 Binary Template
+//
+//      File: common.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "inc/headers.bt"
+#include "inc/enums.bt"
+#include "inc/params.bt"
+#include "inc/versions.bt"
+
+Printf("Game Version: %d", CLIENT_VERSION);
+
+typedef struct {
+    ubyte b1;
+    ubyte b2;
+    ubyte b3;
+    
+    // Calculated coordinates for display
+    local int x = (b1 << 2) | (b2 >> 6);
+    local int y = ((b2 & 0x3F) << 4) | (b3 >> 4);
+    local int dir = (b3 & 0x0F);
+} PackedCoordinate <read=Str("(%d, %d) Dir: %d", x, y, dir)>;

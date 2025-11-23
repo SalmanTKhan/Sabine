@@ -1,0 +1,14 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_NOTIFY_VANISH.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Remove Entity
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+int gid;
+byte type <comment="0:Out of sight, 1:Dead, 2:Teleport">;

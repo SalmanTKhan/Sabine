@@ -1,0 +1,10 @@
+//------------------------------------------------
+//      File: CZ_USE_ITEM.bt
+//   Purpose: Use consumable item
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+short index <comment="Inventory Index">;
+int id <comment="Client Tick or ID">;

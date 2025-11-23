@@ -57,10 +57,8 @@ namespace Sabine.Zone.Network
 			var account = this.Account;
 			var character = this.Character;
 
-			if (character != null)
-			{
-				character?.Map.RemoveCharacter(character);
-			}
+			character?.Party?.MemberOffline(character);
+			character?.Map.RemoveCharacter(character);
 
 			if (account != null && character != null)
 			{

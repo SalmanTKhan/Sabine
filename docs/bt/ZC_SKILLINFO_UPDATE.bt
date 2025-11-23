@@ -1,0 +1,19 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_SKILLINFO_UPDATE.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Skill Update
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+short skillID;
+short level;
+short spCost;
+if (CLIENT_VERSION >= BETA2) {
+    short range;
+}
+bool upgradable;

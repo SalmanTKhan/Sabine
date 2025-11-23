@@ -1,0 +1,18 @@
+//------------------------------------------------
+//--- 010 Editor v15.0 Binary Template
+//
+//      File: CA_LOGIN.bt
+//   Authors: Salman T. Khan
+//   Version: Alpha RO
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+char user[16];
+char pass[16];

@@ -11,6 +11,7 @@ using Sabine.Shared.World;
 using Sabine.Zone.Network;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Entities.Components.Characters;
+using Sabine.Zone.World.Groups;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
 using static Sabine.Shared.Util.TaskHelper;
@@ -20,10 +21,12 @@ namespace Sabine.Zone.World.Entities
 	/// <summary>
 	/// Represents a player character.
 	/// </summary>
-	public class PlayerCharacter : Character
+	public partial class PlayerCharacter : Character
 	{
 		private readonly object _visibilityUpdateSyncLock = new();
 		private readonly HashSet<int> _visibleEntities = new();
+		private Character _attackTarget;
+		private bool _isAutoAttacking;
 
 		/// <summary>
 		/// Gets or sets the connection that controls this player.
@@ -39,6 +42,11 @@ namespace Sabine.Zone.World.Entities
 		/// Returns a reference to the character's inventory.
 		/// </summary>
 		public Inventory Inventory { get; }
+
+		/// <summary>
+		/// Returns a reference to the character's skill component.
+		/// </summary>
+		public SkillComponent Skills { get; }
 
 		/// <summary>
 		/// Returns this character's username.
@@ -143,6 +151,16 @@ namespace Sabine.Zone.World.Entities
 		private Localizer _localizer;
 
 		/// <summary>
+		/// Returns a reference to the character's party, if any.
+		/// </summary>
+		public Party Party { get; set; }
+
+		/// <summary>
+		/// Returns the character's party ID, or 0 if not in a party.
+		/// </summary>
+		public int PartyId => Party?.Id ?? 0;
+
+		/// <summary>
 		/// Creates a new character.
 		/// </summary>
 		public PlayerCharacter(JobId jobId)
@@ -154,6 +172,7 @@ namespace Sabine.Zone.World.Entities
 
 			this.LoadJobData(jobId);
 
+			this.Components.Add(this.Skills = new SkillComponent(this));
 			this.Components.Add(new RecoveryComponent(this));
 		}
 
@@ -231,7 +250,7 @@ namespace Sabine.Zone.World.Entities
 			this.IsWarping = true;
 			this.WarpLocation = location;
 
-			this.Controller.StopMove();
+			this.CancelAction();
 			this.StopObserving();
 
 			Send.ZC_NPCACK_MAPMOVE(this, map.StringId, location.Position);
@@ -267,6 +286,7 @@ namespace Sabine.Zone.World.Entities
 			if (this.State != CharacterState.Standing)
 				return;
 
+			this.CancelAction();
 			this.State = CharacterState.Sitting;
 			Send.ZC_NOTIFY_ACT.Simple(this, this.Handle, ActionType.SitDown);
 		}
@@ -291,6 +311,7 @@ namespace Sabine.Zone.World.Entities
 		{
 			base.Update(elapsed);
 			this.UpdateVisibility();
+			this.UpdateAttackAction();
 		}
 
 		/// <summary>
@@ -694,6 +715,79 @@ namespace Sabine.Zone.World.Entities
 			}
 
 			CallSafe(RunNpcDialogAsync());
+		}
+
+		/// <summary>
+		/// Overrides the base attack logic to handle moving into range first.
+		/// </summary>
+		public override void StartAttacking(Character target, bool autoAttack)
+		{
+			this.InitiateAttack(target, autoAttack);
+		}
+
+		/// <summary>
+		/// Initiates an attack on a target. For players, this will handle
+		/// moving into range before attacking.
+		/// </summary>
+		/// <param name="target">The character to attack.</param>
+		/// <param name="autoAttack">Whether to attack continuously.</param>
+		private void InitiateAttack(Character target, bool autoAttack)
+		{
+			if (target == null || target == this || target.IsDead)
+				return;
+
+			this.Controller.StopMove();
+			this.StopAttacking();
+
+			_attackTarget = target;
+			_isAutoAttacking = autoAttack;
+		}
+
+		/// <summary>
+		/// Cancels the current attack action, including moving towards a target.
+		/// </summary>
+		public void CancelAttack()
+		{
+			_attackTarget = null;
+			this.StopAttacking();
+		}
+
+		/// <summary>
+		/// Manages the state of a player-initiated attack, such as moving into range.
+		/// This is called on every update tick.
+		/// </summary>
+		private void UpdateAttackAction()
+		{
+			if (_attackTarget == null)
+				return;
+
+			if (_attackTarget.IsDead || _attackTarget.Map != this.Map)
+			{
+				this.CancelAction();
+				return;
+			}
+
+			if (this.State == CharacterState.Sitting)
+			{
+				this.CancelAction();
+				return;
+			}
+
+			var attackRange = this.GetAttackRange();
+
+			if (!this.Position.InRange(_attackTarget.Position, attackRange))
+			{
+				this.Controller.MoveTo(_attackTarget.Position);
+				return;
+			}
+
+			// We are in range. Stop moving and start the base attack loop.
+			this.Controller.StopMove();
+			base.StartAttacking(_attackTarget, _isAutoAttacking);
+
+			// The attack request is now handled by the base class's attack loop. 
+			// Clear the target to prevent this method from re-triggering the attack.
+			_attackTarget = null;
 		}
 	}
 }

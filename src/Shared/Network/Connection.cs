@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using Yggdrasil.Logging;
 using Yggdrasil.Network.TCP;
+using Yggdrasil.Util;
 
 namespace Sabine.Shared.Network
 {
@@ -40,11 +41,13 @@ namespace Sabine.Shared.Network
 		/// <param name="buffer"></param>
 		protected virtual void OnMessageReceived(byte[] buffer)
 		{
+			PaleLogger.Log(false, buffer);
+
 			var packet = new Packet(buffer);
 			packet.Op = PacketTable.ToHost((int)packet.Op);
 
-			//Log.Debug("< Op: 0x{0:X4} ({1})\r\n{2}", PacketTable.ToNetwork(packet.Op), packet.Op, Hex.ToString(buffer, HexStringOptions.SpaceSeparated | HexStringOptions.SixteenNewLine));
-			//Log.Debug("".PadRight(40, '-'));
+			Log.Debug("< Op: 0x{0:X4} ({1})\r\n{2}", PacketTable.ToNetwork(packet.Op), packet.Op, Hex.ToString(buffer, HexStringOptions.SpaceSeparated | HexStringOptions.SixteenNewLine));
+			Log.Debug("".PadRight(40, '-'));
 
 			this.OnPacketReceived(packet);
 		}
@@ -63,8 +66,10 @@ namespace Sabine.Shared.Network
 		{
 			var buffer = _framer.Frame(packet);
 
-			//Log.Debug("> Op: 0x{0:X4} ({1})\r\n{2}", PacketTable.ToNetwork(packet.Op), packet.Op, Hex.ToString(buffer, HexStringOptions.SpaceSeparated | HexStringOptions.SixteenNewLine));
-			//Log.Debug("".PadRight(40, '-'));
+			PaleLogger.Log(true, buffer);
+
+			Log.Debug("> Op: 0x{0:X4} ({1})\r\n{2}", PacketTable.ToNetwork(packet.Op), packet.Op, Hex.ToString(buffer, HexStringOptions.SpaceSeparated | HexStringOptions.SixteenNewLine));
+			Log.Debug("".PadRight(40, '-'));
 
 			var opNetwork = PacketTable.ToNetwork(packet.Op);
 

@@ -1,0 +1,10 @@
+//------------------------------------------------
+//      File: CZ_REQ_WEAR_EQUIP.bt
+//   Purpose: Equip item
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+short index <comment="Inventory Index">;
+ushort wearLocation <format=hex, comment="Bitmask">;

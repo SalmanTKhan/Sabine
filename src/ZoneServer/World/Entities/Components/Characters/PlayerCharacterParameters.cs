@@ -242,7 +242,7 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		public void RecalculateFlee()
 		{
 			this.Flee = this.BaseLevel + this.Agi;
-			//this.UpdateClient(ParameterType.Flee);
+			this.UpdateClient(ParameterType.Flee);
 		}
 
 		/// <summary>
@@ -280,8 +280,8 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				return;
 			}
 
-			//var weaponType = this.Character.Inventory.RightHand?.Data.WeaponType;
-			var weaponDelay = this.Character.JobData.WeaponDelays.BareHand; // .GetDelay(weaponType);
+			var weaponType = this.Character.Inventory.RightHand?.Data.GetWeaponType();
+			var weaponDelay = this.Character.JobData.WeaponDelays.GetDelay(weaponType);
 			var agi = this.Agi;
 			var dex = this.Dex;
 			var mods = 1f;

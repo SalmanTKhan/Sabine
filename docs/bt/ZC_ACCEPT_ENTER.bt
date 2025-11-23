@@ -1,0 +1,18 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_ACCEPT_ENTER.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Login Accepted
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+int startTime <comment="Game Tick">;
+PackedCoordinate pos;
+short xSize;
+short ySize;
+short font;

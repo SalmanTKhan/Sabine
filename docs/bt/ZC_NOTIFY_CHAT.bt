@@ -1,0 +1,14 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_NOTIFY_CHAT.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Public Chat
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderDynamic header;
+int gid;
+string message;

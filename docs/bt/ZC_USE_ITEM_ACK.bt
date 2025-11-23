@@ -1,0 +1,15 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_USE_ITEM_ACK.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Item Use Confirmation
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+short index;
+short amount;
+bool result;

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Sabine.Auth.Database;
 using Sabine.Auth.Network;
 using Sabine.Shared;
@@ -45,6 +47,7 @@ namespace Sabine.Auth
 			this.LoadConf();
 			this.LoadLocalization(this.Conf);
 			this.InitDatabase(this.Database, this.Conf);
+			this.CheckDatabaseUpdates();
 
 			foreach (var port in this.Conf.Auth.BindPorts)
 			{
@@ -69,6 +72,35 @@ namespace Sabine.Auth
 		private void OnConnectionAccepted(AuthConnection conn)
 		{
 			Log.Info("New connection accepted from '{0}'.", conn.Address);
+		}
+
+		/// <summary>
+		/// Checks for potential updates for the database.
+		/// </summary>
+		private void CheckDatabaseUpdates()
+		{
+			Log.Info("Checking for updates...");
+
+			// We had an issue with our update names, and to ensure that we
+			// don't break everyone's update history, we'll temporarily fix
+			// the update names on the fly. This should be removed at some
+			// point in the future.
+			//this.Database.NormalizeUpdateNames();
+
+			var enumOptions = new EnumerationOptions { RecurseSubdirectories = true, MatchCasing = MatchCasing.CaseInsensitive };
+			var filePaths = Directory.GetFiles("sql/updates/", "*.sql", enumOptions).OrderBy(a => a);
+
+			foreach (var filePath in filePaths)
+			{
+				var updateName = Path.GetFileName(filePath);
+				var normalizedName = updateName.ToLower().Replace("update-", "update_");
+
+				if (this.Database.CheckUpdate(normalizedName))
+					continue;
+
+				Log.Info("Update '{0}' found, executing...", updateName);
+				this.Database.RunUpdate(normalizedName, File.ReadAllText(filePath));
+			}
 		}
 	}
 }

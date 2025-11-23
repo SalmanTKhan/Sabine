@@ -1,0 +1,10 @@
+//------------------------------------------------
+//      File: CZ_REQUEST_ACT.bt
+//   Purpose: Request Action (Attack, Sit, etc)
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+int targetHandle <comment="GID of target or 0">;
+ActionType action <comment="0:Sit, 1:Stand, 2:Attack, 3:Damage, 4:Dead">;

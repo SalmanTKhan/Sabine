@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System;
+using Newtonsoft.Json.Linq;
 using Sabine.Shared.Const;
 using Yggdrasil.Data.JSON;
 
@@ -26,6 +27,19 @@ namespace Sabine.Shared.Data.Databases
 		public int RequiredLevel { get; set; }
 		public int WeaponLevel { get; set; }
 		public int LookId { get; set; }
+
+		public WeaponType GetWeaponType()
+		{
+			// Check if the LookId is a defined member of the WeaponType enum.
+			if (Enum.IsDefined(typeof(WeaponType), this.LookId))
+			{
+				// If it is, cast it directly.
+				return (WeaponType)this.LookId;
+			}
+
+			// Otherwise, return the default Unknown type.
+			return WeaponType.Unknown;
+		}
 	}
 
 	/// <summary>

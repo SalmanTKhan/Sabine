@@ -15,17 +15,21 @@ namespace Sabine.Shared.Data.Databases
 		Passive,
 		Attack,
 		Support,
+		Ground,
+		Self,
+		Trap
 	}
 
 	/// <summary>
 	/// Defines the type of target a skill can be used on.
 	/// </summary>
-	public enum SkillTarget
+	public enum SkillTargetType
 	{
 		Self,
 		Enemy,
 		Ally,
 		Ground,
+		Passive,
 	}
 
 	/// <summary>
@@ -47,6 +51,92 @@ namespace Sabine.Shared.Data.Databases
 	}
 
 	/// <summary>
+	/// Flags that define a skill's fundamental type (e.g., Attack, Support).
+	/// Corresponds to rAthena's 'inf'.
+	/// </summary>
+	[Flags]
+	public enum SkillTypeFlags : ushort
+	{
+		Passive = 0x00,
+		Attack = 0x01,
+		Ground = 0x02,
+		Self = 0x04,
+		// 0x08 is unused
+		Support = 0x10,
+		Trap = 0x20,
+	}
+
+	/// <summary>
+	/// Flags that define a skill's special properties.
+	/// Corresponds to rAthena's 'inf2'.
+	/// </summary>
+	[Flags]
+	public enum SkillPropertyFlags : ulong
+	{
+		IsQuest = 1 << 0,
+		IsNpc = 1 << 1,
+		IsWedding = 1 << 2,
+		IsSpirit = 1 << 3,
+		IsGuild = 1 << 4,
+		IsSong = 1 << 5,
+		IsEnsemble = 1 << 6,
+		IsTrap = 1 << 7,
+		TargetSelf = 1 << 8,
+		NoTargetSelf = 1 << 9,
+		PartyOnly = 1 << 10,
+		GuildOnly = 1 << 11,
+		NoTargetEnemy = 1 << 12,
+		IsAutoShadowSpell = 1 << 13,
+		IsChorus = 1 << 14,
+		IgnoreBgReduction = 1 << 15,
+		IgnoreGvgReduction = 1 << 16,
+		DisableNearNpc = 1 << 17,
+		TargetTrap = 1 << 18,
+		IgnoreLandProtector = 1 << 19,
+		AllowWhenHidden = 1 << 20,
+		AllowWhenPerforming = 1 << 21,
+		TargetEmperium = 1 << 22,
+		IgnoreKagehumi = 1 << 23,
+		AlterRangeVulture = 1 << 24,
+		AlterRangeSnakeEye = 1 << 25,
+		AlterRangeShadowJump = 1 << 26,
+		AlterRangeRadius = 1 << 27,
+		AlterRangeResearchTrap = 1 << 28,
+		IgnoreHovering = 1 << 29,
+		AllowOnWarg = 1 << 30,
+		AllowOnMado = 1u << 31,
+		TargetManhole = 1ul << 32,
+		TargetHidden = 1ul << 33,
+		IncreaseDanceWithWugDamage = 1ul << 34,
+		IgnoreWugBite = 1ul << 35,
+		IgnoreAutoGuard = 1ul << 36,
+		IgnoreCicada = 1ul << 37,
+		ShowScale = 1ul << 38,
+		IgnoreGtb = 1ul << 39,
+		Toggleable = 1ul << 40,
+	}
+
+	/// <summary>
+	/// Flags that define a skill's damage properties.
+	/// Corresponds to rAthena's 'nk'.
+	/// </summary>
+	[Flags]
+	public enum SkillDamageFlags : ushort
+	{
+		NoDamage = 1 << 0,
+		Splash = 1 << 1,
+		SplashSplit = 1 << 2,
+		IgnoreAtkCard = 1 << 3,
+		IgnoreElement = 1 << 4,
+		IgnoreDefense = 1 << 5,
+		IgnoreFlee = 1 << 6,
+		IgnoreDefCard = 1 << 7,
+		Critical = 1 << 8,
+		IgnoreLongCard = 1 << 9,
+		SimpleDefense = 1 << 10,
+	}
+
+	/// <summary>
 	/// Represents an item required to cast a skill.
 	/// </summary>
 	public class SkillItemCostData
@@ -62,19 +152,35 @@ namespace Sabine.Shared.Data.Databases
 	{
 		public int[] Sp { get; set; }
 		public int[] Hp { get; set; }
+		public int[] HpRate { get; set; }
+		public int[] SpRate { get; set; }
 		public int[] Zeny { get; set; }
+		public int[] Spiritball { get; set; }
 		public List<SkillItemCostData> Items { get; set; } = new();
 	}
 
 	/// <summary>
-	/// Represents various boolean properties of a skill.
+	/// Represents data related to the casting of a skill, including cast times, cooldowns, and delays after casting.
 	/// </summary>
-	public class SkillFlagsData
+	public class SkillCastData
+	{
+		public int[] CastTime { get; set; }
+		public int[] FixedCast { get; set; }
+		public int[] Cooldown { get; set; }
+		public int[] AfterCastActDelay { get; set; }
+		public int[] WalkDelay { get; set; }
+		public int[] Duration1 { get; set; }
+		public int[] Duration2 { get; set; }
+	}
+
+	/// <summary>
+	/// Represents various behavioral properties of a skill.
+	/// </summary>
+	public class SkillBehaviorData
 	{
 		public bool CastCancel { get; set; }
-		public bool Splash { get; set; }
-		public int SplashArea { get; set; }
-		public int Knockback { get; set; }
+		public int[] SplashArea { get; set; }
+		public int[] Knockback { get; set; }
 	}
 
 	/// <summary>
@@ -87,12 +193,19 @@ namespace Sabine.Shared.Data.Databases
 		public string Name { get; set; }
 		public string KoreanName { get; set; }
 		public int MaxLevel { get; set; }
-		public SkillType? Type { get; set; }
-		public SkillTarget? Target { get; set; }
-		public int Range { get; set; }
-		public SkillElement Element { get; set; }
+		public SkillType Type { get; set; }
+		public SkillTargetType? TargetType { get; set; }
+		public int[] Range { get; set; }
+		public SkillElement[] Element { get; set; }
+		public SkillTypeFlags TypeFlags { get; set; }
+		public SkillPropertyFlags PropertyFlags { get; set; }
+		public SkillDamageFlags DamageFlags { get; set; }
 		public SkillCostData Costs { get; set; } = new();
-		public SkillFlagsData Flags { get; set; } = new();
+		public SkillBehaviorData Behavior { get; set; } = new();
+		public SkillCastData Cast { get; set; } = new();
+
+		public int GetSpCost(int level) => this.Costs.Sp != null && this.Costs.Sp.Length >= level ? this.Costs.Sp[level - 1] : 0;
+		public int GetRange(int level) => this.Range != null && this.Range.Length >= level && level > 0 ? this.Range[level - 1] : 0;
 	}
 
 	/// <summary>
@@ -121,22 +234,40 @@ namespace Sabine.Shared.Data.Databases
 			data.Name = entry.ReadString("name");
 			data.KoreanName = entry.ReadString("koreanName", null);
 			data.MaxLevel = entry.ReadInt("maxLevel");
-
-			if (entry.ContainsKey("type"))
-				data.Type = entry.ReadEnum<SkillType>("type");
+			data.Type = entry.ReadEnum("type", SkillType.Passive);
 
 			if (entry.ContainsKey("target"))
-				data.Target = entry.ReadEnum<SkillTarget>("target");
+				data.TargetType = entry.ReadEnum<SkillTargetType>("target");
+			else
+				data.TargetType = SkillTargetType.Passive;
 
-			data.Range = entry.ReadInt("range", 0);
-			data.Element = entry.ReadEnum("element", SkillElement.Neutral);
+			data.TypeFlags |= data.Type switch
+			{
+				SkillType.Attack => SkillTypeFlags.Attack,
+				SkillType.Support => SkillTypeFlags.Support,
+				SkillType.Ground => SkillTypeFlags.Ground,
+				SkillType.Self => SkillTypeFlags.Self,
+				SkillType.Trap => SkillTypeFlags.Trap,
+				_ => SkillTypeFlags.Passive
+			};
+
+			if (data.TargetType == SkillTargetType.Ground)
+				data.TypeFlags |= SkillTypeFlags.Ground;
+
+			// Simplified parsing for single values, extended to arrays to match structure
+			data.Range = new[] { entry.ReadInt("range", 0) };
+			var element = entry.ReadEnum("element", SkillElement.Neutral);
+			data.Element = Array.ConvertAll(new int[data.MaxLevel], _ => element);
 
 			if (entry.ContainsKey("costs"))
 			{
 				var costsObj = (JObject)entry["costs"];
 				data.Costs.Sp = costsObj.ReadArray<int>("sp");
 				data.Costs.Hp = costsObj.ReadArray<int>("hp");
+				data.Costs.HpRate = costsObj.ReadArray<int>("hpRate");
+				data.Costs.SpRate = costsObj.ReadArray<int>("spRate");
 				data.Costs.Zeny = costsObj.ReadArray<int>("zeny");
+				data.Costs.Spiritball = costsObj.ReadArray<int>("spiritball");
 
 				if (costsObj.ContainsKey("items"))
 				{
@@ -156,10 +287,24 @@ namespace Sabine.Shared.Data.Databases
 			if (entry.ContainsKey("flags"))
 			{
 				var flagsObj = (JObject)entry["flags"];
-				data.Flags.CastCancel = flagsObj.ReadBool("castCancel", true);
-				data.Flags.Splash = flagsObj.ReadBool("splash", false);
-				data.Flags.SplashArea = flagsObj.ReadInt("splashArea", 0);
-				data.Flags.Knockback = flagsObj.ReadInt("knockback", 0);
+				data.Behavior.CastCancel = flagsObj.ReadBool("castCancel", true);
+				if (flagsObj.ReadBool("splash", false))
+					data.DamageFlags |= SkillDamageFlags.Splash;
+
+				data.Behavior.SplashArea = new[] { flagsObj.ReadInt("splashArea", 0) };
+				data.Behavior.Knockback = new[] { flagsObj.ReadInt("knockback", 0) };
+			}
+
+			if (entry.ContainsKey("cast"))
+			{
+				var castObj = (JObject)entry["cast"];
+				data.Cast.CastTime = castObj.ReadArray<int>("castTime");
+				data.Cast.FixedCast = castObj.ReadArray<int>("fixedCast");
+				data.Cast.Cooldown = castObj.ReadArray<int>("cooldown");
+				data.Cast.AfterCastActDelay = castObj.ReadArray<int>("afterCastActDelay");
+				data.Cast.WalkDelay = castObj.ReadArray<int>("walkDelay");
+				data.Cast.Duration1 = castObj.ReadArray<int>("duration1");
+				data.Cast.Duration2 = castObj.ReadArray<int>("duration2");
 			}
 
 			this.AddOrReplace(data.Id, data);

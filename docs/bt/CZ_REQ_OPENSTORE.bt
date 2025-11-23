@@ -1,0 +1,19 @@
+//------------------------------------------------
+//      File: CZ_REQ_OPENSTORE.bt
+//   Purpose: Open Vending Shop
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderDynamic header;
+
+char storeName[80];
+
+// Calculate how many items are remaining based on packet size
+local int remainingBytes = header.size - 4 - 80;
+local int itemCount = remainingBytes / 8;
+
+struct ShopItem {
+    short index <comment="Inventory Index">;
+    short amount;
+    int price;
+} items[itemCount];

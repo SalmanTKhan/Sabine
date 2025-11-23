@@ -13,17 +13,23 @@ namespace Sabine.Zone.Skills
 		public int Level { get; set; }
 		public SkillData Data { get; }
 
-		public Skill(Character owner, SkillId skillId, int level)
+		/// <summary>
+		/// Gets the skill's permanence type.
+		/// </summary>
+		public SkillPerm Perm { get; }
+
+		public Skill(Character owner, SkillId skillId, int level, SkillPerm perm)
 		{
 			this.Owner = owner;
 			this.Id = skillId;
 			this.Level = level;
+			this.Perm = perm;
 			this.Data = SabineData.Skills.Find(skillId) ?? throw new ArgumentException($"Unknown skill '{skillId}'.");
 		}
 
 		public int GetSpCost() => this.Data.Costs.Sp[this.Level - 1];
-		public int GetCastTime() => this.Data.CastTime[this.Level - 1];
-		public int GetCooldown() => this.Data.Cooldown[this.Level - 1];
-		public int GetAfterCastActDelay() => this.Data.AfterCastActDelay[this.Level - 1];
+		public int GetCastTime() => this.Data.Cast.CastTime[this.Level - 1];
+		public int GetCooldown() => this.Data.Cast.Cooldown[this.Level - 1];
+		public int GetAfterCastActDelay() => this.Data.Cast.AfterCastActDelay[this.Level - 1];
 	}
 }

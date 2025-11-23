@@ -1,0 +1,38 @@
+//------------------------------------------------
+//--- 010 Editor v15.0 Binary Template
+//
+//      File: headers.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+typedef struct
+{
+    short op;
+}
+ClientHeaderFixed <optimize=false>;
+
+typedef struct
+{
+    short op;
+    short size;
+}
+ClientHeaderDynamic <optimize=false>;
+
+typedef struct
+{
+    short op;
+}
+ServerHeaderFixed <optimize=false>;
+
+typedef struct
+{
+    short op;
+    short size;
+}
+ServerHeaderDynamic <optimize=false>;

@@ -100,7 +100,7 @@ namespace Sabine.Zone.World.Maps
 				return;
 			}
 
-			this.PathFinder = new HercPathFinder(this.CacheData);
+			this.PathFinder = new AStarPathFinder(this.CacheData);
 		}
 
 		/// <summary>
@@ -216,6 +216,29 @@ namespace Sabine.Zone.World.Maps
 
 			lock (_characters)
 				result.AddRange(_characters.Values.Where(a => a.Position.InRange(entity.Position, this.VisibleRange)));
+
+			return result;
+		}
+
+		/// <summary>
+		/// Returns a list of all characters (players and NPCs) within a given range of a central point.
+		/// </summary>
+		/// <param name="center">The central position to check from.</param>
+		/// <param name="range">The radius of the area to check.</param>
+		/// <returns>A list of characters within the specified range.</returns>
+		public List<Character> GetCharactersInRange(Position center, int range)
+		{
+			var result = new List<Character>();
+
+			lock (_characters)
+			{
+				result.AddRange(_characters.Values.Where(c => c.Position.InRange(center, range)));
+			}
+
+			lock (_npcs)
+			{
+				result.AddRange(_npcs.Values.Where(n => n.Position.InRange(center, range)));
+			}
 
 			return result;
 		}
@@ -565,6 +588,64 @@ namespace Sabine.Zone.World.Maps
 
 			var rndTile = tiles[rnd.Next(tiles.Count)];
 			return new Position(rndTile.X, rndTile.Y);
+		}
+
+		/// <summary>
+		/// Returns a random walkable position within a specified rectangular area.
+		/// </summary>
+		/// <param name="center">The center of the spawning area.</param>
+		/// <param name="spanX">The distance to extend horizontally from the center.</param>
+		/// <param name="spanY">The distance to extend vertically from the center.</param>
+		/// <returns>A walkable position within the area, or a map-wide random position if the area has no walkable tiles.</returns>
+		public Position GetRandomWalkablePosition(Position center, int spanX, int spanY)
+		{
+			var rnd = RandomProvider.Get();
+
+			// 1. Define the search area boundaries and clamp them to map dimensions.
+			var minX = Math.Max(0, center.X - spanX);
+			var maxX = Math.Min(this.CacheData.Width - 1, center.X + spanX);
+			var minY = Math.Max(0, center.Y - spanY);
+			var maxY = Math.Min(this.CacheData.Height - 1, center.Y + spanY);
+
+			// If the calculated area is invalid (e.g., min > max), fall back to map-wide search.
+			if (minX > maxX || minY > maxY)
+			{
+				return this.GetRandomWalkablePosition();
+			}
+
+			// 2. Try a limited number of random picks within the area for efficiency.
+			for (var i = 0; i < 100; ++i)
+			{
+				// Note: rnd.Next's upper bound is exclusive, so we add 1.
+				var x = rnd.Next(minX, maxX + 1);
+				var y = rnd.Next(minY, maxY + 1);
+
+				if (this.CacheData.IsPassable(x, y))
+					return new Position(x, y);
+			}
+
+			// 3. If random attempts failed, perform an exhaustive search of the specific area.
+			var tiles = new List<Position>();
+			for (var y = minY; y <= maxY; ++y)
+			{
+				for (var x = minX; x <= maxX; ++x)
+				{
+					if (this.CacheData.IsPassable(x, y))
+						tiles.Add(new Position(x, y));
+				}
+			}
+
+			// 4. If the area contains walkable tiles, pick one. Otherwise, fall back to a map-wide search.
+			if (tiles.Count > 0)
+			{
+				return tiles[rnd.Next(tiles.Count)];
+			}
+			else
+			{
+				// Failsafe: if the specified spawn area is entirely unwalkable, 
+				// find a position anywhere else on the map to prevent the spawn from failing.
+				return this.GetRandomWalkablePosition();
+			}
 		}
 
 		/// <summary>

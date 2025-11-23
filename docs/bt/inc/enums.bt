@@ -1,0 +1,30 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+enum <ubyte> ActionType {
+    ACTION_SIT      = 0,
+    ACTION_STAND    = 1,
+    ACTION_ATTACK   = 2,
+    ACTION_DAMAGE   = 3,
+    ACTION_DEAD     = 4
+};
+
+enum <ubyte> Direction {
+    DIR_N = 0, DIR_NW = 1, DIR_W = 2, DIR_SW = 3,
+    DIR_S = 4, DIR_SE = 5, DIR_E = 6, DIR_NE = 7
+};
+
+enum <short> RestartType {
+    RESTART_SAVEPOINT = 0,
+    RESTART_CHARSELECT = 1
+};

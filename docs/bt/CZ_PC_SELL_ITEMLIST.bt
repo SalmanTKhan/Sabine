@@ -1,0 +1,22 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: CZ_PC_SELL_ITEMLIST.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderDynamic header;
+
+local int count = (header.size - 4) / 4;
+struct SellItem {
+    short index;
+    short amount;
+} items[count];

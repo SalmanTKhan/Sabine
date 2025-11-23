@@ -17,6 +17,9 @@
     <OutputPath>..\..\bin\Release\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="Scripting\Shortcuts.GlobalFunctions.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
   <ItemGroup>

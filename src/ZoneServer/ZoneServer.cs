@@ -8,6 +8,7 @@ using Sabine.Zone.Commands;
 using Sabine.Zone.Database;
 using Sabine.Zone.Events;
 using Sabine.Zone.Network;
+using Sabine.Zone.Skills;
 using Sabine.Zone.World;
 using Yggdrasil.Logging;
 using Yggdrasil.Network.TCP;
@@ -77,6 +78,8 @@ namespace Sabine.Zone
 			this.LoadScripts("zone", this.Conf);
 			this.InitialSpawn();
 			this.CreateDebugInfo();
+
+			SkillHandlerManager.Initialize();
 
 			this.World.Start();
 

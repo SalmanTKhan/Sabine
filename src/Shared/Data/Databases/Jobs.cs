@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System;
+using Newtonsoft.Json.Linq;
 using Sabine.Shared.Const;
 using Yggdrasil.Data.JSON;
 
@@ -40,6 +41,27 @@ namespace Sabine.Shared.Data.Databases
 		public float Axe { get; set; }
 		public float Mace { get; set; }
 		public float Rod { get; set; }
+
+		public float GetDelay(WeaponType? weaponType)
+		{
+			return weaponType switch
+			{
+				// Direct mappings
+				WeaponType.Dagger => this.Dagger,
+				WeaponType.Bow => this.Bow,
+				WeaponType.Mace => this.Mace,
+				WeaponType.Staff => this.Rod,
+
+				// Grouped mappings for one-handed and two-handed versions
+				WeaponType.OneHandedSword or WeaponType.TwoHandedSword => this.Sword,
+				WeaponType.OneHandedSpear or WeaponType.TwoHandedSpear => this.Spear,
+				WeaponType.OneHandedAxe or WeaponType.TwoHandedAxe => this.Axe,
+
+				// Default case for null, BareHand, or any other weapon type
+				// not defined above (Knuckle, Book, Katar, etc.)
+				_ => this.BareHand
+			};
+		}
 	}
 
 	/// <summary>

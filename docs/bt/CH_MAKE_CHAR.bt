@@ -1,0 +1,27 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: CH_MAKE_CHAR.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+char name[24];
+byte Str;
+byte Agi;
+byte Vit;
+byte Int;
+byte Dex;
+byte Luk;
+byte CharNum;
+short HairColor;
+short HairStyle;

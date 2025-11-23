@@ -1,0 +1,17 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_ACK_REQNAME.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Name Request Response
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+int gid;
+if (CLIENT_VERSION < BETA2) {
+    char title[24]; // "Team Name" or similar
+}
+char name[24];

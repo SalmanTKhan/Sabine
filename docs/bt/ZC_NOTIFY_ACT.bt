@@ -1,0 +1,29 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_NOTIFY_ACT.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Entity Action
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderFixed header;
+
+int gid;
+int target_gid;
+int startTime;
+int attackTime; // delay1
+int attackedTime; // delay2
+short damage;
+
+if (CLIENT_VERSION >= BETA1) {
+    short count;
+}
+
+ActionType action;
+
+if (CLIENT_VERSION >= EP4) {
+    short left_damage;
+}

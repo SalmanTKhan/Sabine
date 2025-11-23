@@ -39,6 +39,10 @@ namespace Sabine.Zone.World.Entities
 		/// </summary>
 		public abstract int ClassId { get; protected set; }
 
+		public BodyState BodyState { get; protected set; }
+		public EffectState EffectState { get; protected set; }
+		public HealthState HealthState { get; protected set; }
+
 
 		public virtual int OwnerHandle { get; protected set; } = 0;
 		public virtual int TargetHandle { get; protected set; } = 0;
@@ -241,7 +245,7 @@ namespace Sabine.Zone.World.Entities
 		/// </summary>
 		/// <param name="target"></param>
 		/// <param name="autoAttack"></param>
-		public void StartAttacking(Character target, bool autoAttack)
+		public virtual void StartAttacking(Character target, bool autoAttack)
 		{
 			_cancelAttack = false;
 
@@ -323,9 +327,32 @@ namespace Sabine.Zone.World.Entities
 		/// <summary>
 		/// Stops character auto attacking its current target.
 		/// </summary>
-		public void StopAttacking()
+		public virtual void StopAttacking()
 		{
 			_cancelAttack = true;
+			if (_attackCallbackId != 0)
+			{
+				ZoneServer.Instance.World.Scheduler.Cancel(_attackCallbackId);
+				_attackCallbackId = 0;
+			}
+			if (this is PlayerCharacter player)
+				player.StopCasting();
+		}
+
+		/// <summary>
+		/// Restores the specified amount of health points (HP) to the entity.
+		/// </summary>
+		/// <remarks>This method increases the entity's current HP by the specified amount.  If the resulting HP
+		/// exceeds the maximum allowed, it may be capped at the maximum value.</remarks>
+		/// <param name="healAmount">The amount of health points to restore. Must be a positive integer.</param>
+		public void HealHp(int healAmount)
+		{
+			this.Parameters.Modify(ParameterType.Hp, healAmount);
+		}
+
+		internal bool IsHostileTo(Character target)
+		{
+			return (this is Monster && target is PlayerCharacter) || (this is PlayerCharacter && target is Monster);
 		}
 	}
 }

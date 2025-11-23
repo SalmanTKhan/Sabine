@@ -23,7 +23,7 @@ namespace Sabine.Zone.Network
 	/// <summary>
 	/// Packet handler methods.
 	/// </summary>
-	public class PacketHandler : PacketHandler<ZoneConnection>
+	public partial class PacketHandler : PacketHandler<ZoneConnection>
 	{
 		/// <summary>
 		/// Login request sent upon connecting to the server.
@@ -131,10 +131,11 @@ namespace Sabine.Zone.Network
 			if (character.IsWarping)
 			{
 				character.FinalizeWarp();
-				return;
 			}
-
-			character.StartObserving();
+			else
+			{
+				character.StartObserving();
+			}
 
 			// Send all stats/parameters to the client that it didn't
 			// get from the char server yet. Also send a few that
@@ -153,6 +154,8 @@ namespace Sabine.Zone.Network
 			var items = character.Inventory.GetItems();
 			Send.ZC_NORMAL_ITEMLIST(character, items);
 			Send.ZC_EQUIPMENT_ITEMLIST(character, items);
+
+			character.Skills.RefreshClient();
 
 			if (character.IsDead)
 				Send.ZC_NOTIFY_VANISH(character, DisappearType.StrikedDead);
@@ -757,6 +760,45 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Request to upgrade a skill level.
+		/// </summary>
+		[PacketHandler(Op.CZ_UPGRADE_SKILLLEVEL)]
+		public void CZ_UPGRADE_SKILLLEVEL(ZoneConnection conn, Packet packet)
+		{
+			var skillId = (SkillId)packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+			var skills = character.Skills;
+			var parameters = character.Parameters;
+
+			var currentLevel = skills.GetLevel(skillId);
+			var canCurrentlyUpgrade = skills.CanUpgrade(skillId);
+
+			if (parameters.SkillPoints < 1)
+			{
+				Send.ZC_SKILLINFO_UPDATE(character, skillId, currentLevel, canCurrentlyUpgrade);
+				return;
+			}
+
+			var newLevel = currentLevel + 1;
+
+			if (!SabineData.Skills.TryFind(skillId, out var skillData) || newLevel > skillData.MaxLevel)
+			{
+				Send.ZC_SKILLINFO_UPDATE(character, skillId, currentLevel, false);
+				return; // Skill doesn't exist or max level reached
+			}
+
+			// TODO: Add full requirement checks (job level, prerequisite skills)
+			// if (character.Parameters.JobLevel < skillData.GetJobLevelRequirement(newLevel)) { ... return; }
+			// if (!skills.HasPrerequisitesFor(skillId, newLevel)) { ... return; }
+
+			parameters.Modify(ParameterType.SkillPoints, -1);
+
+			// Use Add which will update the level and refresh client with the new list
+			skills.Add(skillId, newLevel, SkillPerm.Permanent);
+		}
+
+		/// <summary>
 		/// Request to use an emotion.
 		/// </summary>
 		/// <param name="conn"></param>
@@ -994,7 +1036,7 @@ namespace Sabine.Zone.Network
 		public void CZ_CANCEL_LOCKON(ZoneConnection conn, Packet packet)
 		{
 			var character = conn.GetCurrentCharacter();
-			character.StopAttacking();
+			character.CancelAction();
 		}
 
 		/// <summary>

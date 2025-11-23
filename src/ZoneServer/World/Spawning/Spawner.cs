@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Sabine.Shared.World;
 using Sabine.Zone.Ais;
 using Sabine.Zone.World.Entities;
 using Sabine.Zone.World.Maps;
@@ -48,8 +49,13 @@ namespace Sabine.Zone.World.Spawning
 		/// </summary>
 		public Map Map { get; }
 
+		// Properties for spawn area
+		public Position? SpawnCenter { get; }
+		public int? SpawnSpanX { get; }
+		public int? SpawnSpanY { get; }
+
 		/// <summary>
-		/// Creates new spawner.
+		/// Creates new map-wide spawner.
 		/// </summary>
 		/// <param name="monsterClassId"></param>
 		/// <param name="amount"></param>
@@ -62,6 +68,11 @@ namespace Sabine.Zone.World.Spawning
 			if (!ZoneServer.Instance.World.Maps.TryGet(mapId, out var map))
 				throw new ArgumentException($"Map {mapId} not found.");
 
+			if (respawnDelayMax == default)
+				respawnDelayMax = TimeSpan.FromSeconds(60);
+			if (respawnDelayMin == default)
+				respawnDelayMin = TimeSpan.FromSeconds(30);
+
 			if (respawnDelayMax < respawnDelayMin)
 				respawnDelayMax = respawnDelayMin;
 
@@ -71,6 +82,22 @@ namespace Sabine.Zone.World.Spawning
 			this.RespawnDelayMin = respawnDelayMin;
 			this.RespawnDelayMax = respawnDelayMax;
 			this.Map = map;
+
+			// Null indicates map-wide spawn
+			this.SpawnCenter = null;
+			this.SpawnSpanX = null;
+			this.SpawnSpanY = null;
+		}
+
+		/// <summary>
+		/// Area-specific spawner.
+		/// </summary>
+		public Spawner(int monsterClassId, int amount, TimeSpan initialDelay, TimeSpan respawnDelayMin, TimeSpan respawnDelayMax, int mapId, int x, int y, int spanX, int spanY)
+			: this(monsterClassId, amount, initialDelay, respawnDelayMin, respawnDelayMax, mapId)
+		{
+			this.SpawnCenter = new Position(x, y);
+			this.SpawnSpanX = spanX;
+			this.SpawnSpanY = spanY;
 		}
 
 		/// <summary>
@@ -121,7 +148,19 @@ namespace Sabine.Zone.World.Spawning
 			if (_disposed)
 				return;
 
-			var pos = this.Map.GetRandomWalkablePosition();
+			Position pos;
+			if (this.SpawnCenter.HasValue)
+			{
+				pos = this.Map.GetRandomWalkablePosition(
+					this.SpawnCenter.Value,
+					this.SpawnSpanX ?? 0,
+					this.SpawnSpanY ?? 0
+				);
+			}
+			else
+			{
+				pos = this.Map.GetRandomWalkablePosition();
+			}
 
 			var monster = new Monster(this.MonsterId);
 			monster.Killed += this.OnMonsterKilled;

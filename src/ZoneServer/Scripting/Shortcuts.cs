@@ -14,7 +14,7 @@ using Yggdrasil.Util;
 
 namespace Sabine.Zone.Scripting
 {
-	public static class Shortcuts
+	public static partial class Shortcuts
 	{
 		private static long AnonymousShopCounter = 1;
 
@@ -267,6 +267,36 @@ namespace Sabine.Zone.Scripting
 		}
 
 		/// <summary>
+		/// Creates a permanent monster spawner in a specific area.
+		/// </summary>
+		public static void AddSpawner(string mapStringId, string monsterName, int monsterId, int amount, int x, int y, int spanX, int spanY, TimeSpan initialDelay, TimeSpan respawnDelayMin, TimeSpan respawnDelayMax)
+		{
+			if (mapStringId.EndsWith(".gat"))
+				mapStringId = mapStringId.Substring(0, mapStringId.Length - 4);
+
+			if (!SabineData.Monsters.TryFind(monsterId, out var monsterData))
+				return;
+
+			if (!SabineData.Maps.TryFind(mapStringId, out var map))
+				throw new ArgumentException($"Map '{mapStringId}' not found.");
+
+			var spawner = new Spawner(monsterId, amount, initialDelay, respawnDelayMin, respawnDelayMax, map.Id, x, y, spanX, spanY);
+			ZoneServer.Instance.World.Spawners.Add(spawner);
+		}
+
+		/// <summary>
+		/// Creates a permanent monster spawner in a specific area with simplified timing.
+		/// </summary>
+		public static void AddSpawner(string mapStringId, string monsterName, int monsterId, int amount, int x, int y, int spanX, int spanY, TimeSpan initialDelay = default, TimeSpan respawnDelay = default)
+			=> AddSpawner(mapStringId, monsterName, monsterId, amount, x, y, spanX, spanY, initialDelay, respawnDelay, respawnDelay);
+
+		/// <summary>
+		/// Creates a permanent monster spawner at a specific point (span 0).
+		/// </summary>
+		public static void AddSpawner(string mapStringId, string monsterName, int monsterId, int amount, int x, int y, TimeSpan initialDelay, TimeSpan respawnDelay)
+			=> AddSpawner(mapStringId, monsterName, monsterId, amount, x, y, 0, 0, initialDelay, respawnDelay, respawnDelay);
+
+		/// <summary>
 		/// Creates a permanent monster spawner.
 		/// </summary>
 		/// <param name="mapStringId"></param>
@@ -302,6 +332,9 @@ namespace Sabine.Zone.Scripting
 		{
 			if (mapStringId.EndsWith(".gat"))
 				mapStringId = mapStringId.Substring(0, mapStringId.Length - 4);
+
+			if (!SabineData.Monsters.TryFind(monsterId, out var monsterData))
+				return;
 
 			if (!SabineData.Maps.TryFind(mapStringId, out var map))
 				throw new ArgumentException($"Map '{mapStringId}' not found.");

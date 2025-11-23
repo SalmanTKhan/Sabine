@@ -61,6 +61,11 @@ namespace Sabine.Zone.World.Entities
 		public bool IsIdentified { get; set; } = true;
 
 		/// <summary>
+		/// Gets or sets whether the item has been damaged.
+		/// </summary>
+		public bool IsDamaged { get; set; } = false;
+
+		/// <summary>
 		/// Returns true if the item is currently equipped.
 		/// </summary>
 		public bool IsEquipped => this.EquippedOn != EquipSlots.None;
@@ -74,6 +79,16 @@ namespace Sabine.Zone.World.Entities
 			set => _amount = Math2.Clamp(0, short.MaxValue, value);
 		}
 		private int _amount = 1;
+
+		/// <summary>
+		/// Gets or sets the item's refine level.
+		/// </summary>
+		public byte RefineLevel
+		{
+			get => _refineLevel;
+			set => _refineLevel = (byte)Math2.Clamp(0, byte.MaxValue, value);
+		}
+		private byte _refineLevel = 0;
 
 		/// <summary>
 		/// Gets or sets the id of the map the item is on, if any.

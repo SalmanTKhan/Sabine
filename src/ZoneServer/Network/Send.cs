@@ -9,7 +9,9 @@ using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.World;
 using Sabine.Zone.Network.Helpers;
+using Sabine.Zone.Skills;
 using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Entities.Components.Characters;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Util;
 
@@ -39,7 +41,7 @@ namespace Sabine.Zone.Network
 	/// <summary>
 	/// Packet senders.
 	/// </summary>
-	public static class Send
+	public static partial class Send
 	{
 		/// <summary>
 		/// Accepts connection request, makes client load map.
@@ -1280,6 +1282,53 @@ namespace Sabine.Zone.Network
 		{
 			var packet = new Packet(Op.ZC_ACK_REQ_DISCONNECT);
 			packet.PutShort((short)s1);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the full list of learned skills to the client.
+		/// </summary>
+		public static void ZC_SKILLINFO_LIST(PlayerCharacter character, IList<Skill> skills)
+		{
+			var packet = new Packet(Op.ZC_SKILLINFO_LIST);
+			foreach (var skill in skills)
+			{
+				packet.AddSkillData(character, skill);
+			}
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Informs the client that a new skill has been learned.
+		/// </summary>
+		public static void ZC_ADD_SKILL(PlayerCharacter character, Skill skill)
+		{
+			var packet = new Packet(Op.ZC_ADD_SKILL);
+			packet.AddSkillData(character, skill);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates a skill's information, such as its level or whether it can be upgraded.
+		/// </summary>
+		public static void ZC_SKILLINFO_UPDATE(PlayerCharacter character, SkillId skillId, int level, bool canUpgrade)
+		{
+			var packet = new Packet(Op.ZC_SKILLINFO_UPDATE);
+
+			if (!SabineData.Skills.TryFind(skillId, out var skillData))
+				return;
+
+			packet.PutShort((short)skillId);
+			packet.PutShort((short)level);
+			packet.PutShort((short)skillData.GetSpCost(level));
+
+			if (Game.Version >= Versions.Beta2)
+			{
+				packet.PutShort((short)skillData.GetRange(level));
+			}
+
+			packet.PutByte(canUpgrade);
 
 			character.Connection.Send(packet);
 		}

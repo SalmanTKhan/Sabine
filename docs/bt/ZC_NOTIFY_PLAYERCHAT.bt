@@ -1,0 +1,13 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: ZC_NOTIFY_PLAYERCHAT.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Own Chat Echo
+//------------------------------------------------
+
+#include "inc/common.bt"
+
+ClientHeaderDynamic header;
+string message;

@@ -4,6 +4,7 @@ using Sabine.Shared.Database;
 using Sabine.Shared.Database.MySQL;
 using Sabine.Shared.World;
 using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Entities.Components.Characters;
 
 namespace Sabine.Zone.Database
 {
@@ -87,6 +88,22 @@ namespace Sabine.Zone.Database
 						}
 					}
 				}
+
+				using (var cmd = new MySqlCommand("SELECT * FROM `skills` WHERE `characterId` = @characterId", conn))
+				{
+					cmd.AddParameter("@characterId", character.Id);
+
+					using (var reader = cmd.ExecuteReader())
+					{
+						while (reader.Read())
+						{
+							var skillId = (SkillId)reader.GetInt16("skillId");
+							var level = reader.GetInt32("level");
+
+							character.Skills.AddInit(skillId, level, SkillPerm.Permanent);
+						}
+					}
+				}
 			}
 
 			character.Vars.Perm.Load(this.GetVars("vars_character", character.Id));
@@ -98,6 +115,11 @@ namespace Sabine.Zone.Database
 			{
 				character.Parameters.Hp = character.Parameters.HpMax;
 				character.Parameters.Sp = character.Parameters.SpMax;
+			}
+
+			if (character.Skills.Count == 0)
+			{
+				character.Skills.Add(SkillId.NV_BASIC, 0, SkillPerm.Permanent);
 			}
 
 			return character;
@@ -167,6 +189,29 @@ namespace Sabine.Zone.Database
 						cmd.Set("classId", item.ClassId);
 						cmd.Set("amount", item.Amount);
 						cmd.Set("equipped", (int)item.EquippedOn);
+
+						cmd.Execute();
+					}
+				}
+
+				using (var cmd = new UpdateCommand("DELETE FROM `skills` WHERE `characterId` = @characterId", conn, trans))
+				{
+					cmd.AddParameter("@characterId", character.Id);
+					cmd.Execute();
+				}
+
+				using (var cmd = new InsertCommand("INSERT INTO `skills` {0}", conn, trans))
+				{
+					foreach (var skill in character.Skills.GetAll())
+					{
+						if (skill.Perm != SkillPerm.Permanent)
+							continue;
+
+						cmd.Clear();
+
+						cmd.Set("characterId", character.Id);
+						cmd.Set("skillId", (short)skill.Id);
+						cmd.Set("level", skill.Level);
 
 						cmd.Execute();
 					}

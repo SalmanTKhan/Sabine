@@ -344,7 +344,7 @@ namespace Sabine.Zone.Scripting.Dialogues
 			if (!int.TryParse(response, out var selectedIndex) || selectedIndex <= 0 || selectedIndex > enabledOptions.Count)
 			{
 				Log.Warning("Dialog.Select: Invalid response '{0}'.", response);
-				Close();
+				this.Close();
 				return null;
 			}
 

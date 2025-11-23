@@ -26,6 +26,7 @@
 		/// </summary>
 		AutoAttack = 7,
 		// 8 - Use skill
+		Skill = 8,
 		// ...and many more server-side actions.
 	}
 }

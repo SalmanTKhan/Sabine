@@ -465,5 +465,13 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 
 			return totalRemovedAmount;
 		}
+
+		internal Item? GetEquip(EquipSlots equipSlot)
+		{
+			return _items.Find(a => (a.EquippedOn & equipSlot) != 0);
+		}
+
+		internal Item[] GetEquippedItems()
+			=> this.GetItems(i => i.IsEquipped);
 	}
 }
