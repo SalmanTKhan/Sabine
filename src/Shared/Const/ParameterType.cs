@@ -38,7 +38,11 @@
 		AttackMax = 33,   // SP_ATKMAX
 		Defense = 34,        // SP_DEF
 		MagicAttack = 35, // SP_MATK
+		
+		// This is where the parameters supported by the alpha client end,
+		// but it's fine to send newer ones, as they are simply ignored.
 
+		JobLevel = 56,
 
 		BonusStr = 32,      // SP_USTR
 		BonusAgi = 33,      // SP_UAGI
