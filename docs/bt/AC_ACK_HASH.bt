@@ -1,0 +1,10 @@
+//------------------------------------------------
+//      File: AC_ACK_HASH.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: MD5 Salt
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderDynamic header;
+string salt; // Not null terminated in logic, but 010 handles string read until end usually or use ReadString

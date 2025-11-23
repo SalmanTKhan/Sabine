@@ -1,0 +1,30 @@
+//------------------------------------------------
+//      File: HC_ACCEPT_ENTER.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Character List
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderDynamic header;
+
+// Total Slots = 3 (Pre-EP4) or 9 (EP4+)
+local int totalSlots = 3;
+if (CLIENT_VERSION >= EP4) {
+    totalSlots = 9;
+    short unknown; 
+}
+
+// Calculate character struct size
+// This is complex because Char struct size varies heavily by version
+// Best guess based on standard packet logic:
+local int charSize;
+if (CLIENT_VERSION < BETA1) charSize = 106; // Alpha guess
+else if (CLIENT_VERSION < EP4) charSize = 112; // Beta1/2 guess
+else charSize = 144; // EP4+ guess
+
+//local int count = (header.size - (FTell() - startof(header))) / charSize;
+
+int count;
+
+CharacterInfo characters[count];

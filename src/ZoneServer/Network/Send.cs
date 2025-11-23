@@ -5,6 +5,7 @@ using Sabine.Shared;
 using Sabine.Shared.Configuration.Files;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data;
+using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.World;
@@ -427,7 +428,7 @@ namespace Sabine.Zone.Network
 			// isn't enabled
 			if (type == ParameterType.JobExp || type == ParameterType.JobExpNeeded)
 			{
-				if (!SabineData.Features.IsEnabled("JobLevels"))
+				if (!SabineData.Features.IsEnabled(FeatureId.JobLevels))
 					value = 0;
 			}
 

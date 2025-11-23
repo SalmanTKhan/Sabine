@@ -1,16 +1,10 @@
 //------------------------------------------------
-//--- 010 Editor v16.0.2 Binary Template
-//
-//      File: ZC_NOTIFY_MOVE.bt
+//      File: HC_ACCEPT_DELETECHAR.bt
 //   Authors: Salman T. Khan
 //   Version: 
-//   Purpose: Entity Movement
+//   Purpose: Char Deleted
 //------------------------------------------------
-
 #include "inc/common.bt"
 
 ClientHeaderFixed header;
-int gid;
-PackedCoordinate coords_start;
-PackedCoordinate coords_end;
-int moveStartTime;
+// No Payload

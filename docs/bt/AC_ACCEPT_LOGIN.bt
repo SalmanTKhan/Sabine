@@ -1,0 +1,46 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: AC_ACCEPT_LOGIN.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Login Success + Server List
+//------------------------------------------------
+#include "inc/common.bt"
+
+ClientHeaderDynamic header;
+
+int sessionId;
+int aid; // Account ID
+
+if (CLIENT_VERSION < BETA1) {
+    ubyte sex <comment="0:Female, 1:Male">;
+} else {
+    int sessionId2;
+    if (CLIENT_VERSION >= BETA2) {
+        int ip; // Often 0
+        char lastServer[26];
+    }
+    ubyte sex <comment="0:Female, 1:Male">;
+}
+
+// Server List
+// Calculate remaining bytes to determine server count
+local int remaining = header.size - (FTell() - startof(header));
+local int serverStructSize = 4 + 2 + 20; 
+if (CLIENT_VERSION >= BETA2) {
+    serverStructSize += 6; // 3 shorts
+}
+
+local int serverCount = remaining / serverStructSize;
+
+struct CharServerInfo {
+    IP4 ip;
+    short port;
+    char name[20];
+    if (CLIENT_VERSION >= BETA2) {
+        short playerCount;
+        short isMaintenance;
+        short isNew;
+    }
+} servers[serverCount] <optimize=false>;

@@ -99,9 +99,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		/// </summary>
 		/// <param name="id">The ID of the skill.</param>
 		/// <returns>The level of the skill, or 0 if not known.</returns>
-		public int GetLevel(SkillId id)
+		public int GetLevel(SkillId skillId)
 		{
-			return _skills.TryGetValue(id, out var skill) ? skill.Level : 0;
+			return _skills.TryGetValue(skillId, out var skill) ? skill.Level : 0;
 		}
 
 		/// <summary>
@@ -172,6 +172,53 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		}
 
 		/// <summary>
+		/// Checks if the character can use a skill right now.
+		/// </summary>
+		private bool CanUseSkill(Skill skill, int level, IEntity target, out string errorMessage)
+		{
+			errorMessage = null;
+
+			// Dead characters can't use skills
+			if (this.Player.IsDead)
+			{
+				errorMessage = "You cannot use skills while dead.";
+				return false;
+			}
+
+			// Can't use skills while sitting (except sitting-allowed skills)
+			//if (this.Player.State == CharacterState.Sitting && !skill.Data.CanUseWhileSitting)
+			if (this.Player.State == CharacterState.Sitting)
+			{
+				errorMessage = "You must stand up to use this skill.";
+				return false;
+			}
+
+			// Can't use skills while already casting (unless it's instant)
+			if (this.Player.IsCasting && skill.GetCastTime() > 0)
+			{
+				errorMessage = "You are already casting a skill.";
+				return false;
+			}
+
+			// Check SP cost
+			var spCost = skill.GetSpCost();
+			if (this.Player.Parameters.Sp < spCost)
+			{
+				errorMessage = "Not enough SP.";
+				return false;
+			}
+
+			// TODO: Add more checks:
+			// - Weapon type requirement
+			// - Ammo requirement
+			// - Range check
+			// - Line of sight check
+			// - Skill-specific requirements
+
+			return true;
+		}
+
+		/// <summary>
 		/// Attempts to use a skill. Handles checks, cast time, and execution.
 		/// </summary>
 		public async Task Use(SkillId skillId, int level, IEntity target)
@@ -179,14 +226,13 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			if (!this.TryGet(skillId, out var skill))
 				return;
 
-			// 1. Validation
-			if (this.Player.IsDead || this.Player.IsCasting)
+			// 1. Pre-cast validation
+			if (!this.CanUseSkill(skill, level, target, out var errorMessage))
+			{
+				if (!string.IsNullOrEmpty(errorMessage))
+					this.Player.ServerMessage(errorMessage);
 				return;
-
-			// TODO: Validate SP, Ammo, Weapon Type, Range, Line of Sight here.
-			var spCost = skill.Data.GetSpCost(level);
-			if (this.Player.Parameters.Sp < spCost)
-				return; // Optionally send "Not enough SP" packet
+			}
 
 			var handler = SkillHandlerManager.GetHandler(skillId);
 			if (handler == null)
@@ -195,18 +241,19 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				return;
 			}
 
-			// 2. Cast Time Calculation
-			// Dex reduces cast time: CastTime * (1 - (Dex / 150))
-			var baseCastTime = 0;
-			if (skill.Data.Cast.CastTime != null)
-				baseCastTime = skill.Data.Cast.CastTime[Math.Max(0, level - 1)];
+			// 2. Cancel any ongoing actions
+			// Note: This should stop attacking, but not movement (player can cast while moving in some games)
+			// Adjust based on your game's design
+			this.Player.StopAttacking();
+
+			// 3. Calculate cast time with DEX reduction
+			var baseCastTime = skill.GetCastTime();
 			var castTime = (int)(baseCastTime * (1 - (this.Player.Parameters.Dex / 150f)));
 			castTime = Math.Max(0, castTime);
 
-			// 3. Execution Flow
+			// 4. Handle casting period
 			if (castTime > 0)
 			{
-				// Notify client to show cast bar
 				var targetId = target?.Handle ?? this.Player.Handle;
 				Send.ZC_USESKILL_ACK(this.Player, this.Player.Handle, targetId, skillId, level, castTime);
 
@@ -218,7 +265,7 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				}
 				catch (TaskCanceledException)
 				{
-					// Cast was interrupted
+					// Cast was interrupted - this is normal, just return
 					return;
 				}
 				finally
@@ -227,14 +274,42 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 				}
 			}
 
-			// 4. Consume Resources
+			// 5. Final validation (target might have moved/died during cast)
+			if (!this.CanUseSkill(skill, level, target, out errorMessage))
+			{
+				if (!string.IsNullOrEmpty(errorMessage))
+					this.Player.ServerMessage(errorMessage);
+				return;
+			}
+
+			// 6. Consume resources
+			var spCost = skill.GetSpCost();
 			this.Player.Parameters.Modify(ParameterType.Sp, -spCost);
 
-			// 5. Execute Logic
-			await handler.HandleAsync(this.Player, target, skill);
+			// 7. Execute skill logic
+			try
+			{
+				await handler.HandleAsync(this.Player, target, skill);
+			}
+			catch (Exception ex)
+			{
+				this.Player.ServerMessage("An error occurred while using the skill.");
+				Yggdrasil.Logging.Log.Error($"Error executing skill {skillId}: {ex}");
+			}
 
-			// 6. Post-Cast Delays (Cooldowns / After-cast delay)
-			// TODO: Implement global cooldown/skill-specific cooldown tracking
+			// 8. Post-cast delays
+			var afterCastDelay = skill.GetAfterCastActDelay();
+			if (afterCastDelay > 0)
+			{
+				// TODO: Implement global cooldown or skill-specific cooldown
+				// This prevents the player from acting immediately after casting
+			}
+
+			var cooldown = skill.GetCooldown();
+			if (cooldown > 0)
+			{
+				// TODO: Implement skill-specific cooldown tracking
+			}
 		}
 	}
 }

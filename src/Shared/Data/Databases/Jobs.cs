@@ -15,6 +15,11 @@ namespace Sabine.Shared.Data.Databases
 
 		public JobModifiersData Modifiers { get; set; } = new();
 		public JobWeaponDelaysData WeaponDelays { get; set; } = new();
+
+		/// <summary>
+		/// Contains the cumulative stat bonuses for this job up to a specific level.
+		/// </summary>
+		public JobBonusData Bonuses { get; set; }
 	}
 
 	/// <summary>
@@ -62,6 +67,17 @@ namespace Sabine.Shared.Data.Databases
 				_ => this.BareHand
 			};
 		}
+	}
+
+	public class JobBonusData
+	{
+		// Determines which stat gets a bonus at a specific job level
+		public int[] Str { get; set; }
+		public int[] Agi { get; set; }
+		public int[] Vit { get; set; }
+		public int[] Int { get; set; }
+		public int[] Dex { get; set; }
+		public int[] Luk { get; set; }
 	}
 
 	/// <summary>

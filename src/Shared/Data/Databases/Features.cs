@@ -5,6 +5,12 @@ using Yggdrasil.Extensions;
 
 namespace Sabine.Shared.Data.Databases
 {
+	public static class FeatureId
+	{
+		public static readonly string JobLevels = "JobLevels";
+		public static readonly string HigherMaxWeight = "HigherMaxWeight";
+	}
+
 	/// <summary>
 	/// Represents a node in the feature tree database.
 	/// </summary>

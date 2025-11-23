@@ -27,9 +27,9 @@ namespace Sabine.Zone.Skills
 			this.Data = SabineData.Skills.Find(skillId) ?? throw new ArgumentException($"Unknown skill '{skillId}'.");
 		}
 
-		public int GetSpCost() => this.Data.Costs.Sp[this.Level - 1];
-		public int GetCastTime() => this.Data.Cast.CastTime[this.Level - 1];
-		public int GetCooldown() => this.Data.Cast.Cooldown[this.Level - 1];
-		public int GetAfterCastActDelay() => this.Data.Cast.AfterCastActDelay[this.Level - 1];
+		public int GetSpCost() => this.Data.Costs.Sp?[this.Level - 1] ?? 0;
+		public int GetCastTime() => this.Data.Cast.CastTime?[this.Level - 1] ?? 0;
+		public int GetCooldown() => this.Data.Cast.Cooldown?[this.Level - 1] ?? 0;
+		public int GetAfterCastActDelay() => this.Data.Cast.AfterCastActDelay?[this.Level - 1] ?? 0;
 	}
 }

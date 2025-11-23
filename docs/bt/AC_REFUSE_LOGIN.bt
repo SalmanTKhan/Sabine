@@ -1,16 +1,17 @@
 //------------------------------------------------
 //--- 010 Editor v16.0.2 Binary Template
 //
-//      File: ZC_NOTIFY_MOVE.bt
+//      File: AC_REFUSE_LOGIN.bt
 //   Authors: Salman T. Khan
 //   Version: 
-//   Purpose: Entity Movement
+//   Purpose: Skill Update
 //------------------------------------------------
 
 #include "inc/common.bt"
 
 ClientHeaderFixed header;
-int gid;
-PackedCoordinate coords_start;
-PackedCoordinate coords_end;
-int moveStartTime;
+ubyte errorCode <comment="LoginConnectError Enum">;
+
+if (CLIENT_VERSION >= BETA2) {
+    char errorMessage[20];
+}

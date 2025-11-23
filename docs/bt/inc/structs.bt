@@ -1,0 +1,87 @@
+//------------------------------------------------
+//      File: inc/structs.bt
+//   Purpose: Common Structures (CharacterInfo, etc)
+//------------------------------------------------
+
+typedef struct {
+    int charId;
+    int baseExp;
+    int zeny;
+    int jobExp;
+    int jobLevel; // Or 0 if disabled
+    
+    // Unknown / Unused in Character.cs logic
+    int opt1;
+    int opt2;
+    
+    if (CLIENT_VERSION >= BETA1) {
+        int option;
+        short karma;
+        short manner;
+    }
+
+    short statusPoint;
+    short hp;
+    short maxHp;
+    short sp;
+    short maxSp;
+    short speed; // Default walk speed?
+
+    if (CLIENT_VERSION < BETA1) {
+        short karma;
+        short manner;
+    }
+
+    // Structure changes significantly here based on version
+    if (CLIENT_VERSION < BETA2) {
+        char name[24]; // Sizes.CharacterNames usually 24
+        ubyte job;
+        ubyte level;
+        ubyte jobLevel_byte; // Redundant?
+        ubyte str;
+        ubyte agi;
+        ubyte vit;
+        ubyte int_;
+        ubyte dex;
+        ubyte luk;
+        ubyte slot;
+        ubyte renamed; // "Gap" in code, usually rename flag
+        ubyte hair;
+        ubyte weapon;
+        ubyte headTop;
+    } else {
+        // >= BETA2
+        short job;
+        short hair;
+        short weapon;
+        short level;
+        short skillPoint;
+        short headBottom;
+        short shield;
+        short headTop;
+        short headMid;
+        short hairColor;
+        short clothesColor;
+        char name[24];
+        ubyte str;
+        ubyte agi;
+        ubyte vit;
+        ubyte int_;
+        ubyte dex;
+        ubyte luk;
+        ubyte slot;
+        ubyte renamed; // "Gap"
+    }
+
+    // Calculate padding if using fixed block sizes
+    // Alpha block size ~106
+    // Beta1 block size ~112?
+    // Beta2 block size ~144?
+    
+    // NOTE: The C# code stops writing here. 
+    // If the packet is fixed-size in the client table (e.g. 106, 112, 144),
+    // there might be trailing padding bytes in the raw packet that the 
+    // C# Packet builder fills with zeros implicitly or the loop handles.
+    // For a template reading a stream, we might need to consume 'rest'
+    
+} CharacterInfo <optimize=false>;

@@ -1,0 +1,15 @@
+//------------------------------------------------
+//      File: HC_ACCEPT_MAKECHAR.bt
+//   Authors: Salman T. Khan
+//   Version: 
+//   Purpose: Char Created (Returns Char Struct)
+//------------------------------------------------
+#include "inc/common.bt"
+
+// Re-use the struct logic from HC_ACCEPT_ENTER essentially
+// But this is a FIXED header usually containing exactly ONE character struct
+ClientHeaderFixed header;
+
+// See HC_ACCEPT_ENTER for struct definition logic. 
+// Ideally move CharacterInfo struct to inc/structs.bt
+struct CharacterInfo charInfo;

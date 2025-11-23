@@ -1,0 +1,58 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+typedef struct {
+    int charId;
+    int exp;
+    int jobExp;
+    int zeny;
+    int job; // Class
+    int hp;
+    int maxHp;
+    int sp;
+    int maxSp;
+    int statusPoint;
+    int hair;
+    int hairColor;
+    int option;
+    int karma;
+    int manner;
+    short str;
+    short agi;
+    short vit;
+    short int_;
+    short dex;
+    short luk;
+    short charNum; // Slot
+    short renamed;
+    char name[24];
+    
+    if (CLIENT_VERSION >= BETA1) {
+        ubyte level;
+        short spPoint; // SkillPoint
+        short headBottom;
+        short shield;
+        short headTop;
+        short headMid;
+        short hairColor2; // Maybe?
+        short clothesColor;
+        char mapName[16];
+        int deleteTime;
+        // There is more padding/stats here depending on exact version
+        // Just reading as raw bytes to fill size for now
+        local int currentSize = FTell() - startof(this);
+        if (currentSize < charSize) {
+             ubyte unknown[charSize - currentSize];
+        }
+    }
+} CharacterInfo<optimize=false>;

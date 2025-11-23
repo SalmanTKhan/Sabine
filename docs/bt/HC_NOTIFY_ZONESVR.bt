@@ -1,16 +1,13 @@
 //------------------------------------------------
-//--- 010 Editor v16.0.2 Binary Template
-//
-//      File: ZC_NOTIFY_MOVE.bt
+//      File: HC_NOTIFY_ZONESVR.bt
 //   Authors: Salman T. Khan
 //   Version: 
-//   Purpose: Entity Movement
+//   Purpose: Connect to Map Server
 //------------------------------------------------
-
 #include "inc/common.bt"
 
 ClientHeaderFixed header;
-int gid;
-PackedCoordinate coords_start;
-PackedCoordinate coords_end;
-int moveStartTime;
+int charId;
+char mapName[16];
+IP4 ip;
+short port;

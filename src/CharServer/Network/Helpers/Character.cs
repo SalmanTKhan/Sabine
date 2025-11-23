@@ -1,6 +1,7 @@
 ﻿using Sabine.Char.Database;
 using Sabine.Shared;
 using Sabine.Shared.Data;
+using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Network;
 
 namespace Sabine.Char.Network.Helpers
@@ -22,7 +23,7 @@ namespace Sabine.Char.Network.Helpers
 
 			// Always display job level and EXP as 0 if the feature
 			// isn't enabled
-			if (!SabineData.Features.IsEnabled("JobLevels"))
+			if (!SabineData.Features.IsEnabled(FeatureId.JobLevels))
 			{
 				jobLevel = 0;
 				jobExp = 0;

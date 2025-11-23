@@ -1,16 +1,10 @@
 //------------------------------------------------
-//--- 010 Editor v16.0.2 Binary Template
-//
-//      File: ZC_NOTIFY_MOVE.bt
+//      File: HC_REFUSE_DELETECHAR.bt
 //   Authors: Salman T. Khan
 //   Version: 
-//   Purpose: Entity Movement
+//   Purpose: Char Deletion Failed
 //------------------------------------------------
-
 #include "inc/common.bt"
 
 ClientHeaderFixed header;
-int gid;
-PackedCoordinate coords_start;
-PackedCoordinate coords_end;
-int moveStartTime;
+ubyte errorCode; // Often 0

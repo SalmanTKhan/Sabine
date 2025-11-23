@@ -15,8 +15,21 @@
 #include "inc/enums.bt"
 #include "inc/params.bt"
 #include "inc/versions.bt"
+#include "inc/structs.bt"
 
-Printf("Game Version: %d", CLIENT_VERSION);
+Printf("Game Version: %d\n", CLIENT_VERSION);
+
+typedef unsigned int IP4 < read=IP4ToString >;
+
+string IP4ToString(IP4 &ip)
+{
+    // Little-endian storage (common). For 127.0.0.1 this is 0x0100007F
+    return Str("%d.%d.%d.%d",
+        ip & 0xFF,
+        (ip >> 8) & 0xFF,
+        (ip >> 16) & 0xFF,
+        (ip >> 24) & 0xFF);
+}
 
 typedef struct {
     ubyte b1;

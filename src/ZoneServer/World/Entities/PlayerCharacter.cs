@@ -25,8 +25,6 @@ namespace Sabine.Zone.World.Entities
 	{
 		private readonly object _visibilityUpdateSyncLock = new();
 		private readonly HashSet<int> _visibleEntities = new();
-		private Character _attackTarget;
-		private bool _isAutoAttacking;
 
 		/// <summary>
 		/// Gets or sets the connection that controls this player.
@@ -279,31 +277,6 @@ namespace Sabine.Zone.World.Entities
 		}
 
 		/// <summary>
-		/// Makes character sit down.
-		/// </summary>
-		public void SitDown()
-		{
-			if (this.State != CharacterState.Standing)
-				return;
-
-			this.CancelAction();
-			this.State = CharacterState.Sitting;
-			Send.ZC_NOTIFY_ACT.Simple(this, this.Handle, ActionType.SitDown);
-		}
-
-		/// <summary>
-		/// Makes character stand up.
-		/// </summary>
-		public void StandUp()
-		{
-			if (this.State != CharacterState.Sitting)
-				return;
-
-			this.State = CharacterState.Standing;
-			Send.ZC_NOTIFY_ACT.Simple(this, this.Handle, ActionType.StandUp);
-		}
-
-		/// <summary>
 		/// Updates character and its components.
 		/// </summary>
 		/// <param name="elapsed"></param>
@@ -493,14 +466,31 @@ namespace Sabine.Zone.World.Entities
 			this.JobId = jobId;
 			this.LoadJobData(jobId);
 
+			// Reset Job Level and Job Exp for the new job
+			this.Parameters.JobLevel = 1;
+			this.Parameters.JobExp = 0;
+
+			// Get the new EXP requirements for Level 1 of this new job
+			if (this.Parameters is PlayerCharacterParameters pcParams)
+				pcParams.RecalculateExp();
+
 			this.Inventory.CheckEquipRequirements();
 			this.Inventory.RefreshClient();
+
+			// This will now calculate bonuses based on the new Job ID and Job Level 1
 			this.Parameters.RecalculateAll();
+
 			this.Heal();
 
+			// Visual change
 			Send.ZC_SPRITE_CHANGE(this, SpriteType.Class, (int)jobId);
 
-			// Send a BaseLevel change packet to get the level up animation
+			// Update client with new stats (Job Level 1, new Exp requirements, new HP/SP)
+			Send.ZC_STATUS(this);
+
+			// Specific hack for Alpha/Beta clients:
+			// Send a BaseLevel change packet to force a "Level Up" animation to play 
+			// as a visual indicator of the job change.
 			Send.ZC_PAR_CHANGE(this, ParameterType.BaseLevel);
 		}
 
@@ -567,20 +557,33 @@ namespace Sabine.Zone.World.Entities
 		public void GainJobExp(int amount)
 		{
 			// Don't give any job EXP if the feature is disabled
-			if (!SabineData.Features.IsEnabled("JobLevels"))
+			if (!SabineData.Features.IsEnabled(FeatureId.JobLevels))
 				return;
 
 			var exp = this.Parameters.JobExp;
 			var level = this.Parameters.JobLevel;
 			var expNeeded = this.Parameters.JobExpNeeded;
 			var maxLevel = SabineData.ExpTables.GetMaxLevel(ExpTableType.Job, this.JobId);
+
+			// Prevent leveling past max level
+			if (level >= maxLevel)
+			{
+				// Ensure exp doesn't accumulate indefinitely at max level
+				if (exp > 0)
+				{
+					this.Parameters.Set(ParameterType.JobExp, 0);
+					this.Parameters.Set(ParameterType.JobExpNeeded, 0);
+				}
+				return;
+			}
+
 			var levelsGained = 0;
 
 			exp = Math2.AddChecked(exp, amount);
-			if (exp < 0)
-				exp = 0;
+			if (exp < 0) exp = 0;
 
-			while (level < maxLevel && exp >= expNeeded)
+			// Level up loop
+			while (level < maxLevel && exp >= expNeeded && expNeeded > 0)
 			{
 				exp -= expNeeded;
 
@@ -592,15 +595,23 @@ namespace Sabine.Zone.World.Entities
 
 			if (levelsGained != 0)
 			{
+				// Update internal parameters
 				this.Parameters.Set(ParameterType.JobLevel, level);
 				this.Parameters.Set(ParameterType.JobExpNeeded, expNeeded);
 				this.Parameters.Modify(ParameterType.SkillPoints, levelsGained);
 
-				// The alpha client offers no way to update the job level.
-				// It's only set once, on login, based on the data given
-				// to it by the char server, so we should inform the player
-				// about reaching the next level if job leveling is enabled.
+				// NOTIFICATION:
+				// 1. Send the Job Level update packet. 
+				// On most clients, this triggers the "Job Level Up" angel effect and sound.
+				// The original code noted Alpha clients might not update the UI, 
+				// but sending the packet is still the correct protocol action.
+				Send.ZC_PAR_CHANGE(this, ParameterType.JobLevel);
+
+				// 2. Send Chat Message
 				this.ServerMessage(Localization.Get("You have reached job level {0}."), level);
+
+				// 3. Recalculate derived stats (Job Bonuses)
+				this.Parameters.RecalculateAll();
 			}
 
 			this.Parameters.Set(ParameterType.JobExp, exp);
@@ -715,79 +726,6 @@ namespace Sabine.Zone.World.Entities
 			}
 
 			CallSafe(RunNpcDialogAsync());
-		}
-
-		/// <summary>
-		/// Overrides the base attack logic to handle moving into range first.
-		/// </summary>
-		public override void StartAttacking(Character target, bool autoAttack)
-		{
-			this.InitiateAttack(target, autoAttack);
-		}
-
-		/// <summary>
-		/// Initiates an attack on a target. For players, this will handle
-		/// moving into range before attacking.
-		/// </summary>
-		/// <param name="target">The character to attack.</param>
-		/// <param name="autoAttack">Whether to attack continuously.</param>
-		private void InitiateAttack(Character target, bool autoAttack)
-		{
-			if (target == null || target == this || target.IsDead)
-				return;
-
-			this.Controller.StopMove();
-			this.StopAttacking();
-
-			_attackTarget = target;
-			_isAutoAttacking = autoAttack;
-		}
-
-		/// <summary>
-		/// Cancels the current attack action, including moving towards a target.
-		/// </summary>
-		public void CancelAttack()
-		{
-			_attackTarget = null;
-			this.StopAttacking();
-		}
-
-		/// <summary>
-		/// Manages the state of a player-initiated attack, such as moving into range.
-		/// This is called on every update tick.
-		/// </summary>
-		private void UpdateAttackAction()
-		{
-			if (_attackTarget == null)
-				return;
-
-			if (_attackTarget.IsDead || _attackTarget.Map != this.Map)
-			{
-				this.CancelAction();
-				return;
-			}
-
-			if (this.State == CharacterState.Sitting)
-			{
-				this.CancelAction();
-				return;
-			}
-
-			var attackRange = this.GetAttackRange();
-
-			if (!this.Position.InRange(_attackTarget.Position, attackRange))
-			{
-				this.Controller.MoveTo(_attackTarget.Position);
-				return;
-			}
-
-			// We are in range. Stop moving and start the base attack loop.
-			this.Controller.StopMove();
-			base.StartAttacking(_attackTarget, _isAutoAttacking);
-
-			// The attack request is now handled by the base class's attack loop. 
-			// Clear the target to prevent this method from re-triggering the attack.
-			_attackTarget = null;
 		}
 	}
 }

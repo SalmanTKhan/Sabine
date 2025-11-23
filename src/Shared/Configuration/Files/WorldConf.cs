@@ -7,6 +7,7 @@ namespace Sabine.Shared.Configuration.Files
 	/// </summary>
 	public class WorldConf : ConfFile
 	{
+		public int JobExpRate { get; set; }
 		public int ItemDropRate { get; set; }
 		public int ItemDisappearTime { get; set; }
 		public DisplayMonsterHpType DisplayMonsterHp { get; set; }
@@ -20,6 +21,7 @@ namespace Sabine.Shared.Configuration.Files
 		{
 			this.Require(filePath);
 
+			this.JobExpRate = this.GetInt("job_exp_rate", 100);
 			this.ItemDropRate = this.GetInt("item_drop_rate", 100);
 			this.ItemDisappearTime = this.GetInt("item_disappear_time", 30);
 			this.DisplayMonsterHp = (DisplayMonsterHpType)this.GetInt("display_monster_hp", (int)DisplayMonsterHpType.No);

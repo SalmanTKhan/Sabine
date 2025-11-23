@@ -256,7 +256,7 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			// The exact alpha weight formula is currently unknown,
 			// but it seems like characters had ~16~25% of the weight
 			// they would have in later versions.
-			if (!SabineData.Features.IsEnabled("HigherMaxWeight"))
+			if (!SabineData.Features.IsEnabled(FeatureId.HigherMaxWeight))
 				this.WeightMax /= 5;
 
 			this.UpdateClient(ParameterType.Weight, ParameterType.WeightMax);
@@ -295,10 +295,57 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		}
 
 		/// <summary>
+		/// Recalculates stat bonuses derived from the current Job Level.
+		/// </summary>
+		public void RecalculateJobBonuses()
+		{
+			var jobData = this.Character.JobData;
+			var jLvl = this.Character.Parameters.JobLevel;
+
+			// Ensure we don't go out of bounds if the array is smaller than current level
+			// Arrays in RO data are usually 1-based or 0-based representing the level.
+			// Adjust index logic based on your specific data loader.
+
+			// Reset bonuses first (or rely on RecalculateAll clearing them if structured that way)
+			this.BonusStr = 0;
+			this.BonusAgi = 0;
+			this.BonusVit = 0;
+			this.BonusInt = 0;
+			this.BonusDex = 0;
+			this.BonusLuk = 0;
+
+			if (jobData.Bonuses != null)
+			{
+				// Helper to safely get bonus
+				static int GetBonus(int[] arr, int level)
+				{
+					if (arr == null || arr.Length == 0) return 0;
+					// Assuming array index 0 = Job Lv 1, index 49 = Job Lv 50
+					var index = level - 1;
+					if (index < 0) return 0;
+					if (index >= arr.Length) return arr[^1]; // Cap at max defined bonus
+					return arr[index];
+				}
+
+				this.BonusStr += GetBonus(jobData.Bonuses.Str, jLvl);
+				this.BonusAgi += GetBonus(jobData.Bonuses.Agi, jLvl);
+				this.BonusVit += GetBonus(jobData.Bonuses.Vit, jLvl);
+				this.BonusInt += GetBonus(jobData.Bonuses.Int, jLvl);
+				this.BonusDex += GetBonus(jobData.Bonuses.Dex, jLvl);
+				this.BonusLuk += GetBonus(jobData.Bonuses.Luk, jLvl);
+			}
+
+			// Update client with new bonus values
+			// Note: We use ZC_STATUS usually to send all stats, but if you have specific packets for bonuses:
+			// Send.ZC_PAR_CHANGE(this.Character, ParameterType.BonusStr, this.BonusStr); ... etc
+		}
+
+		/// <summary>
 		/// Recalculates all sub-stats and updates the client.
 		/// </summary>
 		public override void RecalculateAll()
 		{
+			this.RecalculateJobBonuses();
 			this.RecalculateHp();
 			this.RecalculateSp();
 			this.RecalculateAttack();
@@ -309,6 +356,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			this.RecalculateExp();
 			this.RecalculateWeight();
 			this.RecalculateSpeeds();
+
+			// Finally send the big status packet to update the client UI
+			Send.ZC_STATUS(this.Character);
 		}
 
 		/// <summary>

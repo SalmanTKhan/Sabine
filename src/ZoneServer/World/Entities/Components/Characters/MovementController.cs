@@ -75,6 +75,10 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 
 			character.StopAttacking();
 
+			// Cancel casting if this is a player character
+			if (_playerCharacter != null)
+				_playerCharacter.StopCasting();
+
 			// If character is moving already, remember to calculate a new
 			// path once they reach the next tile.
 			if (_moving)
@@ -266,8 +270,8 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			var current = this.Character.Position;
 
 			// Calculate direction vector
-			int dx = current.X - source.X;
-			int dy = current.Y - source.Y;
+			var dx = current.X - source.X;
+			var dy = current.Y - source.Y;
 
 			// Normalize somewhat to get a direction
 			if (dx == 0 && dy == 0)
@@ -277,8 +281,8 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			}
 
 			// Simple grid based knockback logic
-			int dirX = Math.Sign(dx);
-			int dirY = Math.Sign(dy);
+			var dirX = Math.Sign(dx);
+			var dirY = Math.Sign(dy);
 
 			var newPos = new Position(
 				(short)(current.X + (dirX * distance)),
