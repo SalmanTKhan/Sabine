@@ -167,6 +167,7 @@ namespace Sabine.Zone.World.Entities
 			this.Inventory = new Inventory(this);
 
 			this.Parameters = new PlayerCharacterParameters(this);
+			this.Components.Add(new RegenComponent(this));
 
 			this.LoadJobData(jobId);
 
@@ -202,28 +203,6 @@ namespace Sabine.Zone.World.Entities
 
 			Send.ZC_NOTIFY_CHAT(this, 0, message);
 		}
-
-		/// <summary>
-		/// Warps character to the given location.
-		/// </summary>
-		/// <param name="mapStringId"></param>
-		/// <param name="x"></param>
-		/// <param name="y"></param>
-		public void Warp(string mapStringId, int x, int y)
-		{
-			if (!SabineData.Maps.TryFind(mapStringId, out var mapData))
-				throw new ArgumentException($"Map '{mapStringId}' not found.");
-
-			this.Warp(mapData.Id, new Position(x, y));
-		}
-
-		/// <summary>
-		/// Warps character to given location.
-		/// </summary>
-		/// <param name="mapId"></param>
-		/// <param name="pos"></param>
-		public void Warp(int mapId, Position pos)
-			=> this.Warp(new Location(mapId, pos));
 
 		/// <summary>
 		/// Warps character to given location.

@@ -30,7 +30,7 @@ namespace Sabine.Zone.World.Maps
 		/// Returns a reference to the Limbo map. See Limbo class for
 		/// more information.
 		/// </summary>
-		public static readonly Limbo Limbo = new Limbo();
+		public static readonly Limbo Limbo = new();
 
 		/// <summary>
 		/// Returns the map's id.
@@ -145,7 +145,7 @@ namespace Sabine.Zone.World.Maps
 		/// </summary>
 		private void RemoveDroppedItems()
 		{
-			IList<Item> items = null;
+			List<Item> items = null;
 			var now = DateTime.Now;
 
 			lock (_items)
@@ -475,6 +475,27 @@ namespace Sabine.Zone.World.Maps
 		{
 			lock (_npcs)
 				return _npcs.Values.OfType<Monster>().Where(predicate).ToArray();
+		}
+
+		/// <summary>
+		/// Adds all trigger areas containing the given position to the
+		/// result list.
+		/// </summary>
+		/// <param name="position"></param>
+		/// <param name="result"></param>
+		public void GetTriggerAreas(Position position, IList<TriggerArea> result)
+		{
+			lock (_npcs)
+			{
+				foreach (var npc in _npcs.Values)
+				{
+					if (npc.TriggerArea == null)
+						continue;
+
+					if (npc.TriggerArea.Contains(position))
+						result.Add(npc.TriggerArea);
+				}
+			}
 		}
 
 		/// <summary>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
+using Yggdrasil.Collections;
 using Yggdrasil.Extensions;
 using Yggdrasil.Logging;
 using Yggdrasil.Scheduling;
@@ -21,6 +22,8 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		private Position _nextDestination;
 		private bool _destinationChanged;
 		private bool _moving;
+
+		private readonly InOutTracker<TriggerArea> _triggers = new();
 
 		/// <summary>
 		/// Returns the character this controller belongs to.
@@ -152,8 +155,8 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			var movingStright = character.Position.InStraightLine(_nextDestination);
 			var speed = (float)character.Parameters.Speed;
 
-			// If you ever write your own server, and your movement is wonky,
-			// check the following:
+			// If you ever write your own server, and your movement is
+			// wonky, check the following:
 			// 1) Make sure the movement speed is right.
 			// 2) Let your movement update run consistently or factor in
 			//    any potential delays.
@@ -164,9 +167,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 
 			_moving = true;
 
-			// I tried running the controller on the heartbeat, but I wasn't
-			// entirely happy with the results. Let's switch to a high-resolution
-			// timer for now and see how that goes.
+			// I tried running the controller on the heartbeat, but I
+			// wasn't entirely happy with the results. Let's switch to a
+			// high-resolution timer for now and see how that goes.
 			ZoneServer.Instance.World.Scheduler.Schedule(speed, this.ExecuteMove);
 		}
 
@@ -242,21 +245,43 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		/// <param name="position"></param>
 		private void OnReachedTile(Position position)
 		{
-			// TODO: Add auto trigger system that we can check for things
-			//   to do when stepping onto tiles.
+			// TODO: There's a minor issue with warp NPCs (id 45) in at
+			// least Beta1. When a character is about to step onto the
+			// central tile of a warp, the character stops moving and
+			// freezes for a moment, possibly in expactation of a warp. If
+			// a warp happens, this isn't an issue, since it will unlock
+			// the character and they'll able to continue as they were. If
+			// no warp happens though, we get desynced and the client
+			// becomes unresponsive for a moment. There are currently no
+			// simple solutions for this problem, but it's also a pretty
+			// niche issue, that should only happen very rarely, like with
+			// warp trigger NPCs that don't warp. Still, we might want to
+			// try to work around that somehow.
 
-			var character = this.Character;
+			this.CheckTriggers();
+		}
 
-			// TODO: Add option for warping monsters
-			if (character is Monster)
-				return;
+		/// <summary>
+		/// Raises the appropriate events for any trigger areas the
+		/// character has entered or left.
+		/// </summary>
+		private void CheckTriggers()
+		{
+			_triggers.Begin();
 
-			var warps = character.Map.GetAllNpcs(a => a.ClassId == 45 && a.Position.InSquareRange(position, 2) && a.WarpDestination.MapId != 0);
-			if (warps.Length > 0)
+			this.Character.Map.GetTriggerAreas(this.Character.Position, _triggers.UpdateList);
+			_triggers.Update();
+
+			if (!_triggers.Empty)
 			{
-				var warp = warps[0];
-				character.Warp(warp.WarpDestination);
+				foreach (var triggerArea in _triggers.Added)
+					triggerArea.Enter?.Invoke(this.Character, triggerArea.Owner);
+
+				foreach (var triggerArea in _triggers.Removed)
+					triggerArea.Exit?.Invoke(this.Character, triggerArea.Owner);
 			}
+
+			_triggers.End();
 		}
 
 		/// <summary>

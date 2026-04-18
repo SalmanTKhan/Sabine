@@ -11,8 +11,7 @@ using Sabine.Shared.Const;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.World.Entities;
 
-// Red Potion
-[ItemScript(501)]
+[ItemScript(ItemId.RedPotion)]
 public class Item501 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -23,8 +22,7 @@ public class Item501 : ItemScript
 	}
 }
 
-// Orange Potion
-[ItemScript(502)]
+[ItemScript(ItemId.ScarletPotion)]
 public class Item502 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -35,8 +33,7 @@ public class Item502 : ItemScript
 	}
 }
 
-// Yellow Potion
-[ItemScript(503)]
+[ItemScript(ItemId.YellowPotion)]
 public class Item503 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -47,8 +44,7 @@ public class Item503 : ItemScript
 	}
 }
 
-// White Potion
-[ItemScript(504)]
+[ItemScript(ItemId.WhitePotion)]
 public class Item504 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -59,8 +55,7 @@ public class Item504 : ItemScript
 	}
 }
 
-// Blue Potion
-[ItemScript(505)]
+[ItemScript(ItemId.BluePotion)]
 public class Item505 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -71,8 +66,7 @@ public class Item505 : ItemScript
 	}
 }
 
-// Green Potion
-[ItemScript(506)]
+[ItemScript(ItemId.GreenPotion)]
 public class Item506 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -86,8 +80,7 @@ public class Item506 : ItemScript
 	}
 }
 
-// Red Herb
-[ItemScript(507)]
+[ItemScript(ItemId.RedHerb)]
 public class Item507 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -98,8 +91,7 @@ public class Item507 : ItemScript
 	}
 }
 
-// Yellow Herb
-[ItemScript(508)]
+[ItemScript(ItemId.YellowHerb)]
 public class Item508 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -110,8 +102,7 @@ public class Item508 : ItemScript
 	}
 }
 
-// White Herb
-[ItemScript(509)]
+[ItemScript(ItemId.WhiteHerb)]
 public class Item509 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -122,8 +113,7 @@ public class Item509 : ItemScript
 	}
 }
 
-// Blue Herb
-[ItemScript(510)]
+[ItemScript(ItemId.BlueHerb)]
 public class Item510 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -133,8 +123,7 @@ public class Item510 : ItemScript
 	}
 }
 
-// Green Herb
-[ItemScript(511)]
+[ItemScript(ItemId.GreenHerb)]
 public class Item511 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -144,8 +133,7 @@ public class Item511 : ItemScript
 	}
 }
 
-// Apple
-[ItemScript(512)]
+[ItemScript(ItemId.Apple)]
 public class Item512 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -155,8 +143,7 @@ public class Item512 : ItemScript
 	}
 }
 
-// Banana
-[ItemScript(513)]
+[ItemScript(ItemId.Banana)]
 public class Item513 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -166,8 +153,7 @@ public class Item513 : ItemScript
 	}
 }
 
-// Grape
-[ItemScript(514)]
+[ItemScript(ItemId.Grape)]
 public class Item514 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -177,8 +163,7 @@ public class Item514 : ItemScript
 	}
 }
 
-// Meat
-[ItemScript(517)]
+[ItemScript(ItemId.Meat)]
 public class Item517 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -190,12 +175,11 @@ public class Item517 : ItemScript
 
 //---------------------------------------------------------------------------
 // The following items were usable healing items in the alpha, based on
-// certain online item database from 2001. However, we don't have any
+// certain online item databases from 2001. However, we don't have any
 // concrete healing amounts, so have to wing it a little.
 //---------------------------------------------------------------------------
 
-// Tree Root
-[ItemScript(902)]
+[ItemScript(ItemId.TreeRoot)]
 public class Item902 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -205,8 +189,7 @@ public class Item902 : ItemScript
 	}
 }
 
-// Scorpion Tail
-[ItemScript(904)]
+[ItemScript(ItemId.ScorpionTail)]
 public class Item904 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -218,8 +201,7 @@ public class Item904 : ItemScript
 	}
 }
 
-// Scale
-[ItemScript(906)]
+[ItemScript(ItemId.Scale)]
 public class Item906 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -229,8 +211,7 @@ public class Item906 : ItemScript
 	}
 }
 
-// Resin
-[ItemScript(907)]
+[ItemScript(ItemId.Resin)]
 public class Item907 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -240,8 +221,7 @@ public class Item907 : ItemScript
 	}
 }
 
-// Spawn
-[ItemScript(908)]
+[ItemScript(ItemId.Spawn)]
 public class Item908 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -251,8 +231,7 @@ public class Item908 : ItemScript
 	}
 }
 
-// Jellopy
-[ItemScript(909)]
+[ItemScript(ItemId.Jellopy)]
 public class Item909 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)
@@ -262,8 +241,7 @@ public class Item909 : ItemScript
 	}
 }
 
-// Sel
-[ItemScript(911)]
+[ItemScript(ItemId.Sel)]
 public class Item911 : ItemScript
 {
 	public override ItemUseResult OnUse(PlayerCharacter player, Item item)

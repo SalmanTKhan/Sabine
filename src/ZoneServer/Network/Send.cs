@@ -837,7 +837,7 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Closes the dialog window.
+		/// Displays a list of options to choose from during a dialog.
 		/// </summary>
 		/// <param name="character"></param>
 		/// <param name="npcHandle"></param>
