@@ -149,6 +149,28 @@ namespace Sabine.Zone.World.Maps
 		}
 
 		/// <summary>
+		/// Returns the player character with the given id via out.
+		/// Returns false if the character wasn't found.
+		/// </summary>
+		/// <param name="id"></param>
+		/// <param name="player"></param>
+		/// <returns></returns>
+		public bool TryGetPlayerById(int id, out PlayerCharacter player)
+		{
+			lock (_syncLock)
+			{
+				foreach (var map in _mapsList)
+				{
+					if (map.TryGetPlayerById(id, out player))
+						return true;
+				}
+			}
+
+			player = null;
+			return false;
+		}
+
+		/// <summary>
 		/// Returns the player character with the given name via out.
 		/// Returns false if the character wasn't found or isn't a
 		/// player character.

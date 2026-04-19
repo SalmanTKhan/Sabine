@@ -94,6 +94,17 @@ namespace Sabine.Zone.Network
 			if (character.SaveLocation.IsZero)
 				character.SaveLocation = new Location(100036, 99, 81);
 
+			if (ZoneServer.Instance.World.Maps.TryGetPlayerById(character.Id, out var existingCharacter))
+			{
+				Log.Warning("CZ_ENTER: Disconnecting existing session for character '{0}' ({1}).", existingCharacter.Name, existingCharacter.Id);
+
+				var existingConnection = existingCharacter.Connection;
+				existingCharacter.Map?.RemoveCharacter(existingCharacter);
+
+				if (existingConnection != null && existingConnection != conn)
+					existingConnection.Close();
+			}
+
 			conn.Account = account;
 			conn.Character = character;
 			character.Connection = conn;
