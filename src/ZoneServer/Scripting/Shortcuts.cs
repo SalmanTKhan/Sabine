@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Sabine.Shared.Configuration.Files;
-using Sabine.Shared.Data;
 using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Commands;
@@ -322,10 +321,10 @@ namespace Sabine.Zone.Scripting
 			if (mapStringId.EndsWith(".gat"))
 				mapStringId = mapStringId.Substring(0, mapStringId.Length - 4);
 
-			if (!SabineData.Monsters.TryFind(monsterId, out var monsterData))
+			if (!ZoneServer.Instance.Data.Monsters.TryFind(monsterId, out var monsterData))
 				return;
 
-			if (!SabineData.Maps.TryFind(mapStringId, out var map))
+			if (!ZoneServer.Instance.Data.Maps.TryFind(mapStringId, out var map))
 				throw new ArgumentException($"Map '{mapStringId}' not found.");
 
 			var spawner = new Spawner(monsterId, amount, initialDelay, respawnDelayMin, respawnDelayMax, map.Id, x, y, spanX, spanY);
@@ -381,10 +380,10 @@ namespace Sabine.Zone.Scripting
 			if (mapStringId.EndsWith(".gat"))
 				mapStringId = mapStringId.Substring(0, mapStringId.Length - 4);
 
-			if (!SabineData.Monsters.TryFind(monsterId, out var monsterData))
+			if (!ZoneServer.Instance.Data.Monsters.TryFind(monsterId, out var monsterData))
 				return;
 
-			if (!SabineData.Maps.TryFind(mapStringId, out var map))
+			if (!ZoneServer.Instance.Data.Maps.TryFind(mapStringId, out var map))
 				throw new ArgumentException($"Map '{mapStringId}' not found.");
 
 			var spawner = new Spawner(monsterId, amount, initialDelay, respawnDelayMin, respawnDelayMax, map.Id);

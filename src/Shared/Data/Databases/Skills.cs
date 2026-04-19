@@ -21,18 +21,6 @@ namespace Sabine.Shared.Data.Databases
 	}
 
 	/// <summary>
-	/// Defines the type of target a skill can be used on.
-	/// </summary>
-	public enum SkillTargetType
-	{
-		Self,
-		Enemy,
-		Ally,
-		Ground,
-		Passive,
-	}
-
-	/// <summary>
 	/// Defines the elemental property of a skill.
 	/// </summary>
 	public enum SkillElement
@@ -190,11 +178,21 @@ namespace Sabine.Shared.Data.Databases
 	{
 		public SkillId Id { get; set; }
 		public string SkillId { get; set; }
+		public string StringId
+		{
+			get => this.SkillId;
+			set => this.SkillId = value;
+		}
+		public SkillId ClassId
+		{
+			get => this.Id;
+			set => this.Id = value;
+		}
 		public string Name { get; set; }
 		public string KoreanName { get; set; }
 		public int MaxLevel { get; set; }
 		public SkillType Type { get; set; }
-		public SkillTargetType? TargetType { get; set; }
+		public SkillTargetType TargetType { get; set; } = SkillTargetType.Passive;
 		public int[] Range { get; set; }
 		public SkillElement[] Element { get; set; }
 		public SkillTypeFlags TypeFlags { get; set; }
@@ -204,8 +202,22 @@ namespace Sabine.Shared.Data.Databases
 		public SkillBehaviorData Behavior { get; set; } = new();
 		public SkillCastData Cast { get; set; } = new();
 
-		public int GetSpCost(int level) => this.Costs.Sp != null && this.Costs.Sp.Length >= level ? this.Costs.Sp[level - 1] : 0;
-		public int GetRange(int level) => this.Range != null && this.Range.Length >= level && level > 0 ? this.Range[level - 1] : 0;
+		public int GetSpCost(int level)
+			=> this.GetValue(this.Costs.Sp, level);
+
+		public int GetHpCost(int level)
+			=> this.GetValue(this.Costs.Hp, level);
+
+		public int GetRange(int level)
+			=> this.GetValue(this.Range, level);
+
+		private int GetValue(int[] values, int level)
+		{
+			if (values == null || values.Length == 0)
+				return 0;
+
+			return values[Math.Clamp(level - 1, 0, values.Length - 1)];
+		}
 	}
 
 	/// <summary>
@@ -238,8 +250,6 @@ namespace Sabine.Shared.Data.Databases
 
 			if (entry.ContainsKey("target"))
 				data.TargetType = entry.ReadEnum<SkillTargetType>("target");
-			else
-				data.TargetType = SkillTargetType.Passive;
 
 			data.TypeFlags |= data.Type switch
 			{

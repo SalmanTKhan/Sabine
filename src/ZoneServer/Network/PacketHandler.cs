@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Sabine.Shared;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.Util;
@@ -13,10 +15,13 @@ using Sabine.Zone.Events.Args;
 using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
+using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Entities;
 using Sabine.Zone.World.Entities.Components.Characters;
+using Sabine.Zone.World.Maps;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Logging;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Network
 {
@@ -249,7 +254,34 @@ namespace Sabine.Zone.Network
 
 			text = string.Format("{0} : {1}", character.Name, text);
 
-			Send.ZC_NOTIFY_CHAT(character, text);
+			// The client uses the same packets for displaying chat
+			// messages publically and inside chat rooms, forcing us to
+			// filter who we send which messages to. If the character is
+			// in a chat room, they will only get messages from that chat
+			// room. If they're not in a chat, they will only get messages
+			// from characters around them who are also not in a chat. For
+			// this purpose, we consider chat room 0 to be the public
+			// chat, to quickly match characters who are in the same
+			// "chat".
+
+			using var sameChatCharacters = PooledList<PlayerCharacter>.Rent();
+			character.Map.GetCharacters(sameChatCharacters, character, static (sourceCharacter, character) =>
+			{
+				if (sourceCharacter == character)
+					return false;
+
+				var inRange = sourceCharacter.Position.InRange(character.Position, sourceCharacter.Map.VisibleRange);
+				if (!inRange)
+					return false;
+
+				var sameRoom = sourceCharacter.ChatRoomId == character.ChatRoomId;
+				if (!sameRoom)
+					return false;
+
+				return true;
+			});
+
+			Send.ZC_NOTIFY_CHAT(new ListBroadcastSender(sameChatCharacters), character.Handle, text);
 			Send.ZC_NOTIFY_PLAYERCHAT(character, text);
 		}
 
@@ -290,9 +322,8 @@ namespace Sabine.Zone.Network
 			var message = packet.GetString(len - 4 - 16);
 
 			var character = conn.GetCurrentCharacter();
-			var target = ZoneServer.Instance.World.GetPlayerCharacter(a => a.Name == targetName);
 
-			if (target == null)
+			if (!ZoneServer.Instance.World.Maps.TryGetPlayerByName(targetName, out var target))
 			{
 				Send.ZC_ACK_WHISPER(character, WhisperResult.CharacterDoesntExist);
 				return;
@@ -520,14 +551,14 @@ namespace Sabine.Zone.Network
 
 			var character = conn.GetCurrentCharacter();
 
-			var itemNameData = SabineData.ItemNames.Find(a => a.AlphaName == itemStringId || a.BetaName == itemStringId);
+			var itemNameData = ZoneServer.Instance.Data.ItemNames.Find(a => a.AlphaName == itemStringId || a.BetaName == itemStringId);
 			if (itemNameData == null)
 			{
 				Log.Warning("CZ_REQ_ITEM_EXPLANATION_BYNAME: Item name data for '{0}' not found.", itemStringId);
 				return;
 			}
 
-			var itemData = SabineData.Items.Find(itemNameData.Id);
+			var itemData = ZoneServer.Instance.Data.Items.Find(itemNameData.Id);
 			if (itemData == null)
 			{
 				Log.Warning("CZ_REQ_ITEM_EXPLANATION_BYNAME: Item data for '{0}' not found.", itemStringId);
@@ -772,7 +803,7 @@ namespace Sabine.Zone.Network
 
 			var newLevel = currentLevel + 1;
 
-			if (!SabineData.Skills.TryFind(skillId, out var skillData) || newLevel > skillData.MaxLevel)
+			if (!ZoneServer.Instance.Data.Skills.TryFind(skillId, out var skillData) || newLevel > skillData.MaxLevel)
 			{
 				Send.ZC_SKILLINFO_UPDATE(character, skillId, currentLevel, false);
 				return; // Skill doesn't exist or max level reached
@@ -1054,6 +1085,385 @@ namespace Sabine.Zone.Network
 
 			var character = conn.GetCurrentCharacter();
 			Send.ZC_ACK_REQ_DISCONNECT(character, 0); // 1 = wait 10 seconds
+		}
+
+		/// <summary>
+		/// Request to start a trade with another player.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_EXCHANGE_ITEM)]
+		public void CZ_REQ_EXCHANGE_ITEM(ZoneConnection conn, Packet packet)
+		{
+			var targetHandle = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!character.Map.TryGetPlayer(targetHandle, out var partner))
+			{
+				character.ServerMessage(Localization.Get("Character not found."));
+				return;
+			}
+
+			if (ZoneServer.Instance.World.Trades.TryGetTrade(character, out var existingTrade))
+			{
+				character.ServerMessage(Localization.Get("You're already trading."));
+				return;
+			}
+
+			ZoneServer.Instance.World.Trades.InitiateTrade(character, partner);
+		}
+
+		/// <summary>
+		/// Response to a trade request from the receiving character.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_ACK_EXCHANGE_ITEM)]
+		public void CZ_ACK_EXCHANGE_ITEM(ZoneConnection conn, Packet packet)
+		{
+			var response = (TradingResponse)packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!ZoneServer.Instance.World.Trades.TryGetTrade(character, out var trade))
+			{
+				character.ServerMessage(Localization.Get("You're not in a trade."));
+				return;
+			}
+
+			trade.Acknowledge(character, response);
+		}
+
+		/// <summary>
+		/// Request to add an item to the list of trade items.
+		/// </summary>
+		/// <remarks>
+		/// Sent automatically for Zeny with inventory id 0 upon conluding
+		/// the trade. For items it's sent when they're added to the list.
+		/// </remarks>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_ADD_EXCHANGE_ITEM)]
+		public void CZ_ADD_EXCHANGE_ITEM(ZoneConnection conn, Packet packet)
+		{
+			var invId = packet.GetShort();
+			var amount = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!ZoneServer.Instance.World.Trades.TryGetTrade(character, out var trade))
+			{
+				character.ServerMessage(Localization.Get("You're not in a trade."));
+				return;
+			}
+
+			if (invId == 0)
+				trade.SetZeny(character, amount);
+			else
+				trade.AddItem(character, invId, amount);
+		}
+
+		/// <summary>
+		/// Request to cancel active trade.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CANCEL_EXCHANGE_ITEM)]
+		public void CZ_CANCEL_EXCHANGE_ITEM(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+
+			if (!ZoneServer.Instance.World.Trades.TryGetTrade(character, out var trade))
+			{
+				character.ServerMessage(Localization.Get("You're not in a trade."));
+				return;
+			}
+
+			trade.RequestCancellation(character);
+		}
+
+		/// <summary>
+		/// Request to lock in active trade.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CONCLUDE_EXCHANGE_ITEM)]
+		public void CZ_CONCLUDE_EXCHANGE_ITEM(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+
+			if (!ZoneServer.Instance.World.Trades.TryGetTrade(character, out var trade))
+			{
+				character.ServerMessage(Localization.Get("You're not in a trade."));
+				return;
+			}
+
+			trade.Conclude(character);
+		}
+
+		/// <summary>
+		/// Request to finish active trade.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_EXEC_EXCHANGE_ITEM)]
+		public void CZ_EXEC_EXCHANGE_ITEM(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+
+			if (!ZoneServer.Instance.World.Trades.TryGetTrade(character, out var trade))
+			{
+				character.ServerMessage(Localization.Get("You're not in a trade."));
+				return;
+			}
+
+			trade.Complete(character);
+		}
+
+		/// <summary>
+		/// Request to create a chat room.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CREATE_CHATROOM)]
+		public void CZ_CREATE_CHATROOM(ZoneConnection conn, Packet packet)
+		{
+			var len = packet.GetShort();
+			var limit = packet.GetShort();
+			var privacy = (ChatPrivacy)packet.GetByte();
+			var password = packet.GetString(8);
+
+			var titleLen = packet.GetRemainingLength();
+			var title = packet.GetString(titleLen);
+
+			var character = conn.GetCurrentCharacter();
+
+			limit = Math.Clamp(limit, 1, 20);
+
+			if (privacy < ChatPrivacy.Private || privacy > ChatPrivacy.Public)
+				privacy = ChatPrivacy.Public;
+
+			var room = new ChatRoom(character, title, limit, privacy, password);
+			room.AddMember(character);
+
+			ZoneServer.Instance.World.ChatRooms.Add(room);
+
+			Send.ZC_ACK_CREATE_CHATROOM(character, ChatRoomSuccess.Success);
+		}
+
+		/// <summary>
+		/// Request to modify a chat room.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CHANGE_CHATROOM)]
+		public void CZ_CHANGE_CHATROOM(ZoneConnection conn, Packet packet)
+		{
+			var len = packet.GetShort();
+			var limit = packet.GetShort();
+			var privacy = (ChatPrivacy)packet.GetByte();
+			var password = packet.GetString(8);
+
+			var titleLen = packet.GetRemainingLength();
+			var title = packet.GetString(titleLen);
+
+			var character = conn.GetCurrentCharacter();
+
+			limit = Math.Clamp(limit, 1, 20);
+
+			if (privacy < ChatPrivacy.Private || privacy > ChatPrivacy.Public)
+				privacy = ChatPrivacy.Public;
+
+			if (character.ChatRoomId == 0)
+			{
+				Log.Debug("CZ_CHANGE_CHATROOM: User '{0}' tried to change a chat room but isn't in a chat room.", conn.Account.Username);
+				return;
+			}
+
+			if (!ZoneServer.Instance.World.ChatRooms.TryGet(character.ChatRoomId, out var room))
+			{
+				Log.Debug("CZ_CHANGE_CHATROOM: User '{0}' tried to change a chat room but their chat room doesn't exist.", conn.Account.Username);
+				return;
+			}
+
+			if (!room.IsOwner(character))
+			{
+				Log.Debug("CZ_CHANGE_CHATROOM: User '{0}' tried to change a chat room but is not the owner.", conn.Account.Username);
+				return;
+			}
+
+			room.ChangeSettings(title, limit, privacy, password);
+
+			// For some reason the client requires a separate update for
+			// the sender of the settings update, with the exact same
+			// information as the room update we have to broadcast anyway.
+			Send.ZC_CHANGE_CHATROOM(character, room);
+		}
+
+		/// <summary>
+		/// Request to create a chat room.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_ENTER_ROOM)]
+		public void CZ_REQ_ENTER_ROOM(ZoneConnection conn, Packet packet)
+		{
+			var roomId = packet.GetInt();
+			var password = packet.GetString(8);
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!ZoneServer.Instance.World.ChatRooms.TryGet(roomId, out var room))
+			{
+				Log.Debug("CZ_REQ_ENTER_ROOM: User '{0}' tried to enter a chat room that doesn't exist.", conn.Account.Username);
+				return;
+			}
+
+			if (room.IsFull)
+			{
+				Send.ZC_REFUSE_ENTER_ROOM(character, ChatRoomRefuseReason.Full);
+				return;
+			}
+
+			if (room.IsBanned(character))
+			{
+				Send.ZC_REFUSE_ENTER_ROOM(character, ChatRoomRefuseReason.Banned);
+				return;
+			}
+
+			if (room.Privacy == ChatPrivacy.Private && password != room.Password)
+			{
+				Send.ZC_REFUSE_ENTER_ROOM(character, ChatRoomRefuseReason.WrongPassword);
+				return;
+			}
+
+			room.AddMember(character);
+		}
+
+		/// <summary>
+		/// Request from player to exit the current chat room.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_EXIT_ROOM)]
+		public void CZ_EXIT_ROOM(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+
+			if (character.ChatRoomId == 0)
+			{
+				Log.Debug("CZ_EXIT_ROOM: User '{0}' tried to exit a chat room but isn't in one.", conn.Account.Username);
+				return;
+			}
+
+			if (!ZoneServer.Instance.World.ChatRooms.TryGet(character.ChatRoomId, out var room))
+			{
+				Log.Debug("CZ_EXIT_ROOM: User '{0}' tried to exit a chat room that doesn't exist.", conn.Account.Username);
+				return;
+			}
+
+			if (!room.IsMember(character))
+			{
+				Log.Debug("CZ_EXIT_ROOM: User '{0}' tried to exit a chat room but isn't a member.", conn.Account.Username);
+				return;
+			}
+
+			room.RemoveMember(character, MemberExitReason.Left);
+		}
+
+		/// <summary>
+		/// Request to switch ownership of a chat.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_ROLE_CHANGE)]
+		public void CZ_REQ_ROLE_CHANGE(ZoneConnection conn, Packet packet)
+		{
+			var role = (ChatRoomRole)packet.GetInt();
+			var newOwnerName = packet.GetString(Sizes.CharacterNames);
+
+			var character = conn.GetCurrentCharacter();
+
+			// Based on the packet names it can be assumed that more than
+			// two roles were intended to be usable at some point, but the
+			// client only sends this packet to change ownership now.
+			if (role != ChatRoomRole.Owner)
+			{
+				Log.Debug("CZ_REQ_ROLE_CHANGE: User '{0}' tried to change a chat member's role to an invalid one ({1}).", conn.Account.Username, role);
+				return;
+			}
+
+			if (character.ChatRoomId == 0)
+			{
+				Log.Debug("CZ_REQ_ROLE_CHANGE: User '{0}' tried to change chat room ownership but isn't in a chat room.", conn.Account.Username);
+				return;
+			}
+
+			if (!ZoneServer.Instance.World.ChatRooms.TryGet(character.ChatRoomId, out var room))
+			{
+				Log.Debug("CZ_REQ_ROLE_CHANGE: User '{0}' tried to change chat room ownership but their chat room doesn't exist.", conn.Account.Username);
+				return;
+			}
+
+			if (!room.IsOwner(character))
+			{
+				Log.Debug("CZ_REQ_ROLE_CHANGE: User '{0}' tried to change chat room ownership but is not the owner.", conn.Account.Username);
+				return;
+			}
+
+			if (!room.IsMember(newOwnerName))
+			{
+				Log.Debug("CZ_REQ_ROLE_CHANGE: User '{0}' tried to change chat room ownership to '{1}', who isn't in the chat room.", conn.Account.Username, newOwnerName);
+				return;
+			}
+
+			room.ChangeOwner(newOwnerName);
+		}
+
+		/// <summary>
+		/// Request to switch ownership of a chat.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_EXPEL_MEMBER)]
+		public void CZ_REQ_EXPEL_MEMBER(ZoneConnection conn, Packet packet)
+		{
+			var memberName = packet.GetString(Sizes.CharacterNames);
+
+			var character = conn.GetCurrentCharacter();
+
+			if (character.ChatRoomId == 0)
+			{
+				Log.Debug("CZ_REQ_EXPEL_MEMBER: User '{0}' tried to expel member '{1}' but isn't in a chat room.", conn.Account.Username, memberName);
+				return;
+			}
+
+			if (!ZoneServer.Instance.World.ChatRooms.TryGet(character.ChatRoomId, out var room))
+			{
+				Log.Debug("CZ_REQ_EXPEL_MEMBER: User '{0}' tried to expel member '{1}' but their chat room doesn't exist.", conn.Account.Username, memberName);
+				return;
+			}
+
+			if (!room.IsOwner(character))
+			{
+				Log.Debug("CZ_REQ_EXPEL_MEMBER: User '{0}' tried to expel member '{1}' but is not the owner.", conn.Account.Username, memberName);
+				return;
+			}
+
+			if (!room.IsMember(memberName))
+			{
+				Log.Debug("CZ_REQ_EXPEL_MEMBER: User '{0}' tried to expel member '{1}', who isn't in the chat room.", conn.Account.Username, memberName);
+				return;
+			}
+
+			if (!character.Map.TryGetPlayerByName(memberName, out var memberCharacter))
+			{
+				Log.Debug("CZ_REQ_EXPEL_MEMBER: User '{0}' tried to expel member '{1}', but they couldn't be found.", conn.Account.Username, memberName);
+				return;
+			}
+
+			room.RemoveMember(memberCharacter, MemberExitReason.Kicked);
 		}
 	}
 }

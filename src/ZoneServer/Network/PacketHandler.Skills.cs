@@ -13,68 +13,6 @@ namespace Sabine.Zone.Network
 	public partial class PacketHandler : PacketHandler<ZoneConnection>
 	{
 		/// <summary>
-		/// Request to use a skill on a target.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_USE_SKILL)]
-		public void CZ_USE_SKILL(ZoneConnection conn, Packet packet)
-		{
-			var skillLevel = packet.GetShort();
-			var skillId = (SkillId)packet.GetShort();
-			var targetId = packet.GetInt();
-
-			var character = conn.GetCurrentCharacter();
-
-			// Basic validation
-			if (character.IsDead)
-			{
-				Log.Debug("CZ_USE_SKILL: Character '{0}' tried to use skill while dead.", character.Name);
-				return;
-			}
-
-			var target = character.Map.GetCharacter(targetId);
-			if (target == null)
-			{
-				Log.Debug("CZ_USE_SKILL: Character '{0}' tried to use skill on non-existent target.", character.Name);
-				return;
-			}
-
-			_ = character.Skills.Use(skillId, skillLevel, target);
-		}
-
-		/// <summary>
-		/// Request to use a skill on ground.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_USE_SKILL_TOGROUND)]
-		public void CZ_USE_SKILL_TOGROUND(ZoneConnection conn, Packet packet)
-		{
-			var skillLevel = packet.GetShort();
-			var skillId = (SkillId)packet.GetShort();
-			var x = packet.GetShort();
-			var y = packet.GetShort();
-
-			var character = conn.GetCurrentCharacter();
-
-			if (character.IsDead)
-			{
-				Log.Debug("CZ_USE_SKILL_TOGROUND: Character '{0}' tried to use skill while dead.", character.Name);
-				return;
-			}
-
-			if (!character.Skills.Has(skillId))
-			{
-				Log.Debug("CZ_USE_SKILL_TOGROUND: Character '{0}' tried to use skill they don't have: {1}", character.Name, skillId);
-				return;
-			}
-
-			// TODO: Use the skill on ground position
-			//character.Skills.UseOnGround(skillId, skillLevel, new Position(x, y));
-		}
-
-		/// <summary>
 		/// Request to warp to a saved warp point.
 		/// </summary>
 		/// <param name="conn"></param>

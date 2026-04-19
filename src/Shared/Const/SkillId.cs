@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Sabine.Shared.Const
+﻿namespace Sabine.Shared.Const
 {
 	/// <summary>
 	/// Defines the permanence of a learned skill.
@@ -25,7 +19,7 @@ namespace Sabine.Shared.Const
 	/// <summary>
 	/// Defines the unique identifier for a skill.
 	/// </summary>
-	public enum SkillId
+	public enum SkillId : short
 	{
 		NV_BASIC = 1,
 		SM_SWORD = 2,

@@ -214,7 +214,7 @@ namespace Sabine.Zone.Network
 
 			Log.Debug("CZ_MOVETO_MAP: GM '{0}' warping to {1} ({2},{3})", character.Name, mapName, x, y);
 
-			if (!SabineData.Maps.TryFind(mapName, out var mapData))
+			if (!ZoneServer.Instance.Data.Maps.TryFind(mapName, out var mapData))
 			{
 				Log.Warning("CZ_MOVETO_MAP: Map '{0}' not found.", mapName);
 				return;

@@ -159,6 +159,11 @@ namespace Sabine.Zone.World.Entities
 		public int PartyId => Party?.Id ?? 0;
 
 		/// <summary>
+		/// Gets or sets the id of the chat room the character is in.
+		/// </summary>
+		public int ChatRoomId { get; set; }
+
+		/// <summary>
 		/// Creates a new character.
 		/// </summary>
 		public PlayerCharacter(JobId jobId)
@@ -182,7 +187,7 @@ namespace Sabine.Zone.World.Entities
 		/// <exception cref="ArgumentException"></exception>
 		private void LoadJobData(JobId jobId)
 		{
-			if (!SabineData.Jobs.TryFind(jobId, out var jobData))
+			if (!ZoneServer.Instance.Data.Jobs.TryFind(jobId, out var jobData))
 				throw new ArgumentException($"No data found for job {jobId}.");
 
 			this.JobData = jobData;
@@ -320,8 +325,28 @@ namespace Sabine.Zone.World.Entities
 
 					switch (entity)
 					{
-						case Character character: Send.ZC_NOTIFY_STANDENTRY(this, character); break;
-						case Item item: Send.ZC_ITEM_ENTRY(this, item); break;
+						case Character character:
+						{
+							Send.ZC_NOTIFY_STANDENTRY(this, character);
+
+							// TODO: Cache chat ownership on player?
+							if (character is PlayerCharacter player)
+							{
+								if (player.ChatRoomId != 0 && ZoneServer.Instance.World.ChatRooms.TryGet(player.ChatRoomId, out var room))
+								{
+									if (room.IsOwner(player))
+										Send.ZC_ROOM_NEWENTRY(room);
+								}
+							}
+
+							break;
+						}
+
+						case Item item:
+						{
+							Send.ZC_ITEM_ENTRY(this, item);
+							break;
+						}
 					}
 				}
 
@@ -478,7 +503,7 @@ namespace Sabine.Zone.World.Entities
 		/// state and equipped items.
 		/// </summary>
 		/// <returns></returns>
-		public int GetAttackRange()
+		public override int GetAttackRange()
 		{
 			// Range is 3 for normal attacks and 16 for ranged
 			// in the alpha client. This is hardcoded, based on
@@ -500,7 +525,7 @@ namespace Sabine.Zone.World.Entities
 			var exp = this.Parameters.BaseExp;
 			var level = this.Parameters.BaseLevel;
 			var expNeeded = this.Parameters.BaseExpNeeded;
-			var maxLevel = SabineData.ExpTables.GetMaxLevel(ExpTableType.Base, this.JobId);
+			var maxLevel = ZoneServer.Instance.Data.ExpTables.GetMaxLevel(ExpTableType.Base, this.JobId);
 			var levelsGained = 0;
 			var statPointsGained = 0;
 
@@ -514,7 +539,7 @@ namespace Sabine.Zone.World.Entities
 				levelsGained++;
 				statPointsGained += (level / 5) + 2;
 
-				expNeeded = SabineData.ExpTables.GetExpNeeded(ExpTableType.Base, this.JobId, level);
+				expNeeded = ZoneServer.Instance.Data.ExpTables.GetExpNeeded(ExpTableType.Base, this.JobId, level);
 			}
 
 			if (levelsGained != 0)
@@ -536,13 +561,13 @@ namespace Sabine.Zone.World.Entities
 		public void GainJobExp(int amount)
 		{
 			// Don't give any job EXP if the feature is disabled
-			if (!SabineData.Features.IsEnabled(FeatureId.JobLevels))
+			if (!ZoneServer.Instance.Data.Features.IsEnabled(FeatureId.JobLevels))
 				return;
 
 			var exp = this.Parameters.JobExp;
 			var level = this.Parameters.JobLevel;
 			var expNeeded = this.Parameters.JobExpNeeded;
-			var maxLevel = SabineData.ExpTables.GetMaxLevel(ExpTableType.Job, this.JobId);
+			var maxLevel = ZoneServer.Instance.Data.ExpTables.GetMaxLevel(ExpTableType.Job, this.JobId);
 
 			// Prevent leveling past max level
 			if (level >= maxLevel)
@@ -569,7 +594,7 @@ namespace Sabine.Zone.World.Entities
 				level++;
 				levelsGained++;
 
-				expNeeded = SabineData.ExpTables.GetExpNeeded(ExpTableType.Job, this.JobId, level);
+				expNeeded = ZoneServer.Instance.Data.ExpTables.GetExpNeeded(ExpTableType.Job, this.JobId, level);
 			}
 
 			if (levelsGained != 0)

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
 using Sabine.Zone.Network;
 using Sabine.Zone.Skills;
 
@@ -21,20 +20,20 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		/// <summary>
 		/// Returns the character this component belongs to.
 		/// </summary>
-		public Character Character => this.Player;
+		public Character Character { get; }
 
 		/// <summary>
-		/// Returns the player character this component belongs to.
+		/// Returns the player character this component belongs to, if any.
 		/// </summary>
-		public PlayerCharacter Player { get; }
+		public PlayerCharacter Player => this.Character as PlayerCharacter;
 
 		/// <summary>
 		/// Creates a new SkillComponent.
 		/// </summary>
-		/// <param name="player"></param>
-		public SkillComponent(PlayerCharacter player)
+		/// <param name="character"></param>
+		public SkillComponent(Character character)
 		{
-			this.Player = player;
+			this.Character = character;
 		}
 
 		/// <summary>
@@ -69,6 +68,27 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			}
 
 			// Client needs to be updated with the full skill list.
+			this.RefreshClient();
+		}
+
+		/// <summary>
+		/// Adds a skill to the character's skill list or updates it.
+		/// </summary>
+		/// <param name="skill"></param>
+		public void Add(Skill skill)
+		{
+			lock (_skills)
+			{
+				if (_skills.TryGetValue(skill.Id, out var existingSkill))
+				{
+					existingSkill.Level = Math.Max(existingSkill.Level, skill.Level);
+				}
+				else
+				{
+					_skills.Add(skill.Id, skill);
+				}
+			}
+
 			this.RefreshClient();
 		}
 
@@ -128,6 +148,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		/// </summary>
 		public void RefreshClient()
 		{
+			if (this.Player == null)
+				return;
+
 			Send.ZC_SKILLINFO_LIST(this.Player, _skills.Values.ToList());
 		}
 
@@ -138,8 +161,11 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		/// <returns>True if the skill can be upgraded, otherwise false.</returns>
 		public bool CanUpgrade(SkillId skillId)
 		{
+			if (this.Player == null)
+				return false;
+
 			var currentLevel = this.GetLevel(skillId);
-			var skillTreeEntry = SabineData.SkillTree.FindByJobAndSkill(this.Player.JobId, skillId);
+			var skillTreeEntry = ZoneServer.Instance.Data.SkillTree.FindByJobAndSkill(this.Player.JobId, skillId);
 
 			// Check if the job can learn this skill
 			if (skillTreeEntry == null)
@@ -223,6 +249,9 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 		/// </summary>
 		public async Task Use(SkillId skillId, int level, IEntity target)
 		{
+			if (this.Player == null)
+				return;
+
 			if (!this.TryGet(skillId, out var skill))
 				return;
 

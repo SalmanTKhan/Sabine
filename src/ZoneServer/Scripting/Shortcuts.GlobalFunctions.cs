@@ -164,7 +164,7 @@ namespace Sabine.Zone.Scripting
 			if (vvs > 0) sb.Append(vvs switch { 1 => "VS ", 2 => "VVS ", 3 => "VVVS ", _ => $"{vvs}xVS " });
 			if (element > 0) sb.Append(element switch { 1 => "Ice ", 2 => "Earth ", 3 => "Fire ", 4 => "Wind ", _ => "Strange " });
 
-			SabineData.Items.TryFind(itemId, out var item);
+			ZoneServer.Instance.Data.Items.TryFind(itemId, out var item);
 			sb.Append(item?.Name ?? "Unknown Item");
 
 			return $"^000090{sb}^000000";
@@ -306,7 +306,7 @@ namespace Sabine.Zone.Scripting
 		/// <summary>Returns the string name of a weapon type based on its view ID.</summary>
 		public static string GetWeaponType(int weaponId)
 		{
-			if (!SabineData.Items.TryFind(weaponId, out var itemData)) return "Unknown Weapon";
+			if (!ZoneServer.Instance.Data.Items.TryFind(weaponId, out var itemData)) return "Unknown Weapon";
 
 			return itemData.LookId switch
 			{
@@ -338,7 +338,7 @@ namespace Sabine.Zone.Scripting
 		/// <summary>Returns the string name of an armor type based on its equip location.</summary>
 		public static string GetArmorType(int itemId)
 		{
-			if (!SabineData.Items.TryFind(itemId, out var itemData)) return "Unknown Equip";
+			if (!ZoneServer.Instance.Data.Items.TryFind(itemId, out var itemData)) return "Unknown Equip";
 
 			return itemData.WearSlots switch
 			{
@@ -372,7 +372,7 @@ namespace Sabine.Zone.Scripting
 			var actualId = equippedItem?.Data.ClassId ?? 0;
 			if (expectedId != actualId)
 			{
-				SabineData.Items.TryFind(expectedId, out var expectedItem);
+				ZoneServer.Instance.Data.Items.TryFind(expectedId, out var expectedItem);
 				Log.Warning($"Hack: Player {player.Name} tried to swap equip {expectedItem?.Name} for {equippedItem?.Data.Name}.");
 				return true;
 			}

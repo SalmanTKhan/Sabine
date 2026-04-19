@@ -1,7 +1,5 @@
-﻿using Sabine.Shared;
+using Sabine.Shared;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
-using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Network;
 using Sabine.Zone.Skills;
 using Sabine.Zone.World.Entities;
@@ -19,8 +17,7 @@ namespace Sabine.Zone.Network.Helpers
 		/// </summary>
 		public static void AddSkillData(this Packet packet, PlayerCharacter player, Skill skill)
 		{
-			// This assumes a data structure for skills exists in SabineData.
-			if (!SabineData.Skills.TryFind(skill.Id, out var skillData))
+			if (!ZoneServer.Instance.Data.Skills.TryFind(skill.Id, out var skillData))
 				return;
 
 			packet.PutShort((short)skill.Id);
@@ -32,11 +29,9 @@ namespace Sabine.Zone.Network.Helpers
 			packet.PutShort((short)skillData.GetRange(skill.Level));
 
 			var nameLength = (Game.Version < Versions.Beta1) ? 16 : 24;
-			packet.PutString(skillData.Id.ToString(), nameLength);
+			packet.PutString(skillData.StringId, nameLength);
 
-			var canUpgrade = skill.Level < skillData.MaxLevel && player.Parameters.SkillPoints > 0;
-			// A more complete check would include job level and prerequisite skills.
-			// canUpgrade &= player.Parameters.JobLevel >= skillData.GetJobLevelRequirement(skill.Level + 1);
+			var canUpgrade = player.Skills.CanUpgrade(skill.Id);
 			packet.PutByte(canUpgrade);
 
 			// Alpha client's ZC_ADD_SKILL packet has a total size of 33 bytes.
@@ -45,6 +40,35 @@ namespace Sabine.Zone.Network.Helpers
 			{
 				packet.PutEmpty(2);
 			}
+		}
+
+		/// <summary>
+		/// Writes skill data to the packet.
+		/// </summary>
+		public static void AddSkill(this Packet packet, PlayerCharacter player, Skill skill)
+			=> packet.AddSkillData(player, skill);
+
+		/// <summary>
+		/// Writes skill data to the packet.
+		/// </summary>
+		public static void AddSkill(this Packet packet, Skill skill)
+		{
+			if (skill.Character is PlayerCharacter player)
+			{
+				packet.AddSkillData(player, skill);
+				return;
+			}
+
+			packet.PutShort((short)skill.Id);
+			packet.PutInt((int)skill.Data.TypeFlags);
+			packet.PutShort((short)skill.Level);
+			packet.PutShort((short)skill.SpCost);
+			packet.PutShort((short)skill.Range);
+			packet.PutString(skill.Data.StringId, Game.Version < Versions.Beta1 ? 16 : 24);
+			packet.PutByte(skill.CanBeLeveled);
+
+			if (Game.Version < Versions.Beta1)
+				packet.PutEmpty(2);
 		}
 	}
 }

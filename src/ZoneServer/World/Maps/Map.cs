@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Network;
 using Sabine.Shared.World;
@@ -93,7 +92,7 @@ namespace Sabine.Zone.World.Maps
 		/// </summary>
 		protected virtual void LoadData()
 		{
-			this.CacheData = SabineData.MapCache.Find(this.StringId);
+			this.CacheData = ZoneServer.Instance.Data.MapCache.Find(this.StringId);
 			if (this.CacheData == null)
 			{
 				Log.Warning("Map: No cache data found for '{0}'.", this.StringId);
@@ -304,6 +303,16 @@ namespace Sabine.Zone.World.Maps
 				_characters.Remove(character.Id);
 			}
 
+			// Cancel any trades on removal, so they get cancelled on
+			// disconnect, warp, etc.
+			if (ZoneServer.Instance.World.Trades.TryGetTrade(character, out var trade))
+				trade.Cancel();
+
+			// Remove the character from any chat room they might be in,
+			// so they get removed on disconnect, warp, etc.
+			if (character.ChatRoomId != 0 && ZoneServer.Instance.World.ChatRooms.TryGet(character.ChatRoomId, out var room))
+				room.RemoveMember(character, MemberExitReason.Left);
+
 			Send.ZC_NOTIFY_VANISH(character, DisappearType.Vanish);
 			this.RemoveVisibleEntity(character);
 
@@ -367,6 +376,103 @@ namespace Sabine.Zone.World.Maps
 		{
 			lock (_characters)
 				return _characters.Values.Where(predicate).ToArray();
+		}
+
+		/// <summary>
+		/// Returns the character with the given handle via out, returns
+		/// false if the character wasn't found or they don't match the
+		/// requested type.
+		/// </summary>
+		/// <param name="handle"></param>
+		/// <param name="character"></param>
+		/// <returns></returns>
+		public bool TryGetCharacter<TCharacter>(int handle, out TCharacter character) where TCharacter : Character
+		{
+			character = this.GetCharacter(handle) as TCharacter;
+			return character != null;
+		}
+
+		/// <summary>
+		/// Returns the player character with the given handle via out.
+		/// Returns false if the character wasn't found or isn't a
+		/// player character.
+		/// </summary>
+		/// <param name="handle"></param>
+		/// <param name="player"></param>
+		/// <returns></returns>
+		public bool TryGetPlayer(int handle, out PlayerCharacter player)
+			=> this.TryGetCharacter(handle, out player);
+
+		/// <summary>
+		/// Returns the player character with the given id via out.
+		/// Returns false if the character wasn't found or isn't a
+		/// player character.
+		/// </summary>
+		/// <param name="id"></param>
+		/// <param name="player"></param>
+		/// <returns></returns>
+		public bool TryGetPlayerById(int id, out PlayerCharacter player)
+		{
+			lock (_characters)
+			{
+				foreach (var character in _characters.Values)
+				{
+					if (character.Id == id && character is PlayerCharacter pc)
+					{
+						player = pc;
+						return true;
+					}
+				}
+			}
+
+			player = null;
+			return false;
+		}
+
+		/// <summary>
+		/// Returns the player character with the given name via out.
+		/// Returns false if the character wasn't found or isn't a
+		/// player character.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="player"></param>
+		/// <returns></returns>
+		public bool TryGetPlayerByName(string name, out PlayerCharacter player)
+		{
+			lock (_characters)
+			{
+				foreach (var character in _characters.Values)
+				{
+					if (character.Name == name && character is PlayerCharacter pc)
+					{
+						player = pc;
+						return true;
+					}
+				}
+			}
+
+			player = null;
+			return false;
+		}
+
+		/// <summary>
+		/// Adds the characters on the map that match the predicate to the
+		/// given list.
+		/// </summary>
+		/// <typeparam name="TState"></typeparam>
+		/// <param name="result">The list to add matching characters to.</param>
+		/// <param name="state">A state that is passed to the predicate for determining matches.</param>
+		/// <param name="predicate">The predicate characters need to match to be added to the list.</param>
+		public void GetCharacters<TState>(List<PlayerCharacter> result, TState state, Func<TState, PlayerCharacter, bool> predicate)
+		{
+			lock (_characters)
+			{
+				foreach (var character in _characters.Values)
+				{
+					if (predicate(state, character))
+						result.Add(character);
+				}
+			}
 		}
 
 		/// <summary>

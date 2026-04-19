@@ -4,13 +4,13 @@ using System.Net;
 using Sabine.Shared;
 using Sabine.Shared.Configuration.Files;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.World;
 using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Skills;
+using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Entities;
 using Sabine.Zone.World.Entities.Components.Characters;
 using Sabine.Zone.World.Shops;
@@ -385,12 +385,6 @@ namespace Sabine.Zone.Network
 			ZC_PAR_CHANGE(character, type, value);
 		}
 
-		/// <summary>
-		/// Updates the given parameter on the client.
-		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="type"></param>
-		/// <param name="value"></param>
 		public static void ZC_PAR_CHANGE(PlayerCharacter character, ParameterType type, int value)
 		{
 			if (type.IsLong())
@@ -428,7 +422,7 @@ namespace Sabine.Zone.Network
 			// isn't enabled
 			if (type == ParameterType.JobExp || type == ParameterType.JobExpNeeded)
 			{
-				if (!SabineData.Features.IsEnabled(FeatureId.JobLevels))
+				if (!ZoneServer.Instance.Data.Features.IsEnabled(FeatureId.JobLevels))
 					value = 0;
 			}
 
@@ -513,37 +507,40 @@ namespace Sabine.Zone.Network
 		/// <summary>
 		/// Sends public chat packet to players around character.
 		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="message"></param>
+		/// <param name="character">The character who is the source of the chat message.</param>
+		/// <param name="message">The chat message to send.</param>
 		public static void ZC_NOTIFY_CHAT(Character character, string message)
-		{
-			var packet = new Packet(Op.ZC_NOTIFY_CHAT);
-
-			packet.PutInt(character.Handle);
-			packet.PutString(message);
-
-			character.Map.Broadcast(packet, character, BroadcastTargets.AllButSource);
-		}
+			=> ZC_NOTIFY_CHAT(new SightBroadcastSender(character, BroadcastTargets.AllButSource), character.Handle, message);
 
 		/// <summary>
 		/// Sends chat packet to character's client.
 		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="id"></param>
-		/// <param name="message"></param>
-		public static void ZC_NOTIFY_CHAT(PlayerCharacter character, int id, string message)
+		/// <param name="character">The character to send the packet to.</param>
+		/// <param name="authorHandle">The handle of the author of the chat message.</param>
+		/// <param name="message">The chat message to send.</param>
+		public static void ZC_NOTIFY_CHAT(PlayerCharacter character, int authorHandle, string message)
+			=> ZC_NOTIFY_CHAT(new SingleConnectionSender(character), authorHandle, message);
+
+		/// <summary>
+		/// Sends public chat packet for the author's message via sender.
+		/// </summary>
+		/// <param name="sender">The sender to use for sending the packet.</param>
+		/// <param name="authorHandle">The source of the chat message.</param>
+		/// <param name="message">The chat message to send.</param>
+		public static void ZC_NOTIFY_CHAT<TSender>(TSender sender, int authorHandle, string message) where TSender : ISender
 		{
 			var packet = new Packet(Op.ZC_NOTIFY_CHAT);
 
-			packet.PutInt(id);
+			packet.PutInt(authorHandle);
 			packet.PutString(message);
 
-			character.Connection.Send(packet);
+			sender.Send(packet);
 		}
 
 		/// <summary>
-		/// Sends public chat packet to character's client, displaying
-		/// it above their head.
+		/// Displays message to the character's client as their own
+		/// message, displaying it above their head and/or in a special
+		/// color inside a chat.
 		/// </summary>
 		/// <param name="character"></param>
 		/// <param name="message"></param>
@@ -1288,50 +1285,354 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Sends the full list of learned skills to the client.
+		/// Sends a list of skills the character has to the client,
+		/// refreshing the skill list.
 		/// </summary>
-		public static void ZC_SKILLINFO_LIST(PlayerCharacter character, IList<Skill> skills)
+		/// <param name="character"></param>
+		/// <param name="skills"></param>
+		public static void ZC_SKILLINFO_LIST(PlayerCharacter character, IEnumerable<Skill> skills)
 		{
 			var packet = new Packet(Op.ZC_SKILLINFO_LIST);
+
 			foreach (var skill in skills)
-			{
-				packet.AddSkillData(character, skill);
-			}
+				packet.AddSkill(character, skill);
+
 			character.Connection.Send(packet);
 		}
 
 		/// <summary>
-		/// Informs the client that a new skill has been learned.
+		/// Adds the given skill to the character's skill list.
 		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="skill"></param>
 		public static void ZC_ADD_SKILL(PlayerCharacter character, Skill skill)
 		{
 			var packet = new Packet(Op.ZC_ADD_SKILL);
-			packet.AddSkillData(character, skill);
+			packet.AddSkill(character, skill);
+
 			character.Connection.Send(packet);
 		}
 
 		/// <summary>
-		/// Updates a skill's information, such as its level or whether it can be upgraded.
+		/// Updates the skill on the character's client.
 		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="skill"></param>
+		public static void ZC_SKILLINFO_UPDATE(PlayerCharacter character, Skill skill)
+		{
+			ZC_SKILLINFO_UPDATE(character, skill.Id, skill.Level, skill.CanBeLeveled && character.Parameters.SkillPoints > 0);
+		}
+
+		/// <summary>
+		/// Updates a skill's information, such as its level or whether it
+		/// can be upgraded.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="skillId"></param>
+		/// <param name="level"></param>
+		/// <param name="canUpgrade"></param>
 		public static void ZC_SKILLINFO_UPDATE(PlayerCharacter character, SkillId skillId, int level, bool canUpgrade)
 		{
-			var packet = new Packet(Op.ZC_SKILLINFO_UPDATE);
-
-			if (!SabineData.Skills.TryFind(skillId, out var skillData))
+			if (!ZoneServer.Instance.Data.Skills.TryFind(skillId, out var skillData))
 				return;
+
+			var packet = new Packet(Op.ZC_SKILLINFO_UPDATE);
 
 			packet.PutShort((short)skillId);
 			packet.PutShort((short)level);
 			packet.PutShort((short)skillData.GetSpCost(level));
 
 			if (Game.Version >= Versions.Beta2)
-			{
 				packet.PutShort((short)skillData.GetRange(level));
-			}
 
 			packet.PutByte(canUpgrade);
 
 			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends notification about a trade request to character.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="traderName"></param>
+		public static void ZC_REQ_EXCHANGE_ITEM(PlayerCharacter character, string traderName)
+		{
+			var packet = new Packet(Op.ZC_REQ_EXCHANGE_ITEM);
+			packet.PutString(traderName, Sizes.CharacterNames);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends response about a trade request to character, opening
+		/// trade window on accept.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="response"></param>
+		public static void ZC_ACK_EXCHANGE_ITEM(PlayerCharacter character, TradingResponse response)
+		{
+			var packet = new Packet(Op.ZC_ACK_EXCHANGE_ITEM);
+			packet.PutByte((byte)response);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Cancels active trade on character's client.
+		/// </summary>
+		/// <param name="character"></param>
+		public static void ZC_CANCEL_EXCHANGE_ITEM(PlayerCharacter character)
+		{
+			var packet = new Packet(Op.ZC_CANCEL_EXCHANGE_ITEM);
+
+			character.Connection.Send(packet);
+		}
+
+		public static class ZC_ADD_EXCHANGE_ITEM
+		{
+			/// <summary>
+			/// Adds item to trade window, on the side of the trading partner.
+			/// </summary>
+			/// <param name="character"></param>
+			/// <param name="item"></param>
+			/// <param name="amount"></param>
+			public static void Item(PlayerCharacter character, Item item, int amount)
+			{
+				var packet = new Packet(Op.ZC_ADD_EXCHANGE_ITEM);
+
+				packet.PutInt(amount);
+				packet.PutString(item.StringId, Sizes.ItemNames);
+
+				character.Connection.Send(packet);
+			}
+
+			/// <summary>
+			/// Adds zeny to trade window, on the side of the trading
+			/// partner.
+			/// </summary>
+			/// <param name="character"></param>
+			/// <param name="amount"></param>
+			public static void Zeny(PlayerCharacter character, int amount)
+			{
+				var packet = new Packet(Op.ZC_ADD_EXCHANGE_ITEM);
+
+				packet.PutInt(amount);
+				packet.PutString("money", Sizes.ItemNames);
+
+				character.Connection.Send(packet);
+			}
+		}
+
+		/// <summary>
+		/// Sends response to request to add item to trade, adding the
+		/// item to the own side on success.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="invId"></param>
+		/// <param name="result"></param>
+		public static void ZC_ACK_ADD_EXCHANGE_ITEM(PlayerCharacter character, int invId, TradingSuccess result)
+		{
+			var packet = new Packet(Op.ZC_ACK_ADD_EXCHANGE_ITEM);
+
+			packet.PutShort((short)invId);
+			packet.PutByte((byte)result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the character about the given side requesting to
+		/// lock in the trade.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="side"></param>
+		public static void ZC_CONCLUDE_EXCHANGE_ITEM(PlayerCharacter character, TradingSide side)
+		{
+			var packet = new Packet(Op.ZC_CONCLUDE_EXCHANGE_ITEM);
+			packet.PutByte((byte)side);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the character about the result of the trade finish
+		/// request.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="result"></param>
+		public static void ZC_EXEC_EXCHANGE_ITEM(PlayerCharacter character, TradingSuccess result)
+		{
+			var packet = new Packet(Op.ZC_EXEC_EXCHANGE_ITEM);
+			packet.PutByte((byte)result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the character about the result of the chat room
+		/// creation request.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="result"></param>
+		public static void ZC_ACK_CREATE_CHATROOM(PlayerCharacter character, ChatRoomSuccess result)
+		{
+			var packet = new Packet(Op.ZC_ACK_CREATE_CHATROOM);
+			packet.PutByte((byte)result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Creates a new chat room on all clients close to the chat,
+		/// displaying it above the owner's head.
+		/// </summary>
+		/// <param name="room"></param>
+		public static void ZC_ROOM_NEWENTRY(ChatRoom room)
+		{
+			var packet = new Packet(Op.ZC_ROOM_NEWENTRY);
+
+			packet.PutInt(room.OwnerHandle);
+			packet.PutInt(room.Id);
+			packet.PutShort((short)room.Limit);
+			packet.PutShort((short)room.MemberCount);
+			packet.PutByte((byte)room.Privacy);
+			packet.PutString(room.Title, false);
+
+			room.Map.Broadcast(packet);
+		}
+
+		/// <summary>
+		/// Updates the chat room on the character's client in respons to
+		/// a change request.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="room"></param>
+		public static void ZC_CHANGE_CHATROOM(PlayerCharacter character, ChatRoom room)
+		{
+			var packet = new Packet(Op.ZC_CHANGE_CHATROOM);
+
+			packet.PutInt(room.OwnerHandle);
+			packet.PutInt(room.Id);
+			packet.PutShort((short)room.Limit);
+			packet.PutShort((short)room.MemberCount);
+			packet.PutByte((byte)room.Privacy);
+			packet.PutString(room.Title, false);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Removes chat room from all clients close to the chat, no
+		/// longer displaying it above the owner's head.
+		/// </summary>
+		/// <param name="room"></param>
+		public static void ZC_DESTROY_ROOM(ChatRoom room)
+		{
+			var packet = new Packet(Op.ZC_DESTROY_ROOM);
+			packet.PutInt(room.Id);
+
+			room.Map.Broadcast(packet);
+		}
+
+		/// <summary>
+		/// Notifies the character about the reason they weren't able to
+		/// join a chat room.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="reason"></param>
+		public static void ZC_REFUSE_ENTER_ROOM(PlayerCharacter character, ChatRoomRefuseReason reason)
+		{
+			var packet = new Packet(Op.ZC_REFUSE_ENTER_ROOM);
+			packet.PutByte((byte)reason);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends information about the chat they're entering to character.
+		/// </summary>
+		/// <param name="room"></param>
+		/// <param name="newMember"></param>
+		public static void ZC_ENTER_ROOM(ChatRoom room, PlayerCharacter newMember)
+		{
+			var packet = new Packet(Op.ZC_ENTER_ROOM);
+
+			packet.PutInt(room.Id);
+
+			using var members = room.GetMembers();
+			foreach (var member in members)
+			{
+				packet.PutInt((int)member.Role);
+				packet.PutString(member.Name, Sizes.CharacterNames);
+			}
+
+			newMember.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the chat members about a new member joining.
+		/// </summary>
+		/// <param name="room"></param>
+		/// <param name="newMember"></param>
+		public static void ZC_MEMBER_NEWENTRY(ChatRoom room, PlayerCharacter newMember)
+		{
+			var packet = new Packet(Op.ZC_MEMBER_NEWENTRY);
+
+			packet.PutShort((short)room.MemberCount);
+			packet.PutString(newMember.Name, Sizes.CharacterNames);
+
+			using var members = room.GetMembers();
+			foreach (var member in members)
+			{
+				if (room.Map.TryGetPlayer(member.Handle, out var memberCharacter))
+					memberCharacter.Connection.Send(packet);
+			}
+		}
+
+		/// <summary>
+		/// Notifies the chat members about a member leaving.
+		/// </summary>
+		/// <param name="room"></param>
+		/// <param name="formerMember"></param>
+		/// <param name="reason"></param>
+		public static void ZC_MEMBER_EXIT(ChatRoom room, PlayerCharacter formerMember, MemberExitReason reason)
+		{
+			var packet = new Packet(Op.ZC_MEMBER_EXIT);
+
+			packet.PutShort((short)room.MemberCount);
+			packet.PutString(formerMember.Name, Sizes.CharacterNames);
+			packet.PutByte((byte)reason);
+
+			formerMember.Connection.Send(packet);
+
+			using var members = room.GetMembers();
+			foreach (var member in members)
+			{
+				if (room.Map.TryGetPlayer(member.Handle, out var memberCharacter))
+					memberCharacter.Connection.Send(packet);
+			}
+		}
+
+		/// <summary>
+		/// Updates the given members role in the chat, moving the owner
+		/// to the top.
+		/// </summary>
+		/// <param name="room"></param>
+		/// <param name="memberName"></param>
+		/// <param name="role"></param>
+		public static void ZC_ROLE_CHANGE(ChatRoom room, string memberName, ChatRoomRole role)
+		{
+			var packet = new Packet(Op.ZC_ROLE_CHANGE);
+
+			packet.PutInt((int)role);
+			packet.PutString(memberName, Sizes.CharacterNames);
+
+			using var members = room.GetMembers();
+			foreach (var member in members)
+			{
+				if (room.Map.TryGetPlayer(member.Handle, out var memberCharacter))
+					memberCharacter.Connection.Send(packet);
+			}
 		}
 	}
 }

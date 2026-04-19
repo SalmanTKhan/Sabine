@@ -27,7 +27,7 @@ namespace Sabine.Shared
 		/// <summary>
 		/// Returns a reference to all conf files.
 		/// </summary>
-		public ConfFiles Conf { get; private set; } = new ConfFiles();
+		public ConfFiles Conf { get; private set; } = new();
 
 		/// <summary>
 		/// Returns a reference to the server's script loader.
@@ -37,7 +37,12 @@ namespace Sabine.Shared
 		/// <summary>
 		/// Returns a reference to the server's string localizer manager.
 		/// </summary>
-		public MultiLocalizer Localization { get; } = new MultiLocalizer();
+		public MultiLocalizer Localization { get; } = new();
+
+		/// <summary>
+		/// Returns a reference to the server's loaded data.
+		/// </summary>
+		public SabineData Data { get; } = new();
 
 		/// <summary>
 		/// Initializes server instance.
@@ -182,16 +187,17 @@ namespace Sabine.Shared
 		{
 			Log.Info("Loading data...");
 
-			this.LoadDataFile(SabineData.Features, "features.txt");
-			this.LoadDataFile(SabineData.ExpTables, "exp.txt");
-			this.LoadDataFile(SabineData.Items, "items.txt");
-			this.LoadDataFile(SabineData.ItemNames, "item_names.txt");
-			this.LoadDataFile(SabineData.Jobs, "jobs.txt");
-			this.LoadDataFile(SabineData.Monsters, "monsters.txt");
-			this.LoadDataFile(SabineData.Maps, "maps.txt");
-			this.LoadDataFile(SabineData.Skills, "skills.txt");
-			this.LoadDataFile(SabineData.SkillTree, "skill_tree.txt");
+			this.LoadDataFile(this.Data.Features, "features.txt");
+			this.LoadDataFile(this.Data.ExpTables, "exp.txt");
+			this.LoadDataFile(this.Data.Items, "items.txt");
+			this.LoadDataFile(this.Data.ItemNames, "item_names.txt");
+			this.LoadDataFile(this.Data.Jobs, "jobs.txt");
+			this.LoadDataFile(this.Data.Monsters, "monsters.txt");
+			this.LoadDataFile(this.Data.Maps, "maps.txt");
+			this.LoadDataFile(this.Data.Skills, "skills.txt");
+			this.LoadDataFile(this.Data.SkillTree, "skill_tree.txt");
 
+			// Get the latest cache file for the selected version
 			var cacheFileName = "map_cache.dat";
 			for (var i = 0; i <= Game.Version; ++i)
 			{
@@ -202,7 +208,7 @@ namespace Sabine.Shared
 					cacheFileName = fileName;
 			}
 
-			this.LoadDataFile(SabineData.MapCache, cacheFileName);
+			this.LoadDataFile(this.Data.MapCache, cacheFileName);
 		}
 
 		/// <summary>

@@ -4,6 +4,7 @@ using Sabine.Shared.Configuration.Files;
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
+using Sabine.Zone.Skills;
 using Sabine.Zone.World.Entities.Components.Characters;
 using Sabine.Zone.World.Maps;
 using Yggdrasil.Scheduling;
@@ -119,21 +120,6 @@ namespace Sabine.Zone.World.Entities
 		public int Speed => this.Parameters.Speed;
 
 		/// <summary>
-		/// Returns the character's movement controller.
-		/// </summary>
-		public MovementController Controller { get; protected set; }
-
-		/// <summary>
-		/// Returns the character's parameters.
-		/// </summary>
-		public Parameters Parameters { get; protected set; }
-
-		/// <summary>
-		/// Returns the character's components.
-		/// </summary>
-		public CharacterComponents Components { get; } = new CharacterComponents();
-
-		/// <summary>
 		/// Returns true if the character's HP have reached 0.
 		/// </summary>
 		public bool IsDead => this.Parameters.Hp == 0;
@@ -154,11 +140,32 @@ namespace Sabine.Zone.World.Entities
 		public int AttackerHandleTest { get; set; }
 
 		/// <summary>
+		/// Returns the character's parameters.
+		/// </summary>
+		public Parameters Parameters { get; protected set; }
+
+		/// <summary>
+		/// Returns the character's movement controller.
+		/// </summary>
+		public MovementController Controller { get; protected set; }
+
+		/// <summary>
+		/// Returns the character's skill manager component.
+		/// </summary>
+		public SkillComponent Skills { get; protected set; }
+
+		/// <summary>
+		/// Returns the character's components.
+		/// </summary>
+		public CharacterComponents Components { get; } = new CharacterComponents();
+
+		/// <summary>
 		/// Initializes character.
 		/// </summary>
 		public Character()
 		{
 			this.Components.Add(this.Controller = new MovementController(this));
+			this.Components.Add(this.Skills = new SkillComponent(this));
 		}
 
 		/// <summary>
@@ -215,6 +222,16 @@ namespace Sabine.Zone.World.Entities
 		/// <returns></returns>
 		public Location GetLocation()
 			=> new(this.MapId, this.Position);
+
+		/// <summary>
+		/// Returns the character's current attack range, based on its
+		/// state and equipped items.
+		/// </summary>
+		/// <returns></returns>
+		public virtual int GetAttackRange()
+		{
+			return 3;
+		}
 
 		/// <summary>
 		/// Reduces the character's HP by the given amount, returns the
@@ -376,6 +393,37 @@ namespace Sabine.Zone.World.Entities
 		internal bool IsHostileTo(Character target)
 		{
 			return (this is Monster && target is PlayerCharacter) || (this is PlayerCharacter && target is Monster);
+		}
+
+		/// <summary>
+		/// Tries to reduce the SP by the given amount. If the character
+		/// doesn't have enough SP, the method returns false without
+		/// modifying the SP.
+		/// </summary>
+		/// <param name="amount"></param>
+		/// <returns></returns>
+		public bool TrySpendSp(int amount)
+		{
+			if (this.Parameters.Sp < amount)
+				return false;
+
+			this.Parameters.Modify(ParameterType.Sp, -amount);
+			return true;
+		}
+
+		/// <summary>
+		/// Returns true if the character is in range to use the skill on
+		/// the given position.
+		/// </summary>
+		/// <param name="skill"></param>
+		/// <param name="targetPos"></param>
+		/// <returns></returns>
+		public bool InUseRange(Skill skill, Position targetPos)
+		{
+			var pos = this.Position;
+			var range = skill.Range;
+
+			return pos.InRange(targetPos, range);
 		}
 	}
 }

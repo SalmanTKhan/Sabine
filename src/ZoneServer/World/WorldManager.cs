@@ -1,10 +1,9 @@
-﻿using System;
-using System.Linq;
-using Sabine.Shared.Data;
-using Sabine.Zone.World.Entities;
+﻿using System.Linq;
+using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Maps;
 using Sabine.Zone.World.Shops;
 using Sabine.Zone.World.Spawning;
+using Sabine.Zone.World.Trading;
 using Yggdrasil.Collections;
 using Yggdrasil.Logging;
 using Yggdrasil.Scheduling;
@@ -19,23 +18,35 @@ namespace Sabine.Zone.World
 		/// <summary>
 		/// Returns a reference to a collection of maps in the world.
 		/// </summary>
-		public MapManager Maps { get; } = new MapManager();
+		public MapManager Maps { get; } = new();
 
 		/// <summary>
 		/// The world's heartbeast, which controls timed events.
 		/// </summary>
-		public Heartbeat Heartbeat { get; } = new Heartbeat();
+		public Heartbeat Heartbeat { get; } = new();
 
 		/// <summary>
 		/// The world's scheduler. Use only if a high resolution timer is
 		/// absolutely necessary.
 		/// </summary>
-		public Scheduler Scheduler { get; } = new Scheduler();
+		public Scheduler Scheduler { get; } = new();
 
 		/// <summary>
 		/// Returns a reference to a collection of NPC shops in the world.
 		/// </summary>
-		public Collection<string, NpcShop> NpcShops { get; } = new Collection<string, NpcShop>();
+		public Collection<string, NpcShop> NpcShops { get; } = new();
+
+		/// <summary>
+		/// Returns the trade manager, handling trades between players in
+		/// the world.
+		/// </summary>
+		public Trades Trades { get; } = new();
+
+		/// <summary>
+		/// Returns the chat room manager, handling chat rooms created by
+		/// players.
+		/// </summary>
+		public ChatRooms ChatRooms { get; } = new();
 
 		/// <summary>
 		/// Returns the world's monster spawner collection.
@@ -64,7 +75,7 @@ namespace Sabine.Zone.World
 		/// </summary>
 		private void LoadMaps()
 		{
-			foreach (var data in SabineData.Maps.Entries.Values)
+			foreach (var data in ZoneServer.Instance.Data.Maps.Entries.Values)
 			{
 				var map = new Map(data);
 				this.Maps.Add(map);
@@ -91,31 +102,6 @@ namespace Sabine.Zone.World
 		private void OnSchedulerException(CallbackException ex)
 		{
 			Log.Error("An exception occurred while executing a scheduled callback. Exception: {0}", ex);
-		}
-
-		/// <summary>
-		/// Returns the first character in the world that matches the
-		/// given predicate.
-		/// </summary>
-		/// <param name="predicate"></param>
-		/// <returns></returns>
-		public PlayerCharacter GetPlayerCharacter(Func<PlayerCharacter, bool> predicate)
-		{
-			return null;
-		}
-
-		/// <summary>
-		/// Returns the first character in the world that matches the given
-		/// predicate via out. Returns false if no matching character was
-		/// found.
-		/// </summary>
-		/// <param name="predicate"></param>
-		/// <param name="character"></param>
-		/// <returns></returns>
-		public bool TryGetPlayerCharacter(Func<PlayerCharacter, bool> predicate, out PlayerCharacter character)
-		{
-			character = this.GetPlayerCharacter(predicate);
-			return character != null;
 		}
 
 		/// <summary>
