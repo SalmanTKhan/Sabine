@@ -1,13 +1,13 @@
 ﻿using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Novice
 {
 	[SkillHandler(SkillId.NV_FIRSTAID)]
 	public class FirstAidHandler : ISkillHandler
 	{
-		public Task HandleAsync(Character caster, IEntity target, Skill skill)
+		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
 			// The base 'UseSkill' method already deducted the SP cost.
 			// This skill heals 5 HP per level.

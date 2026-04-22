@@ -273,66 +273,6 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		public int MeleeDefenseBonus { get; set; }
 
 		/// <summary>
-		/// Returns the character's current magic defense.
-		/// </summary>
-		/// <remarks>
-		/// The hard magic defense parameter used by clients beyond the
-		/// alpha.
-		/// </remarks>
-		public int MagicDefense { get; set; }
-
-		/// <summary>
-		/// Returns the character's current magic defense bonus.
-		/// </summary>
-		/// <remarks>
-		/// The soft magic defense parameter used by clients beyond the
-		/// alpha, displayed as "+ X".
-		/// </remarks>
-		public int MagicDefenseBonus { get; set; }
-
-		/// <summary>
-		/// Gets or sets the character's base experience points.
-		/// </summary>
-		public int BaseExp { get; set; }
-
-		/// <summary>
-		/// Gets or sets the character's job experience points.
-		/// </summary>
-		public int JobExp { get; set; }
-
-		/// <summary>
-		/// Returns the amount of experience points necessary to reach
-		/// the next base level.
-		/// </summary>
-		public int BaseExpNeeded { get; set; } = 9;
-
-		/// <summary>
-		/// Returns the amount of experience points necessary to reach
-		/// the next job level.
-		/// </summary>
-		public int JobExpNeeded { get; set; }
-
-		/// <summary>
-		/// Gets or sets the character's current base level.
-		/// </summary>
-		public int BaseLevel { get; set; } = 1;
-
-		/// <summary>
-		/// Gets or sets the character's current base level.
-		/// </summary>
-		public int JobLevel { get; set; } = 1;
-
-		/// <summary>
-		/// Gets or sets how many Zeny the character has.
-		/// </summary>
-		public int Zeny
-		{
-			get => _zeny;
-			set { _zeny = Math.Max(0, value); }
-		}
-		private int _zeny = 0;
-
-		/// <summary>
 		/// Gets or sets the character's hit value, which determines how
 		/// likely they are to hit or miss an enemy.
 		/// </summary>
@@ -352,12 +292,6 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// X" on later ones.
 		/// </remarks>
 		public int FleeBonus { get; set; }
-
-		/// <summary>
-		/// Gets or sets the character's crit value, determining how
-		/// likely they are to crit.
-		/// </summary>
-		public int Critical { get; set; }
 
 		/// <summary>
 		/// Returns the delay between attacks for the character.
@@ -473,13 +407,32 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		public int Defense1 { get; set; }
 		/// <summary>Gets or sets the character's hard defense.</summary>
 		public int Defense2 { get; set; }
-		/// <summary>Gets or sets the character's soft magic defense.</summary>
+
+		/// <summary>
+		/// Returns the character's current magic defense.
+		/// </summary>
+		/// <remarks>
+		/// The hard magic defense parameter used by clients beyond the
+		/// alpha.
+		/// </remarks>
 		public int MagicDefense { get; set; }
-		/// <summary>Gets or sets the character's hard magic defense.</summary>
-		public int MagicDefense2 { get; set; }
+
+		/// <summary>
+		/// Returns the character's current magic defense bonus.
+		/// </summary>
+		/// <remarks>
+		/// The soft magic defense parameter used by clients beyond the
+		/// alpha, displayed as "+ X".
+		/// </remarks>
+		public int MagicDefenseBonus { get; set; }
+
 		/// <summary>Gets or sets the character's perfect dodge chance.</summary>
 		public int Flee2 { get; set; }
-		/// <summary>Gets or sets the character's critical chance.</summary>
+
+		/// <summary>
+		/// Gets or sets the character's crit value, determining how
+		/// likely they are to crit.
+		/// </summary>
 		public int Critical { get; set; }
 		#endregion
 
@@ -653,17 +606,25 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				case ParameterType.AttackMax: return this.AttackMax;
 				case ParameterType.Defense: return this.Defense;
 				case ParameterType.MagicAttack: return this.MagicAttack;
-				case ParameterType.Attack: return this.Attack;
-				case ParameterType.AttackBonus: return this.AttackBonus;
-				case ParameterType.MagicAttackMax: return this.MagicAttackMax;
-				case ParameterType.MagicAttackMin: return this.MagicAttackMin;
-				case ParameterType.MeleeDefense: return this.MeleeDefense;
-				case ParameterType.MeleeDefenseBonus: return this.MeleeDefenseBonus;
+				// NOTE: The following BonusStat enums have values that conflict with the parameters above.
+				// They are omitted from this switch to prevent compile errors.
+				// case ParameterType.BonusStr:
+				// case ParameterType.BonusAgi:
+				// case ParameterType.BonusVit:
+				// case ParameterType.BonusInt:
+				case ParameterType.BonusDex: return this.BonusDex;
+				case ParameterType.BonusLuk: return this.BonusLuk;
+				case ParameterType.Attack: return this.AttackPower;
+				case ParameterType.AttackBonus: return this.AttackPower2;
+				case ParameterType.MagicAttackPower: return this.MagicAttackPower;
+				case ParameterType.MagicAttackPower2: return this.MagicAttackPower2;
+				case ParameterType.MeleeDefense: return this.Defense1;
+				case ParameterType.MeleeDefenseBonus: return this.Defense2;
 				case ParameterType.MagicDefense: return this.MagicDefense;
 				case ParameterType.MagicDefenseBonus: return this.MagicDefenseBonus;
 				case ParameterType.Hit: return this.Hit;
 				case ParameterType.Flee: return this.Flee;
-				case ParameterType.FleeBonus: return this.FleeBonus;
+				case ParameterType.FleeBonus: return this.Flee2;
 				case ParameterType.Critical: return this.Critical;
 				case ParameterType.Aspd: return this.Aspd;
 				case ParameterType.AspdBonus: return this.AspdBonus;
@@ -755,17 +716,19 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				case ParameterType.AttackMax: this.AttackMax = value; break;
 				case ParameterType.Defense: this.Defense = value; break;
 				case ParameterType.MagicAttack: this.MagicAttack = value; break;
-				case ParameterType.Attack: this.Attack = value; break;
-				case ParameterType.AttackBonus: this.AttackBonus = value; break;
-				case ParameterType.MagicAttackMax: this.MagicAttackMax = value; break;
-				case ParameterType.MagicAttackMin: this.MagicAttackMin = value; break;
-				case ParameterType.MeleeDefense: this.MeleeDefense = value; break;
-				case ParameterType.MeleeDefenseBonus: this.MeleeDefenseBonus = value; break;
+				case ParameterType.BonusDex: this.BonusDex = value; break;
+				case ParameterType.BonusLuk: this.BonusLuk = value; break;
+				case ParameterType.Attack: this.AttackPower = value; break;
+				case ParameterType.AttackBonus: this.AttackPower2 = value; break;
+				case ParameterType.MagicAttackPower: this.MagicAttackPower = value; break;
+				case ParameterType.MagicAttackPower2: this.MagicAttackPower2 = value; break;
+				case ParameterType.MeleeDefense: this.Defense1 = value; break;
+				case ParameterType.MeleeDefenseBonus: this.Defense2 = value; break;
 				case ParameterType.MagicDefense: this.MagicDefense = value; break;
 				case ParameterType.MagicDefenseBonus: this.MagicDefenseBonus = value; break;
 				case ParameterType.Hit: this.Hit = value; break;
 				case ParameterType.Flee: this.Flee = value; break;
-				case ParameterType.FleeBonus: this.FleeBonus = value; break;
+				case ParameterType.FleeBonus: this.Flee2 = value; break;
 				case ParameterType.Critical: this.Critical = value; break;
 				case ParameterType.Aspd: this.Aspd = value; break;
 				case ParameterType.AspdBonus: this.AspdBonus = value; break;
@@ -867,17 +830,17 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				case ParameterType.MagicAttack: this.MagicAttack += modifier; break;
 				case ParameterType.BonusDex: this.BonusDex += modifier; break;
 				case ParameterType.BonusLuk: this.BonusLuk += modifier; break;
-				case ParameterType.AttackPower: this.AttackPower += modifier; break;
-				case ParameterType.AttackPower2: this.AttackPower2 += modifier; break;
+				case ParameterType.Attack: this.AttackPower += modifier; break;
+				case ParameterType.AttackBonus: this.AttackPower2 += modifier; break;
 				case ParameterType.MagicAttackPower: this.MagicAttackPower += modifier; break;
 				case ParameterType.MagicAttackPower2: this.MagicAttackPower2 += modifier; break;
-				case ParameterType.Defense1: this.Defense1 += modifier; break;
-				case ParameterType.Defense2: this.Defense2 += modifier; break;
+				case ParameterType.MeleeDefense: this.Defense1 += modifier; break;
+				case ParameterType.MeleeDefenseBonus: this.Defense2 += modifier; break;
 				case ParameterType.MagicDefense: this.MagicDefense += modifier; break;
-				case ParameterType.MagicDefense2: this.MagicDefense2 += modifier; break;
+				case ParameterType.MagicDefenseBonus: this.MagicDefenseBonus += modifier; break;
 				case ParameterType.Hit: this.Hit += modifier; break;
 				case ParameterType.Flee: this.Flee += modifier; break;
-				case ParameterType.Flee2: this.Flee2 += modifier; break;
+				case ParameterType.FleeBonus: this.Flee2 += modifier; break;
 				case ParameterType.Critical: this.Critical += modifier; break;
 				case ParameterType.Aspd: this.Aspd += modifier; break;
 				case ParameterType.JobLevel: this.JobLevel += modifier; break;

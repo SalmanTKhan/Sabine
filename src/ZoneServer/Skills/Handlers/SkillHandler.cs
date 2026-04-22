@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers
 {
@@ -16,7 +16,7 @@ namespace Sabine.Zone.Skills.Handlers
 		/// <param name="caster">The character using the skill.</param>
 		/// <param name="target">The target of the skill (can be null for self-cast or ground skills).</param>
 		/// <param name="skill">A reference to the skill instance, containing its level and data.</param>
-		Task HandleAsync(Character caster, IEntity target, Skill skill);
+		Task HandleAsync(Character caster, Character target, Skill skill);
 	}
 
 	/// <summary>

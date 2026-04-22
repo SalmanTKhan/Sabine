@@ -1,5 +1,7 @@
 ﻿using System.Linq;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
+using Yggdrasil.Collections;
+
 
 #pragma warning disable IDE0009
 
@@ -27,17 +29,31 @@ namespace Sabine.Zone.Ais.Impl
 		{
 			if (state.Handled) return; // Caster switch has priority
 
-			var attackRange = ((Character as Monster)?.Data.AttackRange ?? 1);
+			var attackRange = (Character as Monster)?.Data.AttackRange ?? 1;
 
 			// If current target exists and is outside our attack range (i.e., we are chasing it)
 			if (TryGetEntity(_targetCharacterHandle, out var currentTarget) &&
 				!currentTarget.Position.InRange(Character.Position, attackRange))
 			{
 				// Check for any other player inside attack range
-				var closerTargets = Character.Map.GetPlayers(p =>
-					!p.IsDead &&
-					p.Handle != _targetCharacterHandle &&
-					p.Position.InRange(Character.Position, attackRange));
+				using var closerTargets = PooledList<PlayerCharacter>.Rent();
+
+				Character.Map.GetPlayers(
+					closerTargets,
+					(targetHandle: _targetCharacterHandle, origin: Character.Position, range: attackRange),
+					static (state, p) =>
+					{
+						if (p.IsDead)
+							return false;
+
+						if (p.Handle == state.targetHandle)
+							return false;
+
+						if (!p.Position.InRange(state.origin, state.range))
+							return false;
+
+						return true;
+					});
 
 				if (closerTargets.Any())
 				{

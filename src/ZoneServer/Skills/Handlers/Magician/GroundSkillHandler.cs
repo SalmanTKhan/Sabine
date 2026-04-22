@@ -2,13 +2,13 @@
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Magician
 {
     public abstract class GroundSkillHandler : ISkillHandler
     {
-        public Task HandleAsync(Character caster, IEntity target, Skill skill)
+        public Task HandleAsync(Character caster, Character target, Skill skill)
         {
             // Ground skills use the target's position, not the target itself.
             if (target == null) return Task.CompletedTask;

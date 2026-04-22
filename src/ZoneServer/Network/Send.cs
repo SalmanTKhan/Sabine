@@ -67,7 +67,7 @@ namespace Sabine.Zone.Network
 		/// <param name="reason"></param>
 		public static void ZC_REFUSE_ENTER(ZoneConnection conn, EnterError reason)
 		{
-			var packet = new Packet(Op.ZC_REFUSE_ENTER);
+			using var packet = Packet.Rent(Op.ZC_REFUSE_ENTER);
 
 			packet.PutByte((byte)reason);
 
@@ -224,27 +224,12 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Makes client close the connection and displays a message
-		/// for why this disconnect was requested.
-		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="npcHandle"></param>
-		/// <param name="optionsString"></param>
-		public static void SC_NOTIFY_BAN(ZoneConnection conn, DisconnectReason reason)
-		{
-			var packet = new Packet(Op.SC_NOTIFY_BAN);
-			packet.PutByte((byte)reason);
-
-			conn.Send(packet);
-		}
-
-		/// <summary>
 		/// Accepts a request to quit the game.
 		/// </summary>
 		/// <param name="conn"></param>
 		public static void ZC_ACCEPT_QUIT(ZoneConnection conn)
 		{
-			var packet = new Packet(Op.ZC_ACCEPT_QUIT);
+			using var packet = Packet.Rent(Op.ZC_ACCEPT_QUIT);
 			conn.Send(packet);
 		}
 
@@ -254,7 +239,7 @@ namespace Sabine.Zone.Network
 		/// <param name="conn"></param>
 		public static void ZC_REFUSE_QUIT(ZoneConnection conn)
 		{
-			var packet = new Packet(Op.ZC_REFUSE_QUIT);
+			using var packet = Packet.Rent(Op.ZC_REFUSE_QUIT);
 			conn.Send(packet);
 		}
 
@@ -1042,7 +1027,7 @@ namespace Sabine.Zone.Network
 		/// <param name="result"></param>
 		public static void ZC_PC_PURCHASE_RESULT(PlayerCharacter character, PurchaseResult result)
 		{
-			var packet = new Packet(Op.ZC_PC_PURCHASE_RESULT);
+			using var packet = Packet.Rent(Op.ZC_PC_PURCHASE_RESULT);
 			packet.PutByte((byte)result);
 			character.Connection.Send(packet);
 		}
@@ -1054,7 +1039,7 @@ namespace Sabine.Zone.Network
 		/// <param name="result"></param>
 		public static void ZC_PC_SELL_RESULT(PlayerCharacter character, SellResult result)
 		{
-			var packet = new Packet(Op.ZC_PC_SELL_RESULT);
+			using var packet = Packet.Rent(Op.ZC_PC_SELL_RESULT);
 			packet.PutByte((byte)result);
 			character.Connection.Send(packet);
 		}
@@ -1349,8 +1334,22 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		/// <param name="skill"></param>
 		public static void ZC_SKILLINFO_UPDATE(PlayerCharacter character, Skill skill)
+			=> ZC_SKILLINFO_UPDATE(character, skill.Id, skill.Level, skill.CanBeLeveled && character.Parameters.SkillPoints > 0);
+
+		/// <summary>
+		/// Updates a skill's information, such as its level or whether it
+		/// can be upgraded.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="skillId"></param>
+		/// <param name="level"></param>
+		/// <param name="canUpgrade"></param>
+		public static void ZC_SKILLINFO_UPDATE(PlayerCharacter character, SkillId skillId, int level, bool canUpgrade)
 		{
-			using var packet = Packet.Rent(Op.ZC_SKILLINFO_UPDATE);
+			if (!ZoneServer.Instance.Data.Skills.TryFind(skillId, out var skillData))
+				return;
+
+			using var packet = Packet.Rent(Op.ZC_ADD_SKILL);
 
 			packet.PutShort((short)skillId);
 			packet.PutShort((short)level);

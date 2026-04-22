@@ -1,33 +1,33 @@
 ﻿using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Acolyte
 {
-    // A base class for simple buff skills
-    public abstract class BuffSkillHandler : ISkillHandler
-    {
-        public Task HandleAsync(Character caster, IEntity target, Skill skill)
-        {
-            if (target is not Character targetCharacter)
-            {
-                return Task.CompletedTask;
-            }
+	// A base class for simple buff skills
+	public abstract class BuffSkillHandler : ISkillHandler
+	{
+		public Task HandleAsync(Character caster, Character target, Skill skill)
+		{
+			if (target is not Character targetCharacter)
+			{
+				return Task.CompletedTask;
+			}
 
-            // TODO: Implement a proper status effect system.
-            // For now, we just show the animation and a message.
+			// TODO: Implement a proper status effect system.
+			// For now, we just show the animation and a message.
 
-            Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
 
-            if (caster is PlayerCharacter pc)
-            {
-                pc.ServerMessage($"{skill.Id} is not fully implemented yet.");
-            }
+			if (caster is PlayerCharacter pc)
+			{
+				pc.ServerMessage($"{skill.Id} is not fully implemented yet.");
+			}
 
-            return Task.CompletedTask;
-        }
-    }
+			return Task.CompletedTask;
+		}
+	}
 
 	[SkillHandler(SkillId.AL_ANGELUS)]
 	public class AngelusHandler : BuffSkillHandler { }

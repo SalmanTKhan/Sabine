@@ -7,7 +7,6 @@
 //---------------------------------------------------------------------------
 
 using Sabine.Shared;
-using Sabine.Shared.Const;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.World.Actors;
 

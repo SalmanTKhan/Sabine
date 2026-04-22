@@ -1,7 +1,9 @@
 ﻿using System.Linq;
 using Sabine.Zone.Ais.Base;
 using Sabine.Zone.Ais.Impl;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
+using Yggdrasil.Collections;
+
 
 #pragma warning disable IDE0009
 
@@ -25,22 +27,46 @@ namespace Sabine.Zone.Ais.Impl
 			var chaseRange = (Character as Monster)?.Data.ChaseRange ?? 12;
 			Character target = null;
 
-			// Prioritize casters
-			var casters = Character.Map.GetPlayers(p =>
-				!p.IsDead && p.IsCasting && p.Position.InRange(Character.Position, chaseRange));
+			using var players = PooledList<PlayerCharacter>.Rent();
 
-			if (casters.Any())
+			Character.Map.GetPlayers(
+				players,
+				(origin: Character.Position, range: chaseRange),
+				static (state, p) =>
+				{
+					if (p.IsDead)
+						return false;
+
+					if (!p.Position.InRange(state.origin, state.range))
+						return false;
+
+					return true;
+				});
+
+			PlayerCharacter? bestCaster = null;
+			var bestCasterDist = float.MaxValue;
+
+			PlayerCharacter? bestPlayer = null;
+			var bestPlayerDist = float.MaxValue;
+
+			foreach (var p in players)
 			{
-				target = casters.OrderBy(p => p.Position.GetDistance(Character.Position)).First();
+				var dist = p.Position.GetDistance(Character.Position);
+
+				if (dist < bestPlayerDist)
+				{
+					bestPlayerDist = dist;
+					bestPlayer = p;
+				}
+
+				if (p.IsCasting && dist < bestCasterDist)
+				{
+					bestCasterDist = dist;
+					bestCaster = p;
+				}
 			}
-			else
-			{
-				// If no casters, find any player
-				var players = Character.Map.GetPlayers(p =>
-					!p.IsDead && p.Position.InRange(Character.Position, chaseRange));
-				if (players.Any())
-					target = players.OrderBy(p => p.Position.GetDistance(Character.Position)).First();
-			}
+
+			target = bestCaster ?? bestPlayer;
 
 			if (target != null)
 			{

@@ -1,14 +1,14 @@
 ﻿using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Magician
 {
 	[SkillHandler(SkillId.MG_SIGHT)]
 	public class SightHandler : ISkillHandler
 	{
-		public Task HandleAsync(Character caster, IEntity target, Skill skill)
+		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
 			// Sight is a ground-based AoE that reveals hidden enemies.
 			// The skill is cast on the caster themselves.

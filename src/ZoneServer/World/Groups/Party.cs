@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Sabine.Shared;
 using Sabine.Shared.Network;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.World.Groups
 {
@@ -59,7 +59,7 @@ namespace Sabine.Zone.World.Groups
 
 		public void RemoveMember(int characterId)
 		{
-			var member = GetMember(characterId);
+			var member = this.GetMember(characterId);
 			if (member == null) return;
 
 			foreach (var otherMember in _members)

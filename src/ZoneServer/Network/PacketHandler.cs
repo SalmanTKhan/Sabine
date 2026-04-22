@@ -15,8 +15,9 @@ using Sabine.Zone.Events.Args;
 using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
-using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Actors;
+using Sabine.Zone.World.Chats;
+using Sabine.Zone.World.Groups;
 using Sabine.Zone.World.Maps;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Collections;
@@ -99,7 +100,7 @@ namespace Sabine.Zone.Network
 				Log.Warning("CZ_ENTER: Disconnecting existing session for character '{0}' ({1}).", existingCharacter.Name, existingCharacter.Id);
 
 				var existingConnection = existingCharacter.Connection;
-				existingCharacter.Map?.RemoveCharacter(existingCharacter);
+				existingCharacter.Map?.RemovePlayer(existingCharacter);
 
 				if (existingConnection != null && existingConnection != conn)
 					existingConnection.Close();
@@ -321,12 +322,24 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Request to send a whisper chat message to another character.
+		/// Request to resend status info.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_WHISPER)]
-		public void CZ_WHISPER(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_REQ_STATUS)]
+		public void CZ_REQ_STATUS(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+			Send.ZC_STATUS(character);
+		}
+
+		/// <summary>
+		/// Request to increase a stat.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_STATUS_CHANGE)]
+		public void CZ_STATUS_CHANGE(ZoneConnection conn, Packet packet)
 		{
 			var type = (ParameterType)packet.GetShort();
 			var change = (int)packet.GetByte();
@@ -355,7 +368,7 @@ namespace Sabine.Zone.Network
 
 			success = true;
 
-L_End:
+		L_End:
 			Send.ZC_STATUS_CHANGE_ACK(character, type, success, value);
 		}
 
@@ -369,6 +382,45 @@ L_End:
 		{
 			var count = ZoneServer.Instance.World.GetPlayerCount();
 			Send.ZC_USER_COUNT(conn, count);
+		}
+
+		/// <summary>
+		/// Request to upgrade a skill level.
+		/// </summary>
+		[PacketHandler(Op.CZ_UPGRADE_SKILLLEVEL)]
+		public void CZ_UPGRADE_SKILLLEVEL(ZoneConnection conn, Packet packet)
+		{
+			var skillId = (SkillId)packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+			var skills = character.Skills;
+			var parameters = character.Parameters;
+
+			var currentLevel = skills.GetLevel(skillId);
+			var canCurrentlyUpgrade = skills.CanUpgrade(skillId);
+
+			if (parameters.SkillPoints < 1)
+			{
+				Send.ZC_SKILLINFO_UPDATE(character, skillId, currentLevel, canCurrentlyUpgrade);
+				return;
+			}
+
+			var newLevel = currentLevel + 1;
+
+			if (!ZoneServer.Instance.Data.Skills.TryFind(skillId, out var skillData) || newLevel > skillData.MaxLevel)
+			{
+				Send.ZC_SKILLINFO_UPDATE(character, skillId, currentLevel, false);
+				return; // Skill doesn't exist or max level reached
+			}
+
+			// TODO: Add full requirement checks (job level, prerequisite skills)
+			// if (character.Parameters.JobLevel < skillData.GetJobLevelRequirement(newLevel)) { ... return; }
+			// if (!skills.HasPrerequisitesFor(skillId, newLevel)) { ... return; }
+
+			parameters.Modify(ParameterType.SkillPoints, -1);
+
+			// Use Add which will update the level and refresh client with the new list
+			skills.Add(skillId, newLevel, SkillPerm.Permanent);
 		}
 
 		/// <summary>
@@ -389,234 +441,6 @@ L_End:
 
 			var character = conn.GetCurrentCharacter();
 			Send.ZC_EMOTION(character, emotion);
-		}
-
-		/// <summary>
-		/// Request for an item's description.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_ITEM_EXPLANATION_BYNAME)]
-		public void CZ_REQ_ITEM_EXPLANATION_BYNAME(ZoneConnection conn, Packet packet)
-		{
-			var itemStringId = packet.GetString(16);
-
-			var character = conn.GetCurrentCharacter();
-
-			if (!ZoneServer.Instance.World.Maps.TryGetPlayerByName(targetName, out var target))
-			{
-				Send.ZC_ACK_WHISPER(character, WhisperResult.CharacterDoesntExist);
-				return;
-			}
-
-			Send.ZC_WHISPER(target, character.Name, message);
-			Send.ZC_ACK_WHISPER(character, WhisperResult.Okay);
-		}
-
-		/// <summary>
-		/// Request to broadcast a message to the whole server (GM command).
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_BROADCAST)]
-		public void CZ_BROADCAST(ZoneConnection conn, Packet packet)
-		{
-			var character = conn.GetCurrentCharacter();
-			// TODO: Add GM level check.
-			// if (character.Account.GMLevel < 1) return;
-
-			var len = packet.GetShort();
-			var text = packet.GetString(len - 4);
-
-			Send.ZC_BROADCAST(text);
-		}
-
-		/// <summary>
-		/// Notification that the character rotated into a new direction.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_CHANGE_DIRECTION)]
-		public void CZ_CHANGE_DIRECTION(ZoneConnection conn, Packet packet)
-		{
-			var direction = (Direction)packet.GetByte();
-
-			var character = conn.GetCurrentCharacter();
-			character.Direction = direction;
-
-			Send.ZC_CHANGE_DIRECTION(character, direction);
-		}
-
-		/// <summary>
-		/// Request to pick up an item.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_ITEM_PICKUP)]
-		public void CZ_ITEM_PICKUP(ZoneConnection conn, Packet packet)
-		{
-			var itemHandle = packet.GetInt();
-
-			var character = conn.GetCurrentCharacter();
-			var item = character.Map.GetItem(itemHandle);
-
-			if (item == null)
-			{
-				Log.Debug("CZ_ITEM_PICKUP: User '{0}' tried to pick up a non-existing item.", conn.Account.Username);
-				return;
-			}
-
-			item.Map.RemoveItem(item);
-			character.Inventory.AddItem(item);
-		}
-
-		/// <summary>
-		/// Request to drop items from a stack.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_ITEM_THROW)]
-		public void CZ_ITEM_THROW(ZoneConnection conn, Packet packet)
-		{
-			var itemInvId = packet.GetShort();
-			var amount = packet.GetShort();
-
-			var character = conn.GetCurrentCharacter();
-			var item = character.Inventory.GetItem(itemInvId);
-
-			if (item == null)
-			{
-				Log.Debug("CZ_ITEM_THROW: User '{0}' tried to drop an item they don't have.", conn.Account.Username);
-				return;
-			}
-
-			if (amount <= 0 || amount > item.Amount)
-			{
-				// The client doesn't send a drop request if you put in
-				// a 0 or more than you have.
-				Log.Debug("CZ_ITEM_THROW: User '{0}' tried to drop an invalid amount.", conn.Account.Username);
-				return;
-			}
-
-			var removedAmount = character.Inventory.DecrementItem(item, amount);
-			var dropItem = new Item(item.ClassId, removedAmount);
-
-			character.Drop(dropItem);
-			Send.ZC_ITEM_THROW_ACK(character, item.InventoryId, removedAmount);
-		}
-
-		/// <summary>
-		/// Request to use an item from the inventory.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_USE_ITEM)]
-		public void CZ_USE_ITEM(ZoneConnection conn, Packet packet)
-		{
-			var itemInvId = packet.GetShort();
-			var clientTick = packet.GetInt();
-
-			var character = conn.GetCurrentCharacter();
-			var item = character.Inventory.GetItem(itemInvId);
-
-			if (item == null)
-			{
-				// Both ZC_USE_ITEM_ACK and ZC_REQ_WEAR_EQUIP_ACK appear
-				// to have a success parameter, with the client ignoring
-				// the entire packet if it's false. However, the client
-				// also seems to be waiting for a positive response, and
-				// if you send a negative one, or nothing at all, it will
-				// not send any more requests to use or equip any item
-				// until the next relog.
-				// In the case of using an item we can let it slight and
-				// simply not apply any effects, but for equipping we
-				// would either need to go through with it and then reverse
-				// it, or simply assume that the player is cheating and
-				// disconnect them. There's probably no legit reason for
-				// why a player should be unable to equip or use an item
-				// unless something is very wrong.
-
-				Log.Debug("CZ_USE_ITEM: User '{0}' tried to equip an item they don't have.", conn.Account.Username);
-				conn.Close();
-				return;
-			}
-
-			if (!ItemScript.TryGetScript(item.ClassId, out var script))
-			{
-				character.ServerMessage(Localization.Get("This item has not been implemented yet."));
-				Log.Debug("CZ_USE_ITEM: No script found for item '{0}'.", item.ClassId);
-			}
-			else
-			{
-				var result = script.OnUse(character, item);
-				if (result == ItemUseResult.Okay)
-					character.Inventory.DecrementItem(item, 1);
-			}
-
-			Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
-		}
-
-		/// <summary>
-		/// Request to equip an item from the inventory.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_WEAR_EQUIP)]
-		public void CZ_REQ_WEAR_EQUIP(ZoneConnection conn, Packet packet)
-		{
-			var itemInvId = packet.GetShort();
-			var equipSlots = (EquipSlots)packet.GetByte();
-
-			var character = conn.GetCurrentCharacter();
-			var item = character.Inventory.GetItem(itemInvId);
-
-			if (item == null)
-			{
-				// See CZ_USE_ITEM about negative responses.
-				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item they don't have.", conn.Account.Username);
-				conn.Close();
-				return;
-			}
-
-			if (!character.CanEquip(item))
-			{
-				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item they can't equip.", conn.Account.Username);
-				conn.Close();
-				return;
-			}
-
-			if (item.Data.WearSlots != equipSlots)
-			{
-				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item in an invalid slot (Item: {1}, Request: {2}).", conn.Account.Username, item.Data.WearSlots, equipSlots);
-				conn.Close();
-				return;
-			}
-
-			character.Inventory.EquipItem(item, equipSlots);
-		}
-
-		/// <summary>
-		/// Request to unequip an item and move it to the inventory.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_TAKEOFF_EQUIP)]
-		public void CZ_REQ_TAKEOFF_EQUIP(ZoneConnection conn, Packet packet)
-		{
-			var itemInvId = packet.GetShort();
-
-			var character = conn.GetCurrentCharacter();
-			var item = character.Inventory.GetItem(itemInvId);
-
-			if (item == null)
-			{
-				// See CZ_USE_ITEM about negative responses.
-				Log.Debug("ZC_REQ_TAKEOFF_EQUIP_ACK: User '{0}' tried to unequip an item they don't have.", conn.Account.Username);
-				conn.Close();
-				return;
-			}
-
-			character.Inventory.UnequipItem(item);
 		}
 
 		/// <summary>
@@ -810,126 +634,264 @@ L_End:
 		}
 
 		/// <summary>
-		/// Request to resend status info.
+		/// Request to do an action, such as sitting down or attacking.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_STATUS)]
-		public void CZ_REQ_STATUS(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_REQUEST_ACT)]
+		public void CZ_REQUEST_ACT(ZoneConnection conn, Packet packet)
 		{
+			var targetHandle = packet.GetInt();
+			var action = (ActionType)packet.GetByte();
+
 			var character = conn.GetCurrentCharacter();
-			Send.ZC_STATUS(character);
+
+			character.Controller.StopMove();
+
+			switch (action)
+			{
+				case ActionType.SitDown:
+				{
+					character.SitDown();
+					break;
+				}
+				case ActionType.StandUp:
+				{
+					character.StandUp();
+					break;
+				}
+				case ActionType.Attack:
+				case ActionType.AutoAttack:
+				{
+					// So far, I've seen Attack only on Alpha, and newer
+					// clients used AutoAttack. To not actually keep at-
+					// tacking when not intended, the client sends the
+					// packet CZ_CANCEL_LOCKON right after the ACT packet.
+
+					var target = character.Map.GetCharacter(targetHandle);
+					if (target == null)
+					{
+						Log.Debug("CZ_REQUEST_ACT: User '{0}' tried to attack a character who doesn't exist.", conn.Account.Username);
+						return;
+					}
+
+					var autoAttack = action == ActionType.AutoAttack;
+					if (Game.Version < Versions.Beta1)
+						autoAttack = false;
+
+					character.StartAttacking(target, autoAttack);
+					break;
+				}
+				default:
+				{
+					Log.Debug("CZ_REQUEST_ACT: Unknown action '{0}'.", action);
+					break;
+				}
+			}
 		}
 
 		/// <summary>
-		/// Request to increase a stat.
+		/// Cancels the lock state on a target, to make the player character
+		/// stop attacking it.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_STATUS_CHANGE)]
-		public void CZ_STATUS_CHANGE(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_CANCEL_LOCKON)]
+		public void CZ_CANCEL_LOCKON(ZoneConnection conn, Packet packet)
 		{
-			var type = (ParameterType)packet.GetShort();
-			var change = (int)packet.GetByte();
-
 			var character = conn.GetCurrentCharacter();
-			var parameters = character.Parameters;
-
-			var success = false;
-			var value = 0;
-
-			if (type < ParameterType.Str || type > ParameterType.Luk)
-			{
-				Log.Debug("CZ_STATUS_CHANGE: User '{0}' tried to assign points to invalid stat '{1}'.", conn.Account.Username, type);
-				goto L_End;
-			}
-
-			var pointsNeeded = parameters.GetStatPointsNeeded(type);
-			if (parameters.StatPoints < pointsNeeded)
-			{
-				Log.Debug("CZ_STATUS_CHANGE: User '{0}' tried to use more stat points than they have.", conn.Account.Username);
-				goto L_End;
-			}
-
-			value = parameters.Modify(type, change);
-			parameters.Modify(ParameterType.StatPoints, -pointsNeeded);
-
-			success = true;
-
-		L_End:
-			Send.ZC_STATUS_CHANGE_ACK(character, type, success, value);
+			character.CancelAction();
 		}
 
 		/// <summary>
-		/// Request to upgrade a skill level.
+		/// Notification that the character rotated into a new direction.
 		/// </summary>
-		[PacketHandler(Op.CZ_UPGRADE_SKILLLEVEL)]
-		public void CZ_UPGRADE_SKILLLEVEL(ZoneConnection conn, Packet packet)
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_CHANGE_DIRECTION)]
+		public void CZ_CHANGE_DIRECTION(ZoneConnection conn, Packet packet)
 		{
-			var skillId = (SkillId)packet.GetShort();
+			var direction = (Direction)packet.GetByte();
 
 			var character = conn.GetCurrentCharacter();
-			var skills = character.Skills;
-			var parameters = character.Parameters;
+			character.Direction = direction;
 
-			var currentLevel = skills.GetLevel(skillId);
-			var canCurrentlyUpgrade = skills.CanUpgrade(skillId);
+			Send.ZC_CHANGE_DIRECTION(character, direction);
+		}
 
-			if (parameters.SkillPoints < 1)
+		/// <summary>
+		/// Request to pick up an item.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_ITEM_PICKUP)]
+		public void CZ_ITEM_PICKUP(ZoneConnection conn, Packet packet)
+		{
+			var itemHandle = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var item = character.Map.GetItem(itemHandle);
+
+			if (item == null)
 			{
-				Send.ZC_SKILLINFO_UPDATE(character, skillId, currentLevel, canCurrentlyUpgrade);
+				Log.Debug("CZ_ITEM_PICKUP: User '{0}' tried to pick up a non-existing item.", conn.Account.Username);
 				return;
 			}
 
-			var newLevel = currentLevel + 1;
-
-			if (!ZoneServer.Instance.Data.Skills.TryFind(skillId, out var skillData) || newLevel > skillData.MaxLevel)
-			{
-				Send.ZC_SKILLINFO_UPDATE(character, skillId, currentLevel, false);
-				return; // Skill doesn't exist or max level reached
-			}
-
-			// TODO: Add full requirement checks (job level, prerequisite skills)
-			// if (character.Parameters.JobLevel < skillData.GetJobLevelRequirement(newLevel)) { ... return; }
-			// if (!skills.HasPrerequisitesFor(skillId, newLevel)) { ... return; }
-
-			parameters.Modify(ParameterType.SkillPoints, -1);
-
-			// Use Add which will update the level and refresh client with the new list
-			skills.Add(skillId, newLevel, SkillPerm.Permanent);
+			item.Map.RemoveItem(item);
+			character.Inventory.AddItem(item);
 		}
 
 		/// <summary>
-		/// Request to use an emotion.
+		/// Request to drop items from a stack.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_EMOTION)]
-		public void CZ_REQ_EMOTION(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_ITEM_THROW)]
+		public void CZ_ITEM_THROW(ZoneConnection conn, Packet packet)
 		{
-			var emotion = (EmotionId)packet.GetByte();
+			var itemInvId = packet.GetShort();
+			var amount = packet.GetShort();
 
-			if (!Enum.IsDefined(typeof(EmotionId), emotion))
+			var character = conn.GetCurrentCharacter();
+			var item = character.Inventory.GetItem(itemInvId);
+
+			if (item == null)
 			{
-				Log.Warning("CZ_REQ_EMOTION: User '{0}' tried to use the invalid emotion '{1}'.", conn.Account.Username, emotion);
+				Log.Debug("CZ_ITEM_THROW: User '{0}' tried to drop an item they don't have.", conn.Account.Username);
 				return;
 			}
 
-			var character = conn.GetCurrentCharacter();
-			Send.ZC_EMOTION(character, emotion);
+			if (amount <= 0 || amount > item.Amount)
+			{
+				// The client doesn't send a drop request if you put in
+				// a 0 or more than you have.
+				Log.Debug("CZ_ITEM_THROW: User '{0}' tried to drop an invalid amount.", conn.Account.Username);
+				return;
+			}
+
+			var removedAmount = character.Inventory.DecrementItem(item, amount);
+			var dropItem = new Item(item.ClassId, removedAmount);
+
+			character.Drop(dropItem);
+			Send.ZC_ITEM_THROW_ACK(character, item.InventoryId, removedAmount);
 		}
 
 		/// <summary>
-		/// Request for the amount of players online via the /who command.
+		/// Request to use an item from the inventory.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_USER_COUNT)]
-		public void CZ_REQ_USER_COUNT(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_USE_ITEM)]
+		public void CZ_USE_ITEM(ZoneConnection conn, Packet packet)
 		{
-			var count = ZoneServer.Instance.World.GetPlayerCount();
-			Send.ZC_USER_COUNT(conn, count);
+			var itemInvId = packet.GetShort();
+			var clientTick = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var item = character.Inventory.GetItem(itemInvId);
+
+			if (item == null)
+			{
+				// Both ZC_USE_ITEM_ACK and ZC_REQ_WEAR_EQUIP_ACK appear
+				// to have a success parameter, with the client ignoring
+				// the entire packet if it's false. However, the client
+				// also seems to be waiting for a positive response, and
+				// if you send a negative one, or nothing at all, it will
+				// not send any more requests to use or equip any item
+				// until the next relog.
+				// In the case of using an item we can let it slight and
+				// simply not apply any effects, but for equipping we
+				// would either need to go through with it and then reverse
+				// it, or simply assume that the player is cheating and
+				// disconnect them. There's probably no legit reason for
+				// why a player should be unable to equip or use an item
+				// unless something is very wrong.
+
+				Log.Debug("CZ_USE_ITEM: User '{0}' tried to equip an item they don't have.", conn.Account.Username);
+				conn.Close();
+				return;
+			}
+
+			if (!ItemScript.TryGetScript(item.ClassId, out var script))
+			{
+				character.ServerMessage(Localization.Get("This item has not been implemented yet."));
+				Log.Debug("CZ_USE_ITEM: No script found for item '{0}'.", item.ClassId);
+			}
+			else
+			{
+				var result = script.OnUse(character, item);
+				if (result == ItemUseResult.Okay)
+					character.Inventory.DecrementItem(item, 1);
+			}
+
+			Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
 		}
+
+		/// <summary>
+		/// Request to equip an item from the inventory.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_WEAR_EQUIP)]
+		public void CZ_REQ_WEAR_EQUIP(ZoneConnection conn, Packet packet)
+		{
+			var itemInvId = packet.GetShort();
+			var equipSlots = (EquipSlots)packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+			var item = character.Inventory.GetItem(itemInvId);
+
+			if (item == null)
+			{
+				// See CZ_USE_ITEM about negative responses.
+				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item they don't have.", conn.Account.Username);
+				conn.Close();
+				return;
+			}
+
+			if (!character.CanEquip(item))
+			{
+				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item they can't equip.", conn.Account.Username);
+				conn.Close();
+				return;
+			}
+
+			if (item.Data.WearSlots != equipSlots)
+			{
+				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item in an invalid slot (Item: {1}, Request: {2}).", conn.Account.Username, item.Data.WearSlots, equipSlots);
+				conn.Close();
+				return;
+			}
+
+			character.Inventory.EquipItem(item, equipSlots);
+		}
+
+		/// <summary>
+		/// Request to unequip an item and move it to the inventory.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_TAKEOFF_EQUIP)]
+		public void CZ_REQ_TAKEOFF_EQUIP(ZoneConnection conn, Packet packet)
+		{
+			var itemInvId = packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+			var item = character.Inventory.GetItem(itemInvId);
+
+			if (item == null)
+			{
+				// See CZ_USE_ITEM about negative responses.
+				Log.Debug("ZC_REQ_TAKEOFF_EQUIP_ACK: User '{0}' tried to unequip an item they don't have.", conn.Account.Username);
+				conn.Close();
+				return;
+			}
+
+			character.Inventory.UnequipItem(item);
+		}
+
+
 
 		/// <summary>
 		/// Response to server's query about whether the player wants to
@@ -1071,76 +1033,6 @@ L_End:
 		}
 
 		/// <summary>
-		/// Request to do an action, such as sitting down or attacking.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQUEST_ACT)]
-		public void CZ_REQUEST_ACT(ZoneConnection conn, Packet packet)
-		{
-			var targetHandle = packet.GetInt();
-			var action = (ActionType)packet.GetByte();
-
-			var character = conn.GetCurrentCharacter();
-
-			character.Controller.StopMove();
-
-			switch (action)
-			{
-				case ActionType.SitDown:
-				{
-					character.SitDown();
-					break;
-				}
-				case ActionType.StandUp:
-				{
-					character.StandUp();
-					break;
-				}
-				case ActionType.Attack:
-				case ActionType.AutoAttack:
-				{
-					// So far, I've seen Attack only on Alpha, and newer
-					// clients used AutoAttack. To not actually keep at-
-					// tacking when not intended, the client sends the
-					// packet CZ_CANCEL_LOCKON right after the ACT packet.
-
-					var target = character.Map.GetCharacter(targetHandle);
-					if (target == null)
-					{
-						Log.Debug("CZ_REQUEST_ACT: User '{0}' tried to attack a character who doesn't exist.", conn.Account.Username);
-						return;
-					}
-
-					var autoAttack = action == ActionType.AutoAttack;
-					if (Game.Version < Versions.Beta1)
-						autoAttack = false;
-
-					character.StartAttacking(target, autoAttack);
-					break;
-				}
-				default:
-				{
-					Log.Debug("CZ_REQUEST_ACT: Unknown action '{0}'.", action);
-					break;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Cancels the lock state on a target, to make the player character
-		/// stop attacking it.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_CANCEL_LOCKON)]
-		public void CZ_CANCEL_LOCKON(ZoneConnection conn, Packet packet)
-		{
-			var character = conn.GetCurrentCharacter();
-			character.CancelAction();
-		}
-
-		/// <summary>
 		/// Notification that the player wants to close the storage.
 		/// </summary>
 		/// <param name="conn"></param>
@@ -1168,167 +1060,45 @@ L_End:
 		}
 
 		/// <summary>
-		/// Request to increase a skill's level.
+		/// Request to send a whisper chat message to another character.
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_UPGRADE_SKILLLEVEL)]
-		public void CZ_UPGRADE_SKILLLEVEL(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_WHISPER)]
+		public void CZ_WHISPER(ZoneConnection conn, Packet packet)
 		{
-			var skillId = (SkillId)packet.GetShort();
+			var len = packet.GetShort();
+			var targetName = packet.GetString(16);
+			var message = packet.GetString(len - 4 - 16);
 
 			var character = conn.GetCurrentCharacter();
 
-			if (!character.Skills.TryGet(skillId, out var skill))
+			if (!ZoneServer.Instance.World.Maps.TryGetPlayerByName(targetName, out var target))
 			{
-				Log.Warning("CZ_UPGRADE_SKILLLEVEL: User '{0}' tried to upgrade a skill they don't have.", conn.Account.Username);
+				Send.ZC_ACK_WHISPER(character, WhisperResult.CharacterDoesntExist);
 				return;
 			}
 
-			if (!skill.CanBeLeveled)
-			{
-				Log.Warning("CZ_UPGRADE_SKILLLEVEL: User '{0}' tried to upgrade a skill that can't be leveled any more.", conn.Account.Username);
-				return;
-			}
-
-			if (character.Parameters.SkillPoints < 1)
-			{
-				Log.Warning("CZ_UPGRADE_SKILLLEVEL: User '{0}' tried to upgrade a skill without having enough skill points.", conn.Account.Username);
-				return;
-			}
-
-			skill.LevelUp();
-			character.Parameters.Modify(ParameterType.SkillPoints, -1);
-
-			character.Skills.UpdateClassSkills();
+			Send.ZC_WHISPER(target, character.Name, message);
+			Send.ZC_ACK_WHISPER(character, WhisperResult.Okay);
 		}
 
 		/// <summary>
-		/// Request to use a skill on a target.
+		/// Request to broadcast a message to the whole server (GM command).
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_USE_SKILL)]
-		public void CZ_USE_SKILL(ZoneConnection conn, Packet packet)
+		[PacketHandler(Op.CZ_BROADCAST)]
+		public void CZ_BROADCAST(ZoneConnection conn, Packet packet)
 		{
-			var level = packet.GetShort();
-			var skillId = (SkillId)packet.GetShort();
-			var targetHandle = packet.GetInt();
-
 			var character = conn.GetCurrentCharacter();
+			// TODO: Add GM level check.
+			// if (character.Account.GMLevel < 1) return;
 
-			if (!character.Skills.TryGet(skillId, out var skill))
-			{
-				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
-				return;
-			}
+			var len = packet.GetShort();
+			var text = packet.GetString(len - 4);
 
-			if (skill.Level == 0)
-			{
-				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}' at level 0.", conn.Account.Username, skillId);
-				return;
-			}
-
-			if (!character.Map.TryGetCharacter(targetHandle, out var target))
-			{
-				character.ServerMessage(Localization.Get("Target not found."));
-				return;
-			}
-
-			// Clamp level, but don't warn about invalid values, since the
-			// requested level may be too high if the skill changed after
-			// it was hotkeyed.
-			level = Math2.Clamp(1, skill.Level, level);
-
-			Send.ZC_NOTIFY_PLAYERCHAT(character, skill.Data.StringId + "!!!");
-
-			switch (skillId)
-			{
-				case SkillId.SM_BASH:
-				{
-					if (!character.TrySpendSp(skill.SpCost))
-					{
-						character.ServerMessage(Localization.Get("Not enough SP."));
-						return;
-					}
-
-					character.Controller.StopMove();
-
-					var attacker = character;
-					var damage = level * 5;
-
-					var attackMotionDelay = attacker.Parameters.AttackMotionDelay;
-					var damageMotionDelay = target.Parameters.DamageMotionDelay;
-
-					target.TakeDamage(damage, character);
-
-					Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), ActionType.Attack, damage, attackMotionDelay, damageMotionDelay);
-					break;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Request to use a skill targeting the ground.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_USE_SKILL_TOGROUND)]
-		public void CZ_USE_SKILL_TOGROUND(ZoneConnection conn, Packet packet)
-		{
-			var level = packet.GetShort();
-			var skillId = (SkillId)packet.GetShort();
-			var x = packet.GetShort();
-			var y = packet.GetShort();
-
-			var character = conn.GetCurrentCharacter();
-
-			if (!character.Skills.TryGet(skillId, out var skill))
-			{
-				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
-				return;
-			}
-
-			if (skill.Level == 0)
-			{
-				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}' at level 0.", conn.Account.Username, skillId);
-				return;
-			}
-
-			var targetPos = new Position(x, y);
-
-			// Clamp level, but don't warn about invalid values, since the
-			// requested level may be too high if the skill changed after
-			// it was hotkeyed.
-			level = Math2.Clamp(1, skill.Level, level);
-
-			Send.ZC_NOTIFY_PLAYERCHAT(character, skill.Data.StringId + "!!!");
-
-			switch (skillId)
-			{
-				case SkillId.MG_FIREWALL:
-				{
-					if (!character.InUseRange(skill, targetPos))
-					{
-						character.ServerMessage(Localization.Get("Too far away."));
-						return;
-					}
-
-					if (!character.TrySpendSp(skill.SpCost))
-					{
-						character.ServerMessage(Localization.Get("Not enough SP."));
-						return;
-					}
-
-					character.Controller.StopMove();
-
-					var npc = new Npc(66);
-					npc.Warp(character.Map.Id, targetPos);
-
-					Task.Delay(3000).ContinueWith(__ => character.Map.RemoveNpc(npc));
-					break;
-				}
-			}
+			Send.ZC_BROADCAST(text);
 		}
 
 		/// <summary>
@@ -1719,13 +1489,30 @@ L_End:
 		[PacketHandler(Op.CZ_MAKE_GROUP)]
 		public void CZ_MAKE_GROUP(ZoneConnection conn, Packet packet)
 		{
-			var partyName = packet.GetString(Sizes.PartyNames);
-
+			var partyName = packet.GetString(24).TrimEnd('\0');
 			var character = conn.GetCurrentCharacter();
 
-			character.ServerMessage(Localization.Get("This feature has not been implemented yet."));
+			if (character.Party != null)
+			{
+				Send.ZC_ACK_MAKE_GROUP(character, PartyCreationResult.AlreadyInParty); // You are already in a party
+				return;
+			}
 
-			//Send.ZC_ACK_MAKE_GROUP(character, PartyCreationResult.Success);
+			if (string.IsNullOrWhiteSpace(partyName))
+			{
+				Send.ZC_ACK_MAKE_GROUP(character, PartyCreationResult.NameAlreadyExists); // Invalid party name
+				return;
+			}
+
+			var party = PartyManager.Instance.CreateParty(character, partyName);
+			if (party == null)
+			{
+				Send.ZC_ACK_MAKE_GROUP(character, PartyCreationResult.NameAlreadyExists); // Party name already exists
+				return;
+			}
+
+			Log.Debug("CZ_MAKE_GROUP: Character '{0}' creating party '{1}'", character.Name, partyName);
+			Send.ZC_ACK_MAKE_GROUP(character, PartyCreationResult.Success); // Success
 		}
 
 		/// <summary>
@@ -1736,6 +1523,13 @@ L_End:
 		[PacketHandler(Op.CZ_REQ_LEAVE_GROUP)]
 		public void CZ_REQ_LEAVE_GROUP(ZoneConnection conn, Packet packet)
 		{
+			var character = conn.GetCurrentCharacter();
+
+			Log.Debug("CZ_REQ_LEAVE_GROUP: Character '{0}' leaving party", character.Name);
+			if (character.Party != null)
+			{
+				character.Party.RemoveMember(character.Id);
+			}
 		}
 	}
 }

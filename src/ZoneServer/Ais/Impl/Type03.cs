@@ -1,7 +1,8 @@
 ﻿using System.Linq;
 using Sabine.Zone.Ais.Base;
 using Sabine.Zone.Ais.Impl;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
+using Yggdrasil.Collections;
 
 #pragma warning disable IDE0009
 
@@ -29,11 +30,28 @@ namespace Sabine.Zone.Ais.Impl
 		{
 			if (state.Handled || _targetCharacterHandle != 0) return;
 
-			var friends = Character.Map.GetMonsters(m =>
-				m.Handle != Character.Handle &&
-				(m as Monster)?.Data.Id == (Character as Monster)?.Data.Id &&
-				m.Position.InRange(Character.Position, Character.Map.VisibleRange / 2) &&
-				m.AttackerHandleTest != 0);
+			var character = (Monster)Character;
+			using var friends = PooledList<Monster>.Rent();
+
+			Character.Map.GetMonsters(
+				friends,
+				(origin: character.Position, visibleRange: character.Map.VisibleRange, handle: character.Handle, id: character.Data.Id),
+				static (state, monster) =>
+				{
+					if (monster.Handle == state.handle)
+						return false;
+
+					if (monster.Data.Id != state.id)
+						return false;
+
+					if (!monster.Position.InRange(state.origin, state.visibleRange / 2f))
+						return false;
+
+					if (monster.AttackerHandleTest == 0)
+						return false;
+
+					return true;
+				});
 
 			if (friends.Any())
 			{

@@ -118,11 +118,6 @@ namespace Sabine.Zone.Database
 				character.Parameters.Sp = character.Parameters.SpMax;
 			}
 
-			if (character.Skills.Count == 0)
-			{
-				character.Skills.Add(SkillId.NV_BASIC, 0, SkillPerm.Permanent);
-			}
-
 			return character;
 		}
 
@@ -208,6 +203,9 @@ namespace Sabine.Zone.Database
 
 					foreach (var skill in skills)
 					{
+						if (skill.Perm != SkillPerm.Permanent)
+							continue;
+						
 						cmd.Set("characterId", character.Id);
 						cmd.Set("id", skill.Id);
 						cmd.Set("level", skill.Level);
@@ -217,29 +215,6 @@ namespace Sabine.Zone.Database
 					}
 
 					cmd.Execute();
-				}
-
-				using (var cmd = new UpdateCommand("DELETE FROM `skills` WHERE `characterId` = @characterId", conn, trans))
-				{
-					cmd.AddParameter("@characterId", character.Id);
-					cmd.Execute();
-				}
-
-				using (var cmd = new InsertCommand("INSERT INTO `skills` {0}", conn, trans))
-				{
-					foreach (var skill in character.Skills.GetAll())
-					{
-						if (skill.Perm != SkillPerm.Permanent)
-							continue;
-
-						cmd.Clear();
-
-						cmd.Set("characterId", character.Id);
-						cmd.Set("skillId", (short)skill.Id);
-						cmd.Set("level", skill.Level);
-
-						cmd.Execute();
-					}
 				}
 
 				trans.Commit();

@@ -9,7 +9,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Sabine.Shared;
-using Sabine.Shared.Data;
 using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone;

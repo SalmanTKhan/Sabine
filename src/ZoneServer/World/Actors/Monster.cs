@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities.Components.Characters;
+using Sabine.Zone.World.Actors.Components.Characters;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
 

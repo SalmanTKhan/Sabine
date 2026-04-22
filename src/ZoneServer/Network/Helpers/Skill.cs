@@ -1,8 +1,7 @@
 ﻿using Sabine.Shared;
 using Sabine.Shared.Network;
 using Sabine.Zone.Skills;
-using Sabine.Zone.World.Entities;
-using Sabine.Zone.World.Entities.Components.Characters;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Network.Helpers
 {
@@ -48,8 +47,10 @@ namespace Sabine.Zone.Network.Helpers
 			=> packet.AddSkillData(player, skill);
 
 		/// <summary>
-		/// Writes skill data to the packet.
+		/// Adds the skill's information to the packet.
 		/// </summary>
+		/// <param name="packet"></param>
+		/// <param name="skill"></param>
 		public static void AddSkill(this Packet packet, Skill skill)
 		{
 			// The alpha client has some handlers for skill packets, but

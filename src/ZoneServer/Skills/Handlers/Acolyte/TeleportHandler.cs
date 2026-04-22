@@ -3,14 +3,14 @@ using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Acolyte
 {
 	[SkillHandler(SkillId.AL_TELEPORT)]
 	public class TeleportHandler : ISkillHandler
 	{
-		public Task HandleAsync(Character caster, IEntity target, Skill skill)
+		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
 			if (caster is not PlayerCharacter pc)
 			{

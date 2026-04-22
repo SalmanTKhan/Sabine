@@ -1,7 +1,7 @@
 ﻿using Sabine.Shared.Const;
 using Sabine.Shared.Network;
 using Sabine.Zone.Skills;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Groups;
 using Yggdrasil.Logging;
 
@@ -104,38 +104,6 @@ namespace Sabine.Zone.Network
 
 			// Move item from storage (placeholder - needs storage system implementation)
 			Log.Debug("CZ_MOVE_ITEM_FROM_STORE_TO_BODY: Character '{0}' moving item from storage", character.Name);
-		}
-
-		/// <summary>
-		/// Request to create a party/group.
-		/// </summary>
-		[PacketHandler(Op.CZ_MAKE_GROUP)]
-		public void CZ_MAKE_GROUP(ZoneConnection conn, Packet packet)
-		{
-			var partyName = packet.GetString(24).TrimEnd('\0');
-			var character = conn.GetCurrentCharacter();
-
-			if (character.Party != null)
-			{
-				Send.ZC_ACK_MAKE_GROUP(character, 2); // You are already in a party
-				return;
-			}
-
-			if (string.IsNullOrWhiteSpace(partyName))
-			{
-				Send.ZC_ACK_MAKE_GROUP(character, 1); // Invalid party name
-				return;
-			}
-
-			var party = PartyManager.Instance.CreateParty(character, partyName);
-			if (party == null)
-			{
-				Send.ZC_ACK_MAKE_GROUP(character, 1); // Party name already exists
-				return;
-			}
-
-			Log.Debug("CZ_MAKE_GROUP: Character '{0}' creating party '{1}'", character.Name, partyName);
-			Send.ZC_ACK_MAKE_GROUP(character, 0); // Success
 		}
 
 		/// <summary>
@@ -272,20 +240,6 @@ namespace Sabine.Zone.Network
 
 			Log.Debug("CZ_CHANGE_MAPTYPE: GM '{0}' changing map type at ({1},{2}) to {3}",
 				character.Name, x, y, mapType);
-		}
-
-		/// <summary>
-		/// Request to leave party/group.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_REQ_LEAVE_GROUP)]
-		public void CZ_REQ_LEAVE_GROUP(ZoneConnection conn, Packet packet)
-		{
-			var character = conn.GetCurrentCharacter();
-
-			// Leave party (placeholder - needs party system)
-			Log.Debug("CZ_REQ_LEAVE_GROUP: Character '{0}' leaving party", character.Name);
 		}
 
 		/// <summary>

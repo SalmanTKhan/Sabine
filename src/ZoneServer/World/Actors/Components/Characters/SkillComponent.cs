@@ -217,7 +217,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (this.Player == null)
 				return;
 
-			Send.ZC_SKILLINFO_LIST(this.Player, _skills.Values.ToList());
+			var skills = this.GetAll();
+			Send.ZC_SKILLINFO_LIST(this.Player, skills);
 		}
 
 		/// <summary>

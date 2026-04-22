@@ -1,12 +1,14 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data.Databases;
 using Sabine.Shared.L10N;
 using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
+using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Actors.Components.Characters;
-using Shared.Const;
+using Sabine.Zone.World.Groups;
 using Yggdrasil.Collections;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
@@ -36,11 +38,6 @@ namespace Sabine.Zone.World.Actors
 		/// Returns a reference to the character's inventory.
 		/// </summary>
 		public Inventory Inventory { get; }
-
-		/// <summary>
-		/// Returns a reference to the character's skill component.
-		/// </summary>
-		public SkillComponent Skills { get; }
 
 		/// <summary>
 		/// Returns this character's username.
@@ -171,9 +168,6 @@ namespace Sabine.Zone.World.Actors
 			this.Components.Add(new RegenComponent(this));
 
 			this.LoadJobData(jobId);
-
-			this.Components.Add(this.Skills = new SkillComponent(this));
-			this.Components.Add(new RecoveryComponent(this));
 		}
 
 		/// <summary>
@@ -254,30 +248,6 @@ namespace Sabine.Zone.World.Actors
 
 			this.IsWarping = false;
 			this.StartObserving();
-		}
-
-		/// <summary>
-		/// Makes character sit down.
-		/// </summary>
-		public void SitDown()
-		{
-			if (this.State != CharacterState.Standing)
-				return;
-
-			this.State = CharacterState.Sitting;
-			Send.ZC_NOTIFY_ACT.Simple(this, this.Handle, ActionType.SitDown);
-		}
-
-		/// <summary>
-		/// Makes character stand up.
-		/// </summary>
-		public void StandUp()
-		{
-			if (this.State != CharacterState.Sitting)
-				return;
-
-			this.State = CharacterState.Standing;
-			Send.ZC_NOTIFY_ACT.Simple(this, this.Handle, ActionType.StandUp);
 		}
 
 		/// <summary>
@@ -594,7 +564,8 @@ namespace Sabine.Zone.World.Actors
 			var levelsGained = 0;
 
 			exp = Math2.AddChecked(exp, amount);
-			if (exp < 0) exp = 0;
+			if (exp < 0)
+				exp = 0;
 
 			// Level up loop
 			while (level < maxLevel && exp >= expNeeded && expNeeded > 0)

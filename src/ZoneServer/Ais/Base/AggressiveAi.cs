@@ -1,5 +1,7 @@
 ﻿using System.Linq;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
+using Yggdrasil.Collections;
+
 
 #pragma warning disable IDE0009
 
@@ -25,9 +27,21 @@ namespace Sabine.Zone.Ais.Base
 
 			var chaseRange = (Character as Monster)?.Data.ChaseRange ?? 12;
 
-			var players = Character.Map.GetPlayers(p =>
-				!p.IsDead &&
-				p.Position.InRange(Character.Position, chaseRange));
+			using var players = PooledList<PlayerCharacter>.Rent();
+
+			Character.Map.GetPlayers(
+				players,
+				(origin: Character.Position, range: chaseRange),
+				static (state, p) =>
+				{
+					if (p.IsDead)
+						return false;
+
+					if (!p.Position.InRange(state.origin, state.range))
+						return false;
+
+					return true;
+				});
 
 			if (players.Any())
 			{

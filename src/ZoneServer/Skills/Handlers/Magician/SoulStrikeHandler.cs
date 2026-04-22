@@ -1,14 +1,14 @@
 ﻿using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Magician
 {
 	[SkillHandler(SkillId.MG_SOULSTRIKE)]
 	public class SoulStrikeHandler : ISkillHandler
 	{
-		public async Task HandleAsync(Character caster, IEntity target, Skill skill)
+		public async Task HandleAsync(Character caster, Character target, Skill skill)
 		{
 			if (target is not Character targetCharacter)
 			{

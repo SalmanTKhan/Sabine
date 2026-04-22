@@ -106,7 +106,7 @@ namespace Sabine.Zone.World.Maps
 				return;
 			}
 
-			this.PathFinder = new AStarPathFinder(this.CacheData);
+			this.PathFinder = new HercPathFinder(this.CacheData);
 		}
 
 		/// <summary>
@@ -280,9 +280,9 @@ namespace Sabine.Zone.World.Maps
 		{
 			var result = new List<Character>();
 
-			lock (_characters)
+			lock (_playersLock)
 			{
-				result.AddRange(_characters.Values.Where(c => c.Position.InRange(center, range)));
+				result.AddRange(_players.Values.Where(c => c.Position.InRange(center, range)));
 			}
 
 			lock (_npcs)
@@ -564,6 +564,29 @@ namespace Sabine.Zone.World.Maps
 		{
 			using (SlimLock.Read(_npcsLock))
 				return _npcs.Values.ToArray();
+		}
+
+		/// <summary>
+		/// Adds the monsters on the map that match the predicate to the
+		/// given list.
+		/// </summary>
+		/// <typeparam name="TState"></typeparam>
+		/// <param name="result">The list to add matching monsters to.</param>
+		/// <param name="state">A state that is passed to the predicate for determining matches.</param>
+		/// <param name="predicate">The predicate monsters need to match to be added to the list.</param>
+		public void GetMonsters<TState>(List<Monster> result, TState state, Func<TState, Monster, bool> predicate)
+		{
+			using (SlimLock.Read(_npcsLock))
+			{
+				foreach (var npc in _npcs.Values)
+				{
+					if (npc is not Monster monster)
+						continue;
+
+					if (predicate(state, monster))
+						result.Add(monster);
+				}
+			}
 		}
 
 		/// <summary>

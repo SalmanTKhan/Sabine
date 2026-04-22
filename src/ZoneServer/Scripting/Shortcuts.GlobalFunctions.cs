@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 using Yggdrasil.Logging;
 
 namespace Sabine.Zone.Scripting

@@ -2,14 +2,14 @@
 using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Merchant
 {
 	[SkillHandler(SkillId.MC_CARTREVOLUTION)]
 	public class CartRevolutionHandler : ISkillHandler
 	{
-		public Task HandleAsync(Character caster, IEntity target, Skill skill)
+		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
 			if (target is not Character targetCharacter)
 				return Task.CompletedTask;

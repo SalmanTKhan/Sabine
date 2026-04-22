@@ -1,6 +1,5 @@
 ﻿using Sabine.Shared.Const;
 using Sabine.Shared.World;
-using Sabine.Shared.Const;
 
 namespace Sabine.Zone.World.Actors
 {

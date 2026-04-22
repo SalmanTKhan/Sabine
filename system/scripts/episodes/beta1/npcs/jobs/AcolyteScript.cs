@@ -6,7 +6,7 @@ using Sabine.Shared.Const;
 using Sabine.Shared.Database;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 using static Sabine.Zone.Scripting.Shortcuts;
 
 public class AcolyteScript : GeneralScript

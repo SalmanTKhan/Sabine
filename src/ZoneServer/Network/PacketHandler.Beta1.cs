@@ -3,7 +3,7 @@ using Sabine.Shared.Const;
 using Sabine.Shared.Data;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Logging;
 

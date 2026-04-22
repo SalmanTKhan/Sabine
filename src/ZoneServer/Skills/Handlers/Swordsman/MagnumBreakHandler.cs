@@ -2,14 +2,14 @@
 using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Swordsman
 {
 	[SkillHandler(SkillId.SM_MAGNUM)]
 	public class MagnumBreakHandler : ISkillHandler
 	{
-		public Task HandleAsync(Character caster, IEntity target, Skill skill)
+		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
 			// Magnum Break is an AoE skill centered on the caster. The target parameter is ignored.
 			// It costs HP to use.

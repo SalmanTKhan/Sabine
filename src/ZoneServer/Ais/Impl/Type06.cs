@@ -1,5 +1,5 @@
 ﻿using System.Collections;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 #pragma warning disable IDE0009
 

@@ -1,7 +1,9 @@
 ﻿using System.Linq;
 using Sabine.Zone.Ais.Base;
 using Sabine.Zone.Ais.Impl;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
+using Yggdrasil.Collections;
+
 
 #pragma warning disable IDE0009
 
@@ -27,10 +29,24 @@ namespace Sabine.Zone.Ais.Impl
 			var chaseRange = (Character as Monster)?.Data.ChaseRange ?? 12;
 			var myLevel = Character.Parameters.BaseLevel;
 
-			var players = Character.Map.GetPlayers(p =>
-				!p.IsDead &&
-				p.Parameters.BaseLevel <= myLevel - LevelDifference &&
-				p.Position.InRange(Character.Position, chaseRange));
+			using var players = PooledList<PlayerCharacter>.Rent();
+
+			Character.Map.GetPlayers(
+				players,
+				(origin: Character.Position, range: chaseRange, level: myLevel, diff: LevelDifference),
+				static (state, p) =>
+				{
+					if (p.IsDead)
+						return false;
+
+					if (p.Parameters.BaseLevel > state.level - state.diff)
+						return false;
+
+					if (!p.Position.InRange(state.origin, state.range))
+						return false;
+
+					return true;
+				});
 
 			if (players.Any())
 			{
