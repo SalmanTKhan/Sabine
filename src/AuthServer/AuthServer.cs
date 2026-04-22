@@ -81,15 +81,10 @@ namespace Sabine.Auth
 		{
 			Log.Info("Checking for updates...");
 
-			// We had an issue with our update names, and to ensure that we
-			// don't break everyone's update history, we'll temporarily fix
-			// the update names on the fly. This should be removed at some
-			// point in the future.
-			//this.Database.NormalizeUpdateNames();
-
 			var enumOptions = new EnumerationOptions { RecurseSubdirectories = true, MatchCasing = MatchCasing.CaseInsensitive };
 			var filePaths = Directory.GetFiles("sql/updates/", "*.sql", enumOptions).OrderBy(a => a);
 
+			var updateFiles = new Dictionary<string, string>();
 			foreach (var filePath in filePaths)
 			{
 				var updateName = Path.GetFileName(filePath);

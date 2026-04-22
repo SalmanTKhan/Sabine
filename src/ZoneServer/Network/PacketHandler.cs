@@ -16,10 +16,10 @@ using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Chats;
-using Sabine.Zone.World.Entities;
-using Sabine.Zone.World.Entities.Components.Characters;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Maps;
 using Sabine.Zone.World.Shops;
+using Yggdrasil.Collections;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
 
@@ -119,7 +119,7 @@ namespace Sabine.Zone.Network
 
 			Send.ZC_ACCEPT_ENTER(conn, character);
 
-			map.AddCharacter(character);
+			map.AddPlayer(character);
 
 			Log.Info("User '{0}' logged in.", account.Username);
 		}
@@ -276,7 +276,7 @@ namespace Sabine.Zone.Network
 			// "chat".
 
 			using var sameChatCharacters = PooledList<PlayerCharacter>.Rent();
-			character.Map.GetCharacters(sameChatCharacters, character, static (sourceCharacter, character) =>
+			character.Map.GetPlayers(sameChatCharacters, character, static (sourceCharacter, character) =>
 			{
 				if (sourceCharacter == character)
 					return false;
@@ -328,9 +328,78 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_WHISPER)]
 		public void CZ_WHISPER(ZoneConnection conn, Packet packet)
 		{
-			var len = packet.GetShort();
-			var targetName = packet.GetString(16);
-			var message = packet.GetString(len - 4 - 16);
+			var type = (ParameterType)packet.GetShort();
+			var change = (int)packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+			var parameters = character.Parameters;
+
+			var success = false;
+			var value = 0;
+
+			if (type < ParameterType.Str || type > ParameterType.Luk)
+			{
+				Log.Debug("CZ_STATUS_CHANGE: User '{0}' tried to assign points to invalid stat '{1}'.", conn.Account.Username, type);
+				goto L_End;
+			}
+
+			var pointsNeeded = parameters.GetStatPointsNeeded(type);
+			if (parameters.StatPoints < pointsNeeded)
+			{
+				Log.Debug("CZ_STATUS_CHANGE: User '{0}' tried to use more stat points than they have.", conn.Account.Username);
+				goto L_End;
+			}
+
+			value = parameters.Modify(type, change);
+			parameters.Modify(ParameterType.StatPoints, -pointsNeeded);
+
+			success = true;
+
+L_End:
+			Send.ZC_STATUS_CHANGE_ACK(character, type, success, value);
+		}
+
+		/// <summary>
+		/// Request for the amount of players online via the /who command.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_USER_COUNT)]
+		public void CZ_REQ_USER_COUNT(ZoneConnection conn, Packet packet)
+		{
+			var count = ZoneServer.Instance.World.GetPlayerCount();
+			Send.ZC_USER_COUNT(conn, count);
+		}
+
+		/// <summary>
+		/// Request to use an emotion.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_EMOTION)]
+		public void CZ_REQ_EMOTION(ZoneConnection conn, Packet packet)
+		{
+			var emotion = (EmotionId)packet.GetByte();
+
+			if (!Enum.IsDefined(typeof(EmotionId), emotion))
+			{
+				Log.Warning("CZ_REQ_EMOTION: User '{0}' tried to use the invalid emotion '{1}'.", conn.Account.Username, emotion);
+				return;
+			}
+
+			var character = conn.GetCurrentCharacter();
+			Send.ZC_EMOTION(character, emotion);
+		}
+
+		/// <summary>
+		/// Request for an item's description.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_ITEM_EXPLANATION_BYNAME)]
+		public void CZ_REQ_ITEM_EXPLANATION_BYNAME(ZoneConnection conn, Packet packet)
+		{
+			var itemStringId = packet.GetString(16);
 
 			var character = conn.GetCurrentCharacter();
 
@@ -1099,6 +1168,170 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Request to increase a skill's level.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_UPGRADE_SKILLLEVEL)]
+		public void CZ_UPGRADE_SKILLLEVEL(ZoneConnection conn, Packet packet)
+		{
+			var skillId = (SkillId)packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!character.Skills.TryGet(skillId, out var skill))
+			{
+				Log.Warning("CZ_UPGRADE_SKILLLEVEL: User '{0}' tried to upgrade a skill they don't have.", conn.Account.Username);
+				return;
+			}
+
+			if (!skill.CanBeLeveled)
+			{
+				Log.Warning("CZ_UPGRADE_SKILLLEVEL: User '{0}' tried to upgrade a skill that can't be leveled any more.", conn.Account.Username);
+				return;
+			}
+
+			if (character.Parameters.SkillPoints < 1)
+			{
+				Log.Warning("CZ_UPGRADE_SKILLLEVEL: User '{0}' tried to upgrade a skill without having enough skill points.", conn.Account.Username);
+				return;
+			}
+
+			skill.LevelUp();
+			character.Parameters.Modify(ParameterType.SkillPoints, -1);
+
+			character.Skills.UpdateClassSkills();
+		}
+
+		/// <summary>
+		/// Request to use a skill on a target.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_USE_SKILL)]
+		public void CZ_USE_SKILL(ZoneConnection conn, Packet packet)
+		{
+			var level = packet.GetShort();
+			var skillId = (SkillId)packet.GetShort();
+			var targetHandle = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!character.Skills.TryGet(skillId, out var skill))
+			{
+				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
+				return;
+			}
+
+			if (skill.Level == 0)
+			{
+				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}' at level 0.", conn.Account.Username, skillId);
+				return;
+			}
+
+			if (!character.Map.TryGetCharacter(targetHandle, out var target))
+			{
+				character.ServerMessage(Localization.Get("Target not found."));
+				return;
+			}
+
+			// Clamp level, but don't warn about invalid values, since the
+			// requested level may be too high if the skill changed after
+			// it was hotkeyed.
+			level = Math2.Clamp(1, skill.Level, level);
+
+			Send.ZC_NOTIFY_PLAYERCHAT(character, skill.Data.StringId + "!!!");
+
+			switch (skillId)
+			{
+				case SkillId.SM_BASH:
+				{
+					if (!character.TrySpendSp(skill.SpCost))
+					{
+						character.ServerMessage(Localization.Get("Not enough SP."));
+						return;
+					}
+
+					character.Controller.StopMove();
+
+					var attacker = character;
+					var damage = level * 5;
+
+					var attackMotionDelay = attacker.Parameters.AttackMotionDelay;
+					var damageMotionDelay = target.Parameters.DamageMotionDelay;
+
+					target.TakeDamage(damage, character);
+
+					Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), ActionType.Attack, damage, attackMotionDelay, damageMotionDelay);
+					break;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Request to use a skill targeting the ground.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_USE_SKILL_TOGROUND)]
+		public void CZ_USE_SKILL_TOGROUND(ZoneConnection conn, Packet packet)
+		{
+			var level = packet.GetShort();
+			var skillId = (SkillId)packet.GetShort();
+			var x = packet.GetShort();
+			var y = packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!character.Skills.TryGet(skillId, out var skill))
+			{
+				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
+				return;
+			}
+
+			if (skill.Level == 0)
+			{
+				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}' at level 0.", conn.Account.Username, skillId);
+				return;
+			}
+
+			var targetPos = new Position(x, y);
+
+			// Clamp level, but don't warn about invalid values, since the
+			// requested level may be too high if the skill changed after
+			// it was hotkeyed.
+			level = Math2.Clamp(1, skill.Level, level);
+
+			Send.ZC_NOTIFY_PLAYERCHAT(character, skill.Data.StringId + "!!!");
+
+			switch (skillId)
+			{
+				case SkillId.MG_FIREWALL:
+				{
+					if (!character.InUseRange(skill, targetPos))
+					{
+						character.ServerMessage(Localization.Get("Too far away."));
+						return;
+					}
+
+					if (!character.TrySpendSp(skill.SpCost))
+					{
+						character.ServerMessage(Localization.Get("Not enough SP."));
+						return;
+					}
+
+					character.Controller.StopMove();
+
+					var npc = new Npc(66);
+					npc.Warp(character.Map.Id, targetPos);
+
+					Task.Delay(3000).ContinueWith(__ => character.Map.RemoveNpc(npc));
+					break;
+				}
+			}
+		}
+
+		/// <summary>
 		/// Request to start a trade with another player.
 		/// </summary>
 		/// <param name="conn"></param>
@@ -1475,6 +1708,34 @@ namespace Sabine.Zone.Network
 			}
 
 			room.RemoveMember(memberCharacter, MemberExitReason.Kicked);
+		}
+
+		/// <summary>
+		/// Request to create a party, sent when using the /organize
+		/// command.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_MAKE_GROUP)]
+		public void CZ_MAKE_GROUP(ZoneConnection conn, Packet packet)
+		{
+			var partyName = packet.GetString(Sizes.PartyNames);
+
+			var character = conn.GetCurrentCharacter();
+
+			character.ServerMessage(Localization.Get("This feature has not been implemented yet."));
+
+			//Send.ZC_ACK_MAKE_GROUP(character, PartyCreationResult.Success);
+		}
+
+		/// <summary>
+		/// Request to leave the current party.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_REQ_LEAVE_GROUP)]
+		public void CZ_REQ_LEAVE_GROUP(ZoneConnection conn, Packet packet)
+		{
 		}
 	}
 }

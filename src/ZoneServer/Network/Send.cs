@@ -11,10 +11,10 @@ using Sabine.Shared.World;
 using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Skills;
 using Sabine.Zone.World.Chats;
-using Sabine.Zone.World.Entities;
-using Sabine.Zone.World.Entities.Components.Characters;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Util;
+using Yggdrasil.Logging;
 
 namespace Sabine.Zone.Network
 {
@@ -51,7 +51,7 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		public static void ZC_ACCEPT_ENTER(ZoneConnection conn, PlayerCharacter character)
 		{
-			var packet = new Packet(Op.ZC_ACCEPT_ENTER);
+			using var packet = Packet.Rent(Op.ZC_ACCEPT_ENTER);
 
 			packet.PutInt(character.Id);
 			packet.AddPackedPosition(character.Position, 0);
@@ -81,7 +81,7 @@ namespace Sabine.Zone.Network
 		/// <param name="tick"></param>
 		public static void ZC_NOTIFY_TIME(ZoneConnection conn, int tick)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_TIME);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_TIME);
 			packet.PutInt(tick);
 
 			conn.Send(packet);
@@ -91,9 +91,9 @@ namespace Sabine.Zone.Network
 		/// Makes character appear on the player's client.
 		/// </summary>
 		/// <param name="character"></param>
-		public static void ZC_NOTIFY_STANDENTRY(PlayerCharacter player, IEntryCharacter character)
+		public static void ZC_NOTIFY_STANDENTRY(PlayerCharacter player, IStandEntry character)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_STANDENTRY);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_STANDENTRY);
 			packet.AddStandEntry(character);
 
 			player.Connection.Send(packet);
@@ -103,9 +103,9 @@ namespace Sabine.Zone.Network
 		/// Makes character appear on the clients around it.
 		/// </summary>
 		/// <param name="character"></param>
-		public static void ZC_NOTIFY_STANDENTRY(IEntryCharacter character)
+		public static void ZC_NOTIFY_STANDENTRY(IStandEntry character)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_STANDENTRY);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_STANDENTRY);
 			packet.AddStandEntry(character);
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.AllButSource);
@@ -123,13 +123,13 @@ namespace Sabine.Zone.Network
 		/// to be handling both players and NPCs well.
 		/// </remarks>
 		/// <param name="character"></param>
-		public static void ZC_NOTIFY_STANDENTRY_NPC(IEntryCharacter character)
+		public static void ZC_NOTIFY_STANDENTRY_NPC(IStandEntry character)
 		{
 			// In the alpha, class id 32 is a warp, in the form of a round
 			// shadow sprite, and 63 seems to be an effect, that uses the
 			// speed field as the effect id.
 
-			var packet = new Packet(Op.ZC_NOTIFY_STANDENTRY_NPC);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_STANDENTRY_NPC);
 			packet.AddStandEntryNpc(character);
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.AllButSource);
@@ -139,9 +139,9 @@ namespace Sabine.Zone.Network
 		/// Makes NPC appear on the player's client.
 		/// </summary>
 		/// <param name="player"></param>
-		public static void ZC_NOTIFY_STANDENTRY_NPC(PlayerCharacter player, IEntryCharacter character)
+		public static void ZC_NOTIFY_STANDENTRY_NPC(PlayerCharacter player, IStandEntry character)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_STANDENTRY_NPC);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_STANDENTRY_NPC);
 			packet.AddStandEntryNpc(character);
 
 			player.Connection.Send(packet);
@@ -152,9 +152,9 @@ namespace Sabine.Zone.Network
 		/// a spawn effect.
 		/// </summary>
 		/// <param name="character"></param>
-		public static void ZC_NOTIFY_NEWENTRY(IEntryCharacter character)
+		public static void ZC_NOTIFY_NEWENTRY(IStandEntry character)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_NEWENTRY);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_NEWENTRY);
 			packet.AddNewEntry(character);
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.AllButSource);
@@ -167,12 +167,12 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		/// <param name="from"></param>
 		/// <param name="to"></param>
-		public static void ZC_NOTIFY_MOVEENTRY(IEntryCharacter character, Position from, Position to)
+		public static void ZC_NOTIFY_MOVEENTRY(IStandEntry character, Position from, Position to)
 		{
 			// Same as the others, but with a packed move instead of the
 			// character's packed position.
 
-			var packet = new Packet(Op.ZC_NOTIFY_MOVEENTRY);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_MOVEENTRY);
 			packet.AddMoveEntry(character, from, to);
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.AllButSource);
@@ -186,9 +186,9 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		/// <param name="from"></param>
 		/// <param name="to"></param>
-		public static void ZC_NOTIFY_MOVEENTRY(PlayerCharacter player, IEntryCharacter character, Position from, Position to)
+		public static void ZC_NOTIFY_MOVEENTRY(PlayerCharacter player, IStandEntry character, Position from, Position to)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_MOVEENTRY);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_MOVEENTRY);
 			packet.AddMoveEntry(character, from, to);
 
 			player.Connection.Send(packet);
@@ -202,7 +202,7 @@ namespace Sabine.Zone.Network
 		/// <param name="type"></param>
 		public static void ZC_NOTIFY_VANISH(PlayerCharacter player, int handle, DisappearType type)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_VANISH);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_VANISH);
 			packet.PutInt(handle);
 			packet.PutByte((byte)type);
 
@@ -216,7 +216,7 @@ namespace Sabine.Zone.Network
 		/// <param name="type"></param>
 		public static void ZC_NOTIFY_VANISH(Character character, DisappearType type)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_VANISH);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_VANISH);
 			packet.PutInt(character.Handle);
 			packet.PutByte((byte)type);
 
@@ -268,7 +268,7 @@ namespace Sabine.Zone.Network
 		/// <param name="to"></param>
 		public static void ZC_NOTIFY_MOVE(Character character, Position from, Position to)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_MOVE);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_MOVE);
 
 			packet.PutInt(character.Handle);
 			packet.AddPackedMove(from, to, 8, 8);
@@ -285,7 +285,7 @@ namespace Sabine.Zone.Network
 		/// <param name="to"></param>
 		public static void ZC_NOTIFY_PLAYERMOVE(PlayerCharacter character, Position from, Position to)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_PLAYERMOVE);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_PLAYERMOVE);
 
 			packet.PutInt(Game.GetTick());
 			packet.AddPackedMove(from, to, 8, 8);
@@ -304,7 +304,7 @@ namespace Sabine.Zone.Network
 		/// <param name="stopPos"></param>
 		public static void ZC_STOPMOVE(Character character, Position stopPos)
 		{
-			var packet = new Packet(Op.ZC_STOPMOVE);
+			using var packet = Packet.Rent(Op.ZC_STOPMOVE);
 
 			packet.PutInt(character.Handle);
 			packet.PutShort((short)stopPos.X);
@@ -320,7 +320,7 @@ namespace Sabine.Zone.Network
 		/// <param name="target"></param>
 		public static void ZC_ACK_REQNAME(PlayerCharacter character, Character target)
 		{
-			var packet = new Packet(Op.ZC_ACK_REQNAME);
+			using var packet = Packet.Rent(Op.ZC_ACK_REQNAME);
 
 			packet.PutInt(target.Handle);
 
@@ -393,7 +393,7 @@ namespace Sabine.Zone.Network
 			if (type == ParameterType.Weight || type == ParameterType.WeightMax)
 				value /= 10;
 
-			var packet = new Packet(Op.ZC_PAR_CHANGE);
+			using var packet = Packet.Rent(Op.ZC_PAR_CHANGE);
 
 			packet.PutShort((short)type);
 
@@ -440,7 +440,7 @@ namespace Sabine.Zone.Network
 			if (!type.IsLong())
 				throw new ArgumentException($"Parameter type '{type}' should be sent using ZC_PAR_CHANGE.");
 
-			var packet = new Packet(Op.ZC_LONGPAR_CHANGE);
+			using var packet = Packet.Rent(Op.ZC_LONGPAR_CHANGE);
 
 			packet.PutShort((short)type);
 			packet.PutInt(value);
@@ -461,7 +461,7 @@ namespace Sabine.Zone.Network
 		/// <param name="value"></param>
 		public static void ZC_STATUS_CHANGE_ACK(PlayerCharacter character, ParameterType type, bool success, int value)
 		{
-			var packet = new Packet(Op.ZC_STATUS_CHANGE_ACK);
+			using var packet = Packet.Rent(Op.ZC_STATUS_CHANGE_ACK);
 
 			packet.PutShort((short)type);
 			packet.PutByte(success);
@@ -476,7 +476,7 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		public static void ZC_STATUS(PlayerCharacter character)
 		{
-			var packet = new Packet(Op.ZC_STATUS);
+			using var packet = Packet.Rent(Op.ZC_STATUS);
 
 			packet.PutShort((short)character.Parameters.StatPoints);
 			packet.PutByte((byte)character.Parameters.Str);
@@ -491,14 +491,30 @@ namespace Sabine.Zone.Network
 			packet.PutByte((byte)character.Parameters.DexNeeded);
 			packet.PutByte((byte)character.Parameters.Luk);
 			packet.PutByte((byte)character.Parameters.LukNeeded);
-			packet.PutByte((byte)character.Parameters.AttackMin);
-			packet.PutByte((byte)character.Parameters.AttackMax);
-			packet.PutByte((byte)character.Parameters.Defense);
-			packet.PutByte((byte)character.Parameters.MagicAttack);
 
-			if (Game.Version >= Versions.Beta1)
+			if (Game.Version < Versions.Beta1)
 			{
-				packet.PutEmpty(24);
+				packet.PutByte((byte)character.Parameters.AttackMin);
+				packet.PutByte((byte)character.Parameters.AttackMax);
+				packet.PutByte((byte)character.Parameters.Defense);
+				packet.PutByte((byte)character.Parameters.MagicAttack);
+			}
+			else
+			{
+				packet.PutShort((short)character.Parameters.Attack);
+				packet.PutShort((short)character.Parameters.AttackBonus);
+				packet.PutShort((short)character.Parameters.MagicAttackMax);
+				packet.PutShort((short)character.Parameters.MagicAttackMin);
+				packet.PutShort((short)character.Parameters.MeleeDefense);
+				packet.PutShort((short)character.Parameters.MeleeDefenseBonus);
+				packet.PutShort((short)character.Parameters.MagicDefense);
+				packet.PutShort((short)character.Parameters.MagicDefenseBonus);
+				packet.PutShort((short)character.Parameters.Hit);
+				packet.PutShort((short)character.Parameters.Flee);
+				packet.PutShort((short)character.Parameters.FleeBonus);
+				packet.PutShort((short)character.Parameters.Critical);
+				packet.PutShort((short)character.Parameters.Aspd);
+				packet.PutShort((short)character.Parameters.AspdBonus);
 			}
 
 			character.Connection.Send(packet);
@@ -529,7 +545,7 @@ namespace Sabine.Zone.Network
 		/// <param name="message">The chat message to send.</param>
 		public static void ZC_NOTIFY_CHAT<TSender>(TSender sender, int authorHandle, string message) where TSender : ISender
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_CHAT);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_CHAT);
 
 			packet.PutInt(authorHandle);
 			packet.PutString(message);
@@ -546,7 +562,7 @@ namespace Sabine.Zone.Network
 		/// <param name="message"></param>
 		public static void ZC_NOTIFY_PLAYERCHAT(PlayerCharacter character, string message)
 		{
-			var packet = new Packet(Op.ZC_NOTIFY_PLAYERCHAT);
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_PLAYERCHAT);
 			packet.PutString(message);
 
 			character.Connection.Send(packet);
@@ -560,7 +576,7 @@ namespace Sabine.Zone.Network
 		/// <param name="message"></param>
 		public static void ZC_WHISPER(PlayerCharacter character, string fromName, string message)
 		{
-			var packet = new Packet(Op.ZC_WHISPER);
+			using var packet = Packet.Rent(Op.ZC_WHISPER);
 
 			packet.PutString(fromName, 16);
 			packet.PutString(message);
@@ -575,7 +591,7 @@ namespace Sabine.Zone.Network
 		/// <param name="result"></param>
 		public static void ZC_ACK_WHISPER(PlayerCharacter character, WhisperResult result)
 		{
-			var packet = new Packet(Op.ZC_ACK_WHISPER);
+			using var packet = Packet.Rent(Op.ZC_ACK_WHISPER);
 			packet.PutByte((byte)result);
 
 			character.Connection.Send(packet);
@@ -588,7 +604,7 @@ namespace Sabine.Zone.Network
 		/// <param name="message"></param>
 		public static void ZC_BROADCAST(string message)
 		{
-			var packet = new Packet(Op.ZC_BROADCAST);
+			using var packet = Packet.Rent(Op.ZC_BROADCAST);
 			packet.PutString(message);
 
 			var maps = ZoneServer.Instance.World.Maps.GetAll();
@@ -604,7 +620,7 @@ namespace Sabine.Zone.Network
 		/// <param name="value"></param>
 		public static void ZC_SPRITE_CHANGE(Character character, SpriteType type, int value)
 		{
-			var packet = new Packet(Op.ZC_SPRITE_CHANGE);
+			using var packet = Packet.Rent(Op.ZC_SPRITE_CHANGE);
 
 			packet.PutInt(character.Handle);
 			packet.PutByte((byte)type);
@@ -620,7 +636,7 @@ namespace Sabine.Zone.Network
 		/// <param name="count"></param>
 		public static void ZC_USER_COUNT(ZoneConnection conn, int count)
 		{
-			var packet = new Packet(Op.ZC_USER_COUNT);
+			using var packet = Packet.Rent(Op.ZC_USER_COUNT);
 			packet.PutInt(count);
 
 			conn.Send(packet);
@@ -633,7 +649,7 @@ namespace Sabine.Zone.Network
 		/// <param name="emotionId"></param>
 		public static void ZC_EMOTION(Character character, EmotionId emotionId)
 		{
-			var packet = new Packet(Op.ZC_EMOTION);
+			using var packet = Packet.Rent(Op.ZC_EMOTION);
 
 			packet.PutInt(character.Handle);
 			packet.PutByte((byte)emotionId);
@@ -649,7 +665,7 @@ namespace Sabine.Zone.Network
 		/// <param name="description"></param>
 		public static void ZC_REQ_ITEM_EXPLANATION_ACK(PlayerCharacter character, string name, string description)
 		{
-			var packet = new Packet(Op.ZC_REQ_ITEM_EXPLANATION_ACK);
+			using var packet = Packet.Rent(Op.ZC_REQ_ITEM_EXPLANATION_ACK);
 
 			packet.PutString(name, Sizes.ItemNames);
 			packet.PutString(description);
@@ -665,7 +681,7 @@ namespace Sabine.Zone.Network
 		/// <exception cref="NotImplementedException"></exception>
 		public static void ZC_CHANGE_DIRECTION(Character character, Direction direction)
 		{
-			var packet = new Packet(Op.ZC_CHANGE_DIRECTION);
+			using var packet = Packet.Rent(Op.ZC_CHANGE_DIRECTION);
 
 			packet.PutInt(character.Handle);
 			packet.PutByte((byte)direction);
@@ -683,7 +699,7 @@ namespace Sabine.Zone.Network
 		{
 			var mapFileName = mapStringId + ".gat";
 
-			var packet = new Packet(Op.ZC_NPCACK_MAPMOVE);
+			using var packet = Packet.Rent(Op.ZC_NPCACK_MAPMOVE);
 
 			packet.PutString(mapFileName, 16);
 			packet.PutShort((short)pos.X);
@@ -705,7 +721,7 @@ namespace Sabine.Zone.Network
 		{
 			var mapFileName = mapStringId + ".gat";
 
-			var packet = new Packet(Op.ZC_NPCACK_SERVERMOVE);
+			using var packet = Packet.Rent(Op.ZC_NPCACK_SERVERMOVE);
 
 			packet.PutString(mapFileName, 16);
 			packet.PutShort((short)pos.X);
@@ -765,7 +781,7 @@ namespace Sabine.Zone.Network
 			/// <param name="arg4"></param>
 			public static void Raw(Character character, int handleSource, int handleTarget, int tick, ActionType type, int arg1, int arg2, int arg3, int arg4, int arg5)
 			{
-				var packet = new Packet(Op.ZC_NOTIFY_ACT);
+				using var packet = Packet.Rent(Op.ZC_NOTIFY_ACT);
 
 				packet.PutInt(handleSource);
 				packet.PutInt(handleTarget);
@@ -799,7 +815,7 @@ namespace Sabine.Zone.Network
 		/// <param name="message"></param>
 		public static void ZC_SAY_DIALOG(PlayerCharacter character, int npcHandle, string message)
 		{
-			var packet = new Packet(Op.ZC_SAY_DIALOG);
+			using var packet = Packet.Rent(Op.ZC_SAY_DIALOG);
 
 			packet.PutInt(npcHandle);
 			packet.PutString(message);
@@ -814,7 +830,7 @@ namespace Sabine.Zone.Network
 		/// <param name="npcHandle"></param>
 		public static void ZC_WAIT_DIALOG(PlayerCharacter character, int npcHandle)
 		{
-			var packet = new Packet(Op.ZC_WAIT_DIALOG);
+			using var packet = Packet.Rent(Op.ZC_WAIT_DIALOG);
 			packet.PutInt(npcHandle);
 
 			character.Connection.Send(packet);
@@ -827,7 +843,7 @@ namespace Sabine.Zone.Network
 		/// <param name="npcHandle"></param>
 		public static void ZC_CLOSE_DIALOG(PlayerCharacter character, int npcHandle)
 		{
-			var packet = new Packet(Op.ZC_CLOSE_DIALOG);
+			using var packet = Packet.Rent(Op.ZC_CLOSE_DIALOG);
 			packet.PutInt(npcHandle);
 
 			character.Connection.Send(packet);
@@ -841,12 +857,26 @@ namespace Sabine.Zone.Network
 		/// <param name="optionsString">Options separated by colons.</param>
 		public static void ZC_MENU_LIST(PlayerCharacter character, int npcHandle, string optionsString)
 		{
-			var packet = new Packet(Op.ZC_MENU_LIST);
+			using var packet = Packet.Rent(Op.ZC_MENU_LIST);
 
 			packet.PutInt(npcHandle);
 			packet.PutString(optionsString);
 
 			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Makes client close the connection and display a message
+		/// for why this disconnect was requested.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="reason"></param>
+		public static void SC_NOTIFY_BAN(ZoneConnection conn, DisconnectReason reason)
+		{
+			using var packet = Packet.Rent(Op.SC_NOTIFY_BAN);
+			packet.PutByte((byte)reason);
+
+			conn.Send(packet);
 		}
 
 		/// <summary>
@@ -868,7 +898,7 @@ namespace Sabine.Zone.Network
 		/// <param name="result"></param>
 		public static void ZC_ITEM_PICKUP_ACK(PlayerCharacter character, Item item, int amount, PickUpResult result)
 		{
-			var packet = new Packet(Op.ZC_ITEM_PICKUP_ACK);
+			using var packet = Packet.Rent(Op.ZC_ITEM_PICKUP_ACK);
 
 			var wearSlots = item.WearSlots;
 			if (!character.CanEquip(item))
@@ -910,7 +940,7 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_NORMAL_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var packet = new Packet(Op.ZC_NORMAL_ITEMLIST);
+			using var packet = Packet.Rent(Op.ZC_NORMAL_ITEMLIST);
 
 			foreach (var item in items)
 			{
@@ -931,7 +961,7 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_STORE_NORMAL_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var packet = new Packet(Op.ZC_STORE_NORMAL_ITEMLIST);
+			using var packet = Packet.Rent(Op.ZC_STORE_NORMAL_ITEMLIST);
 
 			foreach (var item in items)
 			{
@@ -952,7 +982,7 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_PC_PURCHASE_ITEMLIST(PlayerCharacter character, IEnumerable<ShopItem> items)
 		{
-			var packet = new Packet(Op.ZC_PC_PURCHASE_ITEMLIST);
+			using var packet = Packet.Rent(Op.ZC_PC_PURCHASE_ITEMLIST);
 
 			foreach (var item in items)
 			{
@@ -980,7 +1010,7 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_PC_SELL_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var packet = new Packet(Op.ZC_PC_SELL_ITEMLIST);
+			using var packet = Packet.Rent(Op.ZC_PC_SELL_ITEMLIST);
 
 			foreach (var item in items)
 			{
@@ -1037,7 +1067,7 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_EQUIPMENT_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var packet = new Packet(Op.ZC_EQUIPMENT_ITEMLIST);
+			using var packet = Packet.Rent(Op.ZC_EQUIPMENT_ITEMLIST);
 
 			foreach (var item in items)
 			{
@@ -1062,7 +1092,7 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_STORE_EQUIPMENT_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var packet = new Packet(Op.ZC_STORE_EQUIPMENT_ITEMLIST);
+			using var packet = Packet.Rent(Op.ZC_STORE_EQUIPMENT_ITEMLIST);
 
 			foreach (var item in items)
 			{
@@ -1086,7 +1116,7 @@ namespace Sabine.Zone.Network
 		/// <param name="item"></param>
 		public static void ZC_ITEM_ENTRY(PlayerCharacter character, Item item)
 		{
-			var packet = new Packet(Op.ZC_ITEM_ENTRY);
+			using var packet = Packet.Rent(Op.ZC_ITEM_ENTRY);
 			packet.AddEntryItem(item);
 
 			character.Connection.Send(packet);
@@ -1098,7 +1128,7 @@ namespace Sabine.Zone.Network
 		/// <param name="item"></param>
 		public static void ZC_ITEM_FALL_ENTRY(Item item)
 		{
-			var packet = new Packet(Op.ZC_ITEM_FALL_ENTRY);
+			using var packet = Packet.Rent(Op.ZC_ITEM_FALL_ENTRY);
 			packet.AddEntryItem(item);
 
 			item.Map.Broadcast(packet, item, BroadcastTargets.All);
@@ -1111,7 +1141,7 @@ namespace Sabine.Zone.Network
 		/// <param name="handle"></param>
 		public static void ZC_ITEM_DISAPPEAR(PlayerCharacter character, int handle)
 		{
-			var packet = new Packet(Op.ZC_ITEM_DISAPPEAR);
+			using var packet = Packet.Rent(Op.ZC_ITEM_DISAPPEAR);
 			packet.PutInt(handle);
 
 			character.Connection.Send(packet);
@@ -1123,7 +1153,7 @@ namespace Sabine.Zone.Network
 		/// <param name="item"></param>
 		public static void ZC_ITEM_DISAPPEAR(Item item)
 		{
-			var packet = new Packet(Op.ZC_ITEM_DISAPPEAR);
+			using var packet = Packet.Rent(Op.ZC_ITEM_DISAPPEAR);
 			packet.PutInt(item.Handle);
 
 			item.Map.Broadcast(packet, item, BroadcastTargets.All);
@@ -1138,7 +1168,7 @@ namespace Sabine.Zone.Network
 		/// <param name="removeAmount">Amount to remove from the item stack. If it reaches 0, the item disappears.</param>
 		public static void ZC_ITEM_THROW_ACK(PlayerCharacter character, int invId, int removeAmount)
 		{
-			var packet = new Packet(Op.ZC_ITEM_THROW_ACK);
+			using var packet = Packet.Rent(Op.ZC_ITEM_THROW_ACK);
 
 			packet.PutShort((short)invId);
 			packet.PutShort((short)removeAmount);
@@ -1154,7 +1184,7 @@ namespace Sabine.Zone.Network
 		/// <param name="newAmount"></param>
 		public static void ZC_USE_ITEM_ACK(PlayerCharacter character, int invId, int newAmount)
 		{
-			var packet = new Packet(Op.ZC_USE_ITEM_ACK);
+			using var packet = Packet.Rent(Op.ZC_USE_ITEM_ACK);
 
 			packet.PutShort((short)invId);
 			packet.PutShort((short)newAmount);
@@ -1172,7 +1202,7 @@ namespace Sabine.Zone.Network
 		/// <param name="equipSlot"></param>
 		public static void ZC_REQ_WEAR_EQUIP_ACK(PlayerCharacter character, int invId, EquipSlots equipSlot)
 		{
-			var packet = new Packet(Op.ZC_REQ_WEAR_EQUIP_ACK);
+			using var packet = Packet.Rent(Op.ZC_REQ_WEAR_EQUIP_ACK);
 
 			packet.PutShort((short)invId);
 
@@ -1195,7 +1225,7 @@ namespace Sabine.Zone.Network
 		/// <param name="equipSlot"></param>
 		public static void ZC_REQ_TAKEOFF_EQUIP_ACK(PlayerCharacter character, int invId, EquipSlots equipSlot)
 		{
-			var packet = new Packet(Op.ZC_REQ_TAKEOFF_EQUIP_ACK);
+			using var packet = Packet.Rent(Op.ZC_REQ_TAKEOFF_EQUIP_ACK);
 
 			packet.PutShort((short)invId);
 
@@ -1216,7 +1246,7 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		public static void ZC_CLOSE_STORE(PlayerCharacter character)
 		{
-			var packet = new Packet(Op.ZC_CLOSE_STORE);
+			using var packet = Packet.Rent(Op.ZC_CLOSE_STORE);
 			character.Connection.Send(packet);
 		}
 
@@ -1227,7 +1257,7 @@ namespace Sabine.Zone.Network
 		/// <param name="npcHandle"></param>
 		public static void ZC_SELECT_DEALTYPE(PlayerCharacter character, int npcHandle)
 		{
-			var packet = new Packet(Op.ZC_SELECT_DEALTYPE);
+			using var packet = Packet.Rent(Op.ZC_SELECT_DEALTYPE);
 			packet.PutInt(npcHandle);
 
 			character.Connection.Send(packet);
@@ -1239,7 +1269,7 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		public static void ZC_MVP(Character character)
 		{
-			var packet = new Packet(Op.ZC_MVP);
+			using var packet = Packet.Rent(Op.ZC_MVP);
 			packet.PutInt(character.Handle);
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);
@@ -1252,7 +1282,7 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		public static void ZC_MVP_GETTING_SPECIAL_EXP(PlayerCharacter character, int expAmount)
 		{
-			var packet = new Packet(Op.ZC_MVP_GETTING_SPECIAL_EXP);
+			using var packet = Packet.Rent(Op.ZC_MVP_GETTING_SPECIAL_EXP);
 			packet.PutInt(expAmount);
 
 			character.Connection.Send(packet);
@@ -1265,7 +1295,7 @@ namespace Sabine.Zone.Network
 		/// <param name="type"></param>
 		public static void ZC_RESTART_ACK(PlayerCharacter character, RestartType type)
 		{
-			var packet = new Packet(Op.ZC_RESTART_ACK);
+			using var packet = Packet.Rent(Op.ZC_RESTART_ACK);
 			packet.PutByte((byte)type);
 
 			character.Connection.Send(packet);
@@ -1278,7 +1308,7 @@ namespace Sabine.Zone.Network
 		/// <param name="s1"></param>
 		public static void ZC_ACK_REQ_DISCONNECT(PlayerCharacter character, int s1)
 		{
-			var packet = new Packet(Op.ZC_ACK_REQ_DISCONNECT);
+			using var packet = Packet.Rent(Op.ZC_ACK_REQ_DISCONNECT);
 			packet.PutShort((short)s1);
 
 			character.Connection.Send(packet);
@@ -1292,7 +1322,7 @@ namespace Sabine.Zone.Network
 		/// <param name="skills"></param>
 		public static void ZC_SKILLINFO_LIST(PlayerCharacter character, IEnumerable<Skill> skills)
 		{
-			var packet = new Packet(Op.ZC_SKILLINFO_LIST);
+			using var packet = Packet.Rent(Op.ZC_SKILLINFO_LIST);
 
 			foreach (var skill in skills)
 				packet.AddSkill(character, skill);
@@ -1307,8 +1337,8 @@ namespace Sabine.Zone.Network
 		/// <param name="skill"></param>
 		public static void ZC_ADD_SKILL(PlayerCharacter character, Skill skill)
 		{
-			var packet = new Packet(Op.ZC_ADD_SKILL);
-			packet.AddSkill(character, skill);
+			using var packet = Packet.Rent(Op.ZC_ADD_SKILL);
+			packet.AddSkill(skill);
 
 			character.Connection.Send(packet);
 		}
@@ -1320,23 +1350,7 @@ namespace Sabine.Zone.Network
 		/// <param name="skill"></param>
 		public static void ZC_SKILLINFO_UPDATE(PlayerCharacter character, Skill skill)
 		{
-			ZC_SKILLINFO_UPDATE(character, skill.Id, skill.Level, skill.CanBeLeveled && character.Parameters.SkillPoints > 0);
-		}
-
-		/// <summary>
-		/// Updates a skill's information, such as its level or whether it
-		/// can be upgraded.
-		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="skillId"></param>
-		/// <param name="level"></param>
-		/// <param name="canUpgrade"></param>
-		public static void ZC_SKILLINFO_UPDATE(PlayerCharacter character, SkillId skillId, int level, bool canUpgrade)
-		{
-			if (!ZoneServer.Instance.Data.Skills.TryFind(skillId, out var skillData))
-				return;
-
-			var packet = new Packet(Op.ZC_SKILLINFO_UPDATE);
+			using var packet = Packet.Rent(Op.ZC_SKILLINFO_UPDATE);
 
 			packet.PutShort((short)skillId);
 			packet.PutShort((short)level);
@@ -1357,7 +1371,7 @@ namespace Sabine.Zone.Network
 		/// <param name="traderName"></param>
 		public static void ZC_REQ_EXCHANGE_ITEM(PlayerCharacter character, string traderName)
 		{
-			var packet = new Packet(Op.ZC_REQ_EXCHANGE_ITEM);
+			using var packet = Packet.Rent(Op.ZC_REQ_EXCHANGE_ITEM);
 			packet.PutString(traderName, Sizes.CharacterNames);
 
 			character.Connection.Send(packet);
@@ -1371,7 +1385,7 @@ namespace Sabine.Zone.Network
 		/// <param name="response"></param>
 		public static void ZC_ACK_EXCHANGE_ITEM(PlayerCharacter character, TradingResponse response)
 		{
-			var packet = new Packet(Op.ZC_ACK_EXCHANGE_ITEM);
+			using var packet = Packet.Rent(Op.ZC_ACK_EXCHANGE_ITEM);
 			packet.PutByte((byte)response);
 
 			character.Connection.Send(packet);
@@ -1383,7 +1397,7 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		public static void ZC_CANCEL_EXCHANGE_ITEM(PlayerCharacter character)
 		{
-			var packet = new Packet(Op.ZC_CANCEL_EXCHANGE_ITEM);
+			using var packet = Packet.Rent(Op.ZC_CANCEL_EXCHANGE_ITEM);
 
 			character.Connection.Send(packet);
 		}
@@ -1398,7 +1412,7 @@ namespace Sabine.Zone.Network
 			/// <param name="amount"></param>
 			public static void Item(PlayerCharacter character, Item item, int amount)
 			{
-				var packet = new Packet(Op.ZC_ADD_EXCHANGE_ITEM);
+				using var packet = Packet.Rent(Op.ZC_ADD_EXCHANGE_ITEM);
 
 				packet.PutInt(amount);
 				packet.PutString(item.StringId, Sizes.ItemNames);
@@ -1414,7 +1428,7 @@ namespace Sabine.Zone.Network
 			/// <param name="amount"></param>
 			public static void Zeny(PlayerCharacter character, int amount)
 			{
-				var packet = new Packet(Op.ZC_ADD_EXCHANGE_ITEM);
+				using var packet = Packet.Rent(Op.ZC_ADD_EXCHANGE_ITEM);
 
 				packet.PutInt(amount);
 				packet.PutString("money", Sizes.ItemNames);
@@ -1432,7 +1446,7 @@ namespace Sabine.Zone.Network
 		/// <param name="result"></param>
 		public static void ZC_ACK_ADD_EXCHANGE_ITEM(PlayerCharacter character, int invId, TradingSuccess result)
 		{
-			var packet = new Packet(Op.ZC_ACK_ADD_EXCHANGE_ITEM);
+			using var packet = Packet.Rent(Op.ZC_ACK_ADD_EXCHANGE_ITEM);
 
 			packet.PutShort((short)invId);
 			packet.PutByte((byte)result);
@@ -1448,7 +1462,7 @@ namespace Sabine.Zone.Network
 		/// <param name="side"></param>
 		public static void ZC_CONCLUDE_EXCHANGE_ITEM(PlayerCharacter character, TradingSide side)
 		{
-			var packet = new Packet(Op.ZC_CONCLUDE_EXCHANGE_ITEM);
+			using var packet = Packet.Rent(Op.ZC_CONCLUDE_EXCHANGE_ITEM);
 			packet.PutByte((byte)side);
 
 			character.Connection.Send(packet);
@@ -1462,7 +1476,7 @@ namespace Sabine.Zone.Network
 		/// <param name="result"></param>
 		public static void ZC_EXEC_EXCHANGE_ITEM(PlayerCharacter character, TradingSuccess result)
 		{
-			var packet = new Packet(Op.ZC_EXEC_EXCHANGE_ITEM);
+			using var packet = Packet.Rent(Op.ZC_EXEC_EXCHANGE_ITEM);
 			packet.PutByte((byte)result);
 
 			character.Connection.Send(packet);
@@ -1476,7 +1490,7 @@ namespace Sabine.Zone.Network
 		/// <param name="result"></param>
 		public static void ZC_ACK_CREATE_CHATROOM(PlayerCharacter character, ChatRoomSuccess result)
 		{
-			var packet = new Packet(Op.ZC_ACK_CREATE_CHATROOM);
+			using var packet = Packet.Rent(Op.ZC_ACK_CREATE_CHATROOM);
 			packet.PutByte((byte)result);
 
 			character.Connection.Send(packet);
@@ -1489,7 +1503,7 @@ namespace Sabine.Zone.Network
 		/// <param name="room"></param>
 		public static void ZC_ROOM_NEWENTRY(ChatRoom room)
 		{
-			var packet = new Packet(Op.ZC_ROOM_NEWENTRY);
+			using var packet = Packet.Rent(Op.ZC_ROOM_NEWENTRY);
 
 			packet.PutInt(room.OwnerHandle);
 			packet.PutInt(room.Id);
@@ -1509,7 +1523,7 @@ namespace Sabine.Zone.Network
 		/// <param name="room"></param>
 		public static void ZC_CHANGE_CHATROOM(PlayerCharacter character, ChatRoom room)
 		{
-			var packet = new Packet(Op.ZC_CHANGE_CHATROOM);
+			using var packet = Packet.Rent(Op.ZC_CHANGE_CHATROOM);
 
 			packet.PutInt(room.OwnerHandle);
 			packet.PutInt(room.Id);
@@ -1528,7 +1542,7 @@ namespace Sabine.Zone.Network
 		/// <param name="room"></param>
 		public static void ZC_DESTROY_ROOM(ChatRoom room)
 		{
-			var packet = new Packet(Op.ZC_DESTROY_ROOM);
+			using var packet = Packet.Rent(Op.ZC_DESTROY_ROOM);
 			packet.PutInt(room.Id);
 
 			room.Map.Broadcast(packet);
@@ -1542,7 +1556,7 @@ namespace Sabine.Zone.Network
 		/// <param name="reason"></param>
 		public static void ZC_REFUSE_ENTER_ROOM(PlayerCharacter character, ChatRoomRefuseReason reason)
 		{
-			var packet = new Packet(Op.ZC_REFUSE_ENTER_ROOM);
+			using var packet = Packet.Rent(Op.ZC_REFUSE_ENTER_ROOM);
 			packet.PutByte((byte)reason);
 
 			character.Connection.Send(packet);
@@ -1555,7 +1569,7 @@ namespace Sabine.Zone.Network
 		/// <param name="newMember"></param>
 		public static void ZC_ENTER_ROOM(ChatRoom room, PlayerCharacter newMember)
 		{
-			var packet = new Packet(Op.ZC_ENTER_ROOM);
+			using var packet = Packet.Rent(Op.ZC_ENTER_ROOM);
 
 			packet.PutInt(room.Id);
 
@@ -1576,7 +1590,7 @@ namespace Sabine.Zone.Network
 		/// <param name="newMember"></param>
 		public static void ZC_MEMBER_NEWENTRY(ChatRoom room, PlayerCharacter newMember)
 		{
-			var packet = new Packet(Op.ZC_MEMBER_NEWENTRY);
+			using var packet = Packet.Rent(Op.ZC_MEMBER_NEWENTRY);
 
 			packet.PutShort((short)room.MemberCount);
 			packet.PutString(newMember.Name, Sizes.CharacterNames);
@@ -1597,7 +1611,7 @@ namespace Sabine.Zone.Network
 		/// <param name="reason"></param>
 		public static void ZC_MEMBER_EXIT(ChatRoom room, PlayerCharacter formerMember, MemberExitReason reason)
 		{
-			var packet = new Packet(Op.ZC_MEMBER_EXIT);
+			using var packet = Packet.Rent(Op.ZC_MEMBER_EXIT);
 
 			packet.PutShort((short)room.MemberCount);
 			packet.PutString(formerMember.Name, Sizes.CharacterNames);
@@ -1622,7 +1636,7 @@ namespace Sabine.Zone.Network
 		/// <param name="role"></param>
 		public static void ZC_ROLE_CHANGE(ChatRoom room, string memberName, ChatRoomRole role)
 		{
-			var packet = new Packet(Op.ZC_ROLE_CHANGE);
+			using var packet = Packet.Rent(Op.ZC_ROLE_CHANGE);
 
 			packet.PutInt((int)role);
 			packet.PutString(memberName, Sizes.CharacterNames);
@@ -1633,6 +1647,21 @@ namespace Sabine.Zone.Network
 				if (room.Map.TryGetPlayer(member.Handle, out var memberCharacter))
 					memberCharacter.Connection.Send(packet);
 			}
+		}
+
+		/// <summary>
+		/// Sends result of the party creation request to the character,
+		/// opening the party window on success and/or displaying a
+		/// message about the result.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="result"></param>
+		public static void ZC_ACK_MAKE_GROUP(PlayerCharacter character, PartyCreationResult result)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_MAKE_GROUP);
+			packet.PutByte((byte)result);
+
+			character.Connection.Send(packet);
 		}
 	}
 }

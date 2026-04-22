@@ -8,7 +8,7 @@ using Sabine.Zone.World.Entities.Components.Characters;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
 
-namespace Sabine.Zone.World.Entities
+namespace Sabine.Zone.World.Actors
 {
 	/// <summary>
 	/// Represents a monster NPC.

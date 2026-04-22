@@ -1,8 +1,8 @@
 ﻿using System;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
-namespace Sabine.Zone.World.Entities.Components.Characters
+namespace Sabine.Zone.World.Actors.Components.Characters
 {
 	/// <summary>
 	/// Component that handles a character's natural HP and SP recovery

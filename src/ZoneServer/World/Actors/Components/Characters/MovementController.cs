@@ -8,7 +8,7 @@ using Yggdrasil.Extensions;
 using Yggdrasil.Logging;
 using Yggdrasil.Scheduling;
 
-namespace Sabine.Zone.World.Entities.Components.Characters
+namespace Sabine.Zone.World.Actors.Components.Characters
 {
 	/// <summary>
 	/// Controls a character's movement.
@@ -270,6 +270,7 @@ namespace Sabine.Zone.World.Entities.Components.Characters
 			_triggers.Begin();
 
 			this.Character.Map.GetTriggerAreas(this.Character.Position, _triggers.UpdateList);
+
 			_triggers.Update();
 
 			if (!_triggers.Empty)

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Yggdrasil.Logging;
@@ -12,16 +13,7 @@ namespace Sabine.Shared.Network
 	/// </summary>
 	public abstract class Connection : TcpConnection
 	{
-		protected readonly RoFramer _framer;
-
-		/// <summary>
-		/// Creates new connection.
-		/// </summary>
-		public Connection()
-		{
-			_framer = new RoFramer(1024);
-			_framer.MessageReceived += this.OnMessageReceived;
-		}
+		protected readonly RoFramer _framer = new(1024);
 
 		/// <summary>
 		/// Called when new data was sent from the client.
@@ -32,7 +24,7 @@ namespace Sabine.Shared.Network
 		{
 			//Log.Debug("< {0}", Hex.ToString(buffer, 0, length));
 
-			_framer.ReceiveData(buffer, length);
+			_framer.ReceiveData(buffer, length, this.OnMessageReceived);
 		}
 
 		/// <summary>
@@ -41,9 +33,7 @@ namespace Sabine.Shared.Network
 		/// <param name="buffer"></param>
 		protected virtual void OnMessageReceived(byte[] buffer)
 		{
-			PaleLogger.Log(false, buffer);
-
-			var packet = new Packet(buffer);
+			using var packet = Packet.Rent(buffer);
 			packet.Op = PacketTable.ToHost((int)packet.Op);
 
 			Log.Debug("< Op: 0x{0:X4} ({1})\r\n{2}", PacketTable.ToNetwork(packet.Op), packet.Op, Hex.ToString(buffer, HexStringOptions.SpaceSeparated | HexStringOptions.SixteenNewLine));
@@ -64,22 +54,19 @@ namespace Sabine.Shared.Network
 		/// <param name="packet"></param>
 		public void Send(Packet packet)
 		{
-			var buffer = _framer.Frame(packet);
+			_framer.GetPacketSize(packet, out var tableSize, out var packetSize);
 
-			PaleLogger.Log(true, buffer);
+			var buffer = ArrayPool<byte>.Shared.Rent(packetSize);
+			_framer.Frame(packet, tableSize, packetSize, buffer);
 
-			Log.Debug("> Op: 0x{0:X4} ({1})\r\n{2}", PacketTable.ToNetwork(packet.Op), packet.Op, Hex.ToString(buffer, HexStringOptions.SpaceSeparated | HexStringOptions.SixteenNewLine));
-			Log.Debug("".PadRight(40, '-'));
-
-			var opNetwork = PacketTable.ToNetwork(packet.Op);
-
-			var tableSize = PacketTable.GetSize(opNetwork);
-			if (tableSize != PacketTable.Dynamic && buffer.Length != tableSize)
+			if (tableSize != PacketTable.Dynamic && packetSize != tableSize)
 			{
 				var name = packet.Op.ToString();
+
+				var opNetwork = PacketTable.ToNetwork(packet.Op);
 				var nameNetwork = PacketTable.GetName(opNetwork);
 
-				Log.Warning("Connection.Send: Invalid packet size for '{0:X4}' ({1}) ({2} != {3}).", opNetwork, nameNetwork, buffer.Length, tableSize);
+				Log.Warning("Connection.Send: Invalid packet size for '{0:X4}' ({1}) (got {2}, expected {3}).", opNetwork, nameNetwork, packetSize, tableSize);
 
 				if (name != nameNetwork)
 					Log.Warning("Connection: Potential packet table error. Packet's op is '{0}', while the table's network op is '{1}'.", name, nameNetwork);
@@ -91,21 +78,37 @@ namespace Sabine.Shared.Network
 				// fixed of course, but at least you're not kicked every
 				// time you haven't updated some packet for a new version
 				// yet.
-				var newBuffer = new byte[tableSize];
-				var copySize = Math.Min(buffer.Length, tableSize);
+				var newBuffer = ArrayPool<byte>.Shared.Rent(tableSize);
+				var copySize = Math.Min(packetSize, tableSize);
 				Buffer.BlockCopy(buffer, 0, newBuffer, 0, copySize);
 
+				ArrayPool<byte>.Shared.Return(buffer);
+
 				buffer = newBuffer;
+				packetSize = tableSize;
 			}
+
+			//Log.Debug("> {0}", Hex.ToString(buffer, 0, packetSize));
 
 			try
 			{
-				this.Send(buffer);
+				this.Send(buffer, packetSize);
 			}
 			catch (SocketException)
 			{
 				this.Close();
 			}
+		}
+
+		/// <summary>
+		/// Called after data sent is no longer needed by the connection.
+		/// </summary>
+		/// <param name="data"></param>
+		/// <param name="length"></param>
+		/// <param name="type"></param>
+		protected override void PostSend(byte[] data, int length, PostSendType type)
+		{
+			ArrayPool<byte>.Shared.Return(data);
 		}
 
 		/// <summary>

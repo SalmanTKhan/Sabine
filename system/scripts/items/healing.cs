@@ -9,7 +9,7 @@
 using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Zone.Scripting;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 [ItemScript(ItemId.RedPotion)]
 public class Item501 : ItemScript

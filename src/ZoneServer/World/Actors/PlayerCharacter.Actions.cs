@@ -2,7 +2,7 @@
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 
-namespace Sabine.Zone.World.Entities
+namespace Sabine.Zone.World.Actors
 {
 	public partial class PlayerCharacter : Character
 	{

@@ -1,5 +1,4 @@
-using Sabine.Shared;
-using Sabine.Shared.Const;
+﻿using Sabine.Shared;
 using Sabine.Shared.Network;
 using Sabine.Zone.Skills;
 using Sabine.Zone.World.Entities;
@@ -53,18 +52,29 @@ namespace Sabine.Zone.Network.Helpers
 		/// </summary>
 		public static void AddSkill(this Packet packet, Skill skill)
 		{
-			if (skill.Character is PlayerCharacter player)
-			{
-				packet.AddSkillData(player, skill);
-				return;
-			}
+			// The alpha client has some handlers for skill packets, but
+			// they're limited to information about the skills. There are
+			// no usage packets and the client doesn't even display the
+			// skills sent to it. Still, the version checks here allow
+			// us to send the skill info without issues.
 
 			packet.PutShort((short)skill.Id);
-			packet.PutInt((int)skill.Data.TypeFlags);
+
+			if (Game.Version >= Versions.Beta1)
+			{
+				packet.PutShort((short)skill.Data.TargetType);
+				packet.PutShort(0);
+			}
+
 			packet.PutShort((short)skill.Level);
 			packet.PutShort((short)skill.SpCost);
-			packet.PutShort((short)skill.Range);
-			packet.PutString(skill.Data.StringId, Game.Version < Versions.Beta1 ? 16 : 24);
+
+			if (Game.Version >= Versions.Beta1)
+			{
+				packet.PutShort((short)skill.Range);
+			}
+
+			packet.PutString(skill.Data.StringId, Sizes.SkillNames);
 			packet.PutByte(skill.CanBeLeveled);
 
 			if (Game.Version < Versions.Beta1)

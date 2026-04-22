@@ -1,30 +1,26 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
 using Sabine.Shared.L10N;
 using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
-using Sabine.Zone.Scripting.Dialogues;
-using Sabine.Zone.World.Entities.Components.Characters;
-using Sabine.Zone.World.Groups;
+using Sabine.Zone.World.Actors.Components.Characters;
+using Shared.Const;
+using Yggdrasil.Collections;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
 using static Sabine.Shared.Util.TaskHelper;
 
-namespace Sabine.Zone.World.Entities
+namespace Sabine.Zone.World.Actors
 {
 	/// <summary>
 	/// Represents a player character.
 	/// </summary>
 	public partial class PlayerCharacter : Character
 	{
-		private readonly object _visibilityUpdateSyncLock = new();
-		private readonly HashSet<int> _visibleEntities = new();
+		private readonly object _visibilitySyncLock = new();
+		private readonly InOutTracker<IActor> _visibleActors = new();
 
 		/// <summary>
 		/// Gets or sets the connection that controls this player.
@@ -252,23 +248,36 @@ namespace Sabine.Zone.World.Entities
 			if (!ZoneServer.Instance.World.Maps.TryGet(this.WarpLocation.MapId, out var map))
 				throw new ArgumentException($"Map '{this.WarpLocation.MapId}' not found.");
 
-			this.Map.RemoveCharacter(this);
+			this.Map.RemovePlayer(this);
 			this.SetLocation(this.WarpLocation);
-			map.AddCharacter(this);
+			map.AddPlayer(this);
 
 			this.IsWarping = false;
 			this.StartObserving();
 		}
 
 		/// <summary>
-		/// Updates character and its components.
+		/// Makes character sit down.
 		/// </summary>
-		/// <param name="elapsed"></param>
-		public override void Update(TimeSpan elapsed)
+		public void SitDown()
 		{
-			base.Update(elapsed);
-			this.UpdateVisibility();
-			this.UpdateAttackAction();
+			if (this.State != CharacterState.Standing)
+				return;
+
+			this.State = CharacterState.Sitting;
+			Send.ZC_NOTIFY_ACT.Simple(this, this.Handle, ActionType.SitDown);
+		}
+
+		/// <summary>
+		/// Makes character stand up.
+		/// </summary>
+		public void StandUp()
+		{
+			if (this.State != CharacterState.Sitting)
+				return;
+
+			this.State = CharacterState.Standing;
+			Send.ZC_NOTIFY_ACT.Simple(this, this.Handle, ActionType.StandUp);
 		}
 
 		/// <summary>
@@ -277,7 +286,7 @@ namespace Sabine.Zone.World.Entities
 		/// </summary>
 		public void StartObserving()
 		{
-			lock (_visibilityUpdateSyncLock)
+			lock (_visibilitySyncLock)
 			{
 				if (this.IsObserving)
 					return;
@@ -293,37 +302,35 @@ namespace Sabine.Zone.World.Entities
 		/// </summary>
 		public void StopObserving()
 		{
-			lock (_visibilityUpdateSyncLock)
+			lock (_visibilitySyncLock)
 			{
 				if (!this.IsObserving)
 					return;
 
 				this.IsObserving = false;
-				this.RemoveVisibleEntities();
+				this.RemoveVisibleActors();
 			}
 		}
 
 		/// <summary>
 		/// Updates visible entities around character.
 		/// </summary>
-		public void UpdateVisibility()
+		internal void UpdateVisibility()
 		{
-			if (!this.IsObserving)
-				return;
-
-			var visibleEntities = this.Map.GetVisibleEntities(this);
-
-			lock (_visibilityUpdateSyncLock)
+			lock (_visibilitySyncLock)
 			{
-				var appeared = visibleEntities.Where(a => !_visibleEntities.Contains(a.Handle));
-				var disappeared = _visibleEntities.Where(a => !visibleEntities.Exists(b => b.Handle == a));
+				if (!this.IsObserving)
+					return;
 
-				foreach (var entity in appeared)
+				_visibleActors.Begin();
+
+				this.Map.GetVisibleActors(this, _visibleActors.UpdateList);
+
+				_visibleActors.Update();
+
+				foreach (var actor in _visibleActors.Added)
 				{
-					if (entity == this)
-						continue;
-
-					switch (entity)
+					switch (actor)
 					{
 						case Character character:
 						{
@@ -350,31 +357,20 @@ namespace Sabine.Zone.World.Entities
 					}
 				}
 
-				foreach (var handle in disappeared)
+				foreach (var actor in _visibleActors.Removed)
 				{
-					if (handle == this.Handle)
-						continue;
-
-					if (handle < 0x6000_0000)
-						Send.ZC_NOTIFY_VANISH(this, handle, DisappearType.Vanish);
+					if (actor is Item)
+						Send.ZC_ITEM_DISAPPEAR(this, actor.Handle);
 					else
-						Send.ZC_ITEM_DISAPPEAR(this, handle);
+						Send.ZC_NOTIFY_VANISH(this, actor.Handle, DisappearType.Vanish);
 				}
 
-				// To remember the visible entities for the next run we store
-				// their ids. There might be some cases where it would be
-				// useful to have the actual references, but we can still
-				// get those if we need to, and this way there's no chance
-				// for any memory leaks because we're storing objects
-				// that reference each other.
-
-				_visibleEntities.Clear();
-				_visibleEntities.UnionWith(visibleEntities.Select(a => a.Handle));
+				_visibleActors.End();
 			}
 		}
 
 		/// <summary>
-		/// Adds entity to list of character's visible entities without
+		/// Adds actor to list of character's visible entities without
 		/// updating the client.
 		/// </summary>
 		/// <remarks>
@@ -382,41 +378,53 @@ namespace Sabine.Zone.World.Entities
 		/// cases where an outside source needs to control an entity's
 		/// appear or disappear packets.
 		/// </remarks>
-		/// <param name="handle"></param>
-		internal void AddVisibleEntity(IEntity entity)
+		/// <param name="actor"></param>
+		internal void AddVisibleActor(IActor actor)
 		{
 			if (!this.IsObserving)
 				return;
 
-			lock (_visibilityUpdateSyncLock)
-				_visibleEntities.Add(entity.Handle);
+			lock (_visibilitySyncLock)
+				_visibleActors.InjectItem(actor);
 		}
 
 		/// <summary>
-		/// Removes entity from list of character's visible entities without
-		/// updating the client.
+		/// Removes entity from list of character's visible entities
+		/// without updating the client.
 		/// </summary>
-		/// <param name="entity"></param>
-		internal void RemoveVisibleEntity(IEntity entity)
+		/// <remarks>
+		/// AddVisibleEntity and RemoveVisibleEntity are to be used in
+		/// cases where an outside source needs to control an entity's
+		/// appear or disappear packets.
+		/// </remarks>
+		/// <param name="actor"></param>
+		internal void RemoveVisibleActor(IActor actor)
 		{
-			if (!this.IsObserving)
-				return;
-
-			lock (_visibilityUpdateSyncLock)
-				_visibleEntities.Remove(entity.Handle);
-		}
-
-		/// <summary>
-		/// Clears the list of visible entities and updates the client.
-		/// </summary>
-		private void RemoveVisibleEntities()
-		{
-			lock (_visibilityUpdateSyncLock)
+			lock (_visibilitySyncLock)
 			{
-				foreach (var handle in _visibleEntities)
-					Send.ZC_NOTIFY_VANISH(this, handle, DisappearType.Vanish);
+				if (!this.IsObserving)
+					return;
 
-				_visibleEntities.Clear();
+				_visibleActors.EjectItem(actor);
+			}
+		}
+
+		/// <summary>
+		/// Clears the list of visible actors and updates the client.
+		/// </summary>
+		private void RemoveVisibleActors()
+		{
+			lock (_visibilitySyncLock)
+			{
+				foreach (var actor in _visibleActors.Current)
+				{
+					if (actor is Item)
+						Send.ZC_ITEM_DISAPPEAR(this, actor.Handle);
+					else
+						Send.ZC_NOTIFY_VANISH(this, actor.Handle, DisappearType.Vanish);
+				}
+
+				_visibleActors.ClearItems();
 			}
 		}
 
@@ -496,6 +504,8 @@ namespace Sabine.Zone.World.Entities
 			// Send a BaseLevel change packet to force a "Level Up" animation to play 
 			// as a visual indicator of the job change.
 			Send.ZC_PAR_CHANGE(this, ParameterType.BaseLevel);
+
+			this.Skills.UpdateClassSkills();
 		}
 
 		/// <summary>
