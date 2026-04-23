@@ -7,7 +7,7 @@ using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Commands;
 using Sabine.Zone.Scripting.Dialogues;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Shops;
 using Sabine.Zone.World.Spawning;
 
@@ -171,10 +171,58 @@ namespace Sabine.Zone.Scripting
 				throw new ArgumentException($"Map '{from.MapId}' not found.");
 
 			var npc = new Npc(45);
-			npc.WarpDestination = to;
-			//npc.Trigger = WarpOnTouch
+
+			npc.TriggerArea = new TriggerArea(npc, 2, 2);
+			npc.TriggerArea.Enter = (character, npc) =>
+			{
+				if (character is PlayerCharacter player)
+					player.Warp(to);
+			};
 
 			npc.Warp(from);
+
+			return npc;
+		}
+
+		/// <summary>
+		/// Spawns an NPC that looks like a warp and is triggered when
+		/// stepping into its range.
+		/// </summary>
+		/// <param name="mapStringId"></param>
+		/// <param name="x"></param>
+		/// <param name="y"></param>
+		/// <param name="triggerFunc"></param>
+		/// <returns></returns>
+		/// <exception cref="ArgumentException"></exception>
+		public static Npc AddWarpTrigger(string mapStringId, int x, int y, TriggerFunc triggerFunc)
+			=> AddWarpTrigger(mapStringId, x, y, 0, 0, triggerFunc);
+
+		/// <summary>
+		/// Spawns an NPC that looks like a warp and is triggered when
+		/// stepping into its range.
+		/// </summary>
+		/// <param name="mapStringId"></param>
+		/// <param name="x"></param>
+		/// <param name="y"></param>
+		/// <param name="rangeX"></param>
+		/// <param name="rangeY"></param>
+		/// <param name="triggerFunc"></param>
+		/// <returns></returns>
+		/// <exception cref="ArgumentException"></exception>
+		public static Npc AddWarpTrigger(string mapStringId, int x, int y, int rangeX, int rangeY, TriggerFunc triggerFunc)
+		{
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
+				throw new ArgumentException($"Map '{mapStringId}' not found.");
+
+			var pos = new Position(x, y);
+			var location = new Location(map.Id, pos);
+
+			var npc = new Npc(45);
+
+			npc.TriggerArea = new TriggerArea(npc, rangeX, rangeY);
+			npc.TriggerArea.Enter = triggerFunc;
+
+			npc.Warp(location);
 
 			return npc;
 		}
@@ -286,7 +334,7 @@ namespace Sabine.Zone.Scripting
 			if (mapStringId.EndsWith(".gat"))
 				mapStringId = mapStringId.Substring(0, mapStringId.Length - 4);
 
-			if (!SabineData.Maps.TryFind(mapStringId, out var map))
+			if (!ZoneServer.Instance.Data.Maps.TryFind(mapStringId, out var map))
 				throw new ArgumentException($"Map '{mapStringId}' not found.");
 
 			var spawner = new Spawner(monsterId, amount, initialDelay, respawnDelayMin, respawnDelayMax, map.Id);

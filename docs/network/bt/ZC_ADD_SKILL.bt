@@ -1,0 +1,19 @@
+//------------------------------------------------
+//--- 010 Editor v8.0 Binary Template
+//
+//      File: ZC_ADD_SKILL.bt
+//   Authors: exec
+//   Version: i20020220 (iRO Beta1)
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+#include "inc/Skill.bt"
+
+short op;
+short len;
+
+Skill skill;

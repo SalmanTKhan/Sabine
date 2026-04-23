@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Logging;
 
@@ -242,7 +242,11 @@ namespace Sabine.Zone.Scripting.Dialogues
 			var intResponse = await this.SelectSimple(optionsString);
 			string response;
 
-			if (intResponse > options.Length)
+			if (intResponse == -1)
+			{
+				response = "__cancelled__";
+			}
+			else if (intResponse > options.Length)
 			{
 				Log.Warning("Dialog.Select: Unexpected out-of-range response '{0}/{1}'.", intResponse, options.Length);
 				response = "__error_invalid_range__";
@@ -266,9 +270,9 @@ namespace Sabine.Zone.Scripting.Dialogues
 			=> await this.SelectSimple(string.Join(":", options));
 
 		/// <summary>
-		/// Shows a menu with options to select from and returns the
-		/// of the selected option, starting at 1. Returns 0 in case
-		/// of errors.
+		/// Shows a menu with options to select from and returns the index
+		/// of the selected option, starting at 1. Returns 0 in case of
+		/// errors.
 		/// </summary>
 		/// <param name="optionsString"></param>
 		/// <returns></returns>

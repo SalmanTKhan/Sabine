@@ -2,7 +2,7 @@
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.World;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Network.Helpers
 {
@@ -16,7 +16,7 @@ namespace Sabine.Zone.Network.Helpers
 		/// </summary>
 		/// <param name="packet"></param>
 		/// <param name="character"></param>
-		public static void AddStandEntry(this Packet packet, IEntryCharacter character)
+		public static void AddStandEntry(this Packet packet, IStandEntry character)
 		{
 			packet.PutInt(character.Handle);
 			packet.PutShort((short)character.Speed);
@@ -55,7 +55,7 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutShort(0);     // Head3
 				packet.PutShort(0);     // HairColor
 				packet.PutShort(0);     // ClothesColor
-				packet.PutShort(0);     // HeadDir
+				packet.PutShort((short)character.HeadTurn);
 				packet.PutInt(0);       // GuildId?
 				packet.PutShort(0);     // GuildEmblemId?
 				packet.PutShort(0);     // Manner?
@@ -77,7 +77,7 @@ namespace Sabine.Zone.Network.Helpers
 		/// </summary>
 		/// <param name="packet"></param>
 		/// <param name="character"></param>
-		public static void AddStandEntryNpc(this Packet packet, IEntryCharacter character)
+		public static void AddStandEntryNpc(this Packet packet, IStandEntry character)
 		{
 			packet.PutInt(character.Handle);
 			packet.PutShort((short)character.Speed);
@@ -129,7 +129,7 @@ namespace Sabine.Zone.Network.Helpers
 		/// </summary>
 		/// <param name="packet"></param>
 		/// <param name="character"></param>
-		public static void AddNewEntry(this Packet packet, IEntryCharacter character)
+		public static void AddNewEntry(this Packet packet, IStandEntry character)
 		{
 			packet.PutInt(character.Handle);
 			packet.PutShort((short)character.Speed);
@@ -190,7 +190,7 @@ namespace Sabine.Zone.Network.Helpers
 		/// <param name="character"></param>
 		/// <param name="from"></param>
 		/// <param name="to"></param>
-		public static void AddMoveEntry(this Packet packet, IEntryCharacter character, Position from, Position to)
+		public static void AddMoveEntry(this Packet packet, IStandEntry character, Position from, Position to)
 		{
 			packet.PutInt(character.Handle);
 			packet.PutShort((short)character.Speed);

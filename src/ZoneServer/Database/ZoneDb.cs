@@ -1,9 +1,11 @@
 ﻿using MySqlConnector;
 using Sabine.Shared.Const;
 using Sabine.Shared.Database;
-using Sabine.Shared.Database.MySQL;
 using Sabine.Shared.World;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.Skills;
+using Sabine.Zone.World.Actors;
+using Yggdrasil.Db.MySql;
+using Yggdrasil.Db.MySql.SimpleCommands;
 
 namespace Sabine.Zone.Database
 {
@@ -66,7 +68,10 @@ namespace Sabine.Zone.Database
 
 						var x = reader.GetInt32("x");
 						var y = reader.GetInt32("y");
+						var dir = (Direction)reader.GetInt32("dir");
+
 						character.Position = new Position(x, y);
+						character.Direction = dir;
 					}
 				}
 
@@ -84,6 +89,22 @@ namespace Sabine.Zone.Database
 							item.EquippedOn = (EquipSlots)reader.GetInt32("equipped");
 
 							character.Inventory.AddItemInit(item);
+						}
+					}
+				}
+
+				using (var mc = new MySqlCommand("SELECT * FROM `skills` WHERE `characterId` = @characterId", conn))
+				{
+					mc.AddParameter("@characterId", character.Id);
+
+					using (var reader = mc.ExecuteReader())
+					{
+						while (reader.Read())
+						{
+							var skillId = (SkillId)reader.GetInt32("id");
+							var level = reader.GetInt32("level");
+
+							character.Skills.AddSilent(new Skill(character, skillId, level));
 						}
 					}
 				}
@@ -113,7 +134,7 @@ namespace Sabine.Zone.Database
 			using (var conn = this.GetConnection())
 			using (var trans = conn.BeginTransaction())
 			{
-				using (var cmd = new UpdateCommand("UPDATE `characters` SET {0} WHERE `accountId` = @accountId AND `characterId` = @characterId", conn, trans))
+				using (var cmd = new UpdateCommand("UPDATE `characters` SET {parameters} WHERE `accountId` = @accountId AND `characterId` = @characterId", conn, trans))
 				{
 					cmd.AddParameter("@accountId", account.Id);
 					cmd.AddParameter("@characterId", character.Id);
@@ -123,6 +144,7 @@ namespace Sabine.Zone.Database
 					cmd.Set("mapId", character.MapId);
 					cmd.Set("x", character.Position.X);
 					cmd.Set("y", character.Position.Y);
+					cmd.Set("dir", (int)character.Direction);
 					cmd.Set("hair", character.HairId);
 					cmd.Set("weapon", character.WeaponId);
 					cmd.Set("zeny", character.Parameters.Zeny);
@@ -149,27 +171,51 @@ namespace Sabine.Zone.Database
 					cmd.Execute();
 				}
 
-				using (var cmd = new UpdateCommand("DELETE FROM `items` WHERE `characterId` = @characterId", conn, trans))
+				using (var cmd = new MySqlCommand("DELETE FROM `items` WHERE `characterId` = @characterId", conn, trans))
 				{
 					cmd.AddParameter("@characterId", character.Id);
-					cmd.Execute();
+					cmd.ExecuteNonQuery();
 				}
 
-				using (var cmd = new InsertCommand("INSERT INTO `items` {0}", conn, trans))
+				using (var cmd = new MySqlCommand("DELETE FROM `skills` WHERE `characterId` = @characterId", conn, trans))
+				{
+					cmd.AddParameter("@characterId", character.Id);
+					cmd.ExecuteNonQuery();
+				}
+
+				using (var cmd = new BatchedInsertCommand("items", conn, trans))
 				{
 					var items = character.Inventory.GetItems();
 
 					foreach (var item in items)
 					{
-						cmd.Clear();
-
 						cmd.Set("characterId", character.Id);
 						cmd.Set("classId", item.ClassId);
 						cmd.Set("amount", item.Amount);
 						cmd.Set("equipped", (int)item.EquippedOn);
 
-						cmd.Execute();
+						cmd.AddRow();
+						cmd.ExecuteOn(200);
 					}
+
+					cmd.Execute();
+				}
+
+				using (var cmd = new BatchedInsertCommand("skills", conn, trans))
+				{
+					var skills = character.Skills.GetAll();
+
+					foreach (var skill in skills)
+					{
+						cmd.Set("characterId", character.Id);
+						cmd.Set("id", skill.Id);
+						cmd.Set("level", skill.Level);
+
+						cmd.AddRow();
+						cmd.ExecuteOn(200);
+					}
+
+					cmd.Execute();
 				}
 
 				trans.Commit();

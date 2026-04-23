@@ -4,12 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Entities;
+using Sabine.Zone.Skills;
+using Sabine.Zone.World.Actors;
 using Yggdrasil.Logging;
 using Yggdrasil.Util;
 using Yggdrasil.Util.Commands;
@@ -43,6 +43,9 @@ namespace Sabine.Zone.Commands
 			this.Add("job", "<job>", Localization.Get("Changes character's job."), this.Job);
 			this.Add("heal", "", Localization.Get("Restores character's health."), this.Heal);
 			this.Add("level", "<level>", Localization.Get("Sets the character's base level."), this.Level);
+			this.Add("speed", "<speed>", Localization.Get("Sets the character's speed."), this.Speed);
+			this.Add("skill", "<id> [level]", Localization.Get("Adds the skill to the character."), this.Skill);
+			this.Add("zeny", "<modifier>", Localization.Get("Changes the character's zeny."), this.Zeny);
 
 			// Dev commands
 			this.Add("test", "", Localization.Get("Behaviour undefined."), this.Test);
@@ -255,14 +258,14 @@ namespace Sabine.Zone.Commands
 			if (args.Count < 1)
 				return CommandResult.InvalidArgument;
 
-			var mapIdent = args.Get(0).Trim(',');
+			var mapIdent = args.Get(0).Trim(',', '"');
 
 			if (!int.TryParse(mapIdent, out var mapId))
 			{
 				if (mapIdent.EndsWith(".gat"))
 					mapIdent = mapIdent.Substring(0, mapIdent.Length - 4);
 
-				if (!SabineData.Maps.TryFind(mapIdent, out var mapData))
+				if (!ZoneServer.Instance.Data.Maps.TryFind(mapIdent, out var mapData))
 				{
 					sender.ServerMessage(Localization.Get("Map '{0}' not found."), mapIdent);
 					return CommandResult.Okay;
@@ -488,7 +491,7 @@ namespace Sabine.Zone.Commands
 			{
 				var monsterName = args.Get(0);
 
-				if (!SabineData.Monsters.TryFind(monsterName, out monsterData))
+				if (!ZoneServer.Instance.Data.Monsters.TryFind(monsterName, out monsterData))
 				{
 					sender.ServerMessage(Localization.Get("Monster '{0}' not found."), monsterName);
 					return CommandResult.Okay;
@@ -499,7 +502,7 @@ namespace Sabine.Zone.Commands
 
 			if (monsterData == null)
 			{
-				if (!SabineData.Monsters.TryFind(monsterId, out monsterData))
+				if (!ZoneServer.Instance.Data.Monsters.TryFind(monsterId, out monsterData))
 				{
 					sender.ServerMessage(Localization.Get("Monster '{0}' not found."), monsterId);
 					return CommandResult.Okay;
@@ -527,7 +530,7 @@ namespace Sabine.Zone.Commands
 			var aiName = args.Get("ai", monsterData.AiName);
 			var useAi = aiName != "none";
 
-			if (!SabineData.Monsters.Contains(monsterId))
+			if (!ZoneServer.Instance.Data.Monsters.Contains(monsterId))
 			{
 				sender.ServerMessage(Localization.Get("Monster with id '{0}' not found."), monsterId);
 				return CommandResult.Okay;
@@ -620,7 +623,7 @@ namespace Sabine.Zone.Commands
 
 			if (!int.TryParse(itemIdent, out var classId))
 			{
-				var itemData = SabineData.Items.Find(a => a.Name == itemIdent);
+				var itemData = ZoneServer.Instance.Data.Items.Find(a => a.Name == itemIdent);
 				if (itemData == null)
 				{
 					sender.ServerMessage(Localization.Get("Item '{0}' not found."), itemIdent);
@@ -629,7 +632,7 @@ namespace Sabine.Zone.Commands
 
 				classId = itemData.ClassId;
 			}
-			else if (!SabineData.Items.Contains(classId))
+			else if (!ZoneServer.Instance.Data.Items.Contains(classId))
 			{
 				sender.ServerMessage(Localization.Get("Item with id '{0}' not found."), classId);
 				return CommandResult.Okay;
@@ -762,6 +765,117 @@ namespace Sabine.Zone.Commands
 			sender.ServerMessage(Localization.Get("Base level was set to {0}."), newLevel);
 			if (target != sender)
 				target.ServerMessage(Localization.Get("Your base level was set to {0} by {1}."), newLevel, sender.Name);
+
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// Changes target's speed.
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="target"></param>
+		/// <param name="message"></param>
+		/// <param name="commandName"></param>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		private CommandResult Speed(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			var speed = 200;
+
+			if (args.Count > 0)
+			{
+				if (!int.TryParse(args.Get(0), out speed))
+					return CommandResult.InvalidArgument;
+			}
+
+			target.Parameters.Speed = speed;
+			Send.ZC_PAR_CHANGE(target, ParameterType.Speed);
+
+			sender.ServerMessage(Localization.Get("Speed was set to {0}."), speed);
+			if (target != sender)
+				target.ServerMessage(Localization.Get("Your speed was set to {0} by {1}."), speed, sender.Name);
+
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// Adds skill to target.
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="target"></param>
+		/// <param name="message"></param>
+		/// <param name="commandName"></param>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		private CommandResult Skill(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (args.Count < 1)
+				return CommandResult.InvalidArgument;
+
+			SkillId skillId;
+			var level = 0;
+
+			var arg0 = args.Get(0);
+
+			if (Enum.TryParse<SkillId>(arg0, out var skillIdEnum))
+			{
+				skillId = skillIdEnum;
+			}
+			else if (int.TryParse(arg0, out var skillIdInt))
+			{
+				skillId = (SkillId)skillIdInt;
+			}
+			else
+			{
+				sender.ServerMessage(Localization.Get("Invalid skill id '{0}'."), arg0);
+				return CommandResult.Okay;
+			}
+
+			if (!ZoneServer.Instance.Data.Skills.TryFind(skillId, out var skillData))
+			{
+				sender.ServerMessage(Localization.Get("Skill with id '{0}' not found."), skillId);
+				return CommandResult.Okay;
+			}
+
+			if (args.Count > 1)
+			{
+				if (!int.TryParse(args.Get(1), out level))
+					return CommandResult.InvalidArgument;
+
+				level = Math2.Clamp(0, skillData.MaxLevel, level);
+			}
+
+			target.Skills.Add(new Skill(target, skillId, level));
+
+			sender.ServerMessage(Localization.Get("Added skill '{0}' at level {1}."), skillData.StringId, level);
+			if (sender != target)
+				target.ServerMessage(Localization.Get("Skill '{0}' was added at level {1} by {2}."), skillData.StringId, level, sender.Name);
+
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// Changes the target's zeny amount.
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="target"></param>
+		/// <param name="message"></param>
+		/// <param name="commandName"></param>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		private CommandResult Zeny(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (args.Count < 1)
+				return CommandResult.InvalidArgument;
+
+			if (!int.TryParse(args.Get(0), out var modifier))
+				return CommandResult.InvalidArgument;
+
+			target.Parameters.Modify(ParameterType.Zeny, modifier);
+
+			sender.ServerMessage(Localization.Get("Zeny has been modified by {0}."), modifier);
+			if (sender != target)
+				target.ServerMessage(Localization.Get("Your zeny were modified by {0}."), sender.Name);
 
 			return CommandResult.Okay;
 		}

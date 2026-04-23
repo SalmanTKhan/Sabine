@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Sabine.Char.Database;
 using Sabine.Shared;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
 using Sabine.Shared.Network;
 using Sabine.Shared.World;
 using Yggdrasil.Logging;
@@ -74,7 +72,7 @@ namespace Sabine.Char.Network
 			// account id to be sent upon connection, or it won't react to
 			// any packets...?
 			if (Game.Version >= Versions.Beta2)
-				conn.Send(BitConverter.GetBytes(account.Id));
+				Send.InitConnection(conn);
 
 			Send.HC_ACCEPT_ENTER(conn, characters);
 
@@ -98,7 +96,7 @@ namespace Sabine.Char.Network
 				return;
 			}
 
-			if (!SabineData.Maps.TryFind(character.Location.MapId, out var mapData))
+			if (!CharServer.Instance.Data.Maps.TryFind(character.Location.MapId, out var mapData))
 			{
 				Log.Warning("CH_SELECT_CHAR: Character '{0}' is on an invalid map ({1}), checking for fallbacks.", character.Name, character.Location.MapId);
 
@@ -113,7 +111,7 @@ namespace Sabine.Char.Network
 
 				foreach (var fallback in fallbacks)
 				{
-					if (SabineData.Maps.TryFind(fallback.Key, out mapData))
+					if (CharServer.Instance.Data.Maps.TryFind(fallback.Key, out mapData))
 					{
 						selectedFallback = fallback;
 						fallbackFound = true;
@@ -201,7 +199,7 @@ namespace Sabine.Char.Network
 				return;
 			}
 
-			//if (!SabineData.Maps.TryFind(CharServer.Instance.Conf.Char.StartMapStringId, out var mapData))
+			//if (!CharServer.Instance.Data.Maps.TryFind(CharServer.Instance.Conf.Char.StartMapStringId, out var mapData))
 			//{
 			//	Log.Error("CH_MAKE_CHAR: Unknown start map '{0}'.", CharServer.Instance.Conf.Char.StartMapStringId);
 			//	Send.HC_REFUSE_MAKECHAR(conn, CharCreateError.Denied);

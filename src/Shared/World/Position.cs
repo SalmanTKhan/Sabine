@@ -103,9 +103,9 @@ namespace Sabine.Shared.World
 		/// <param name="otherPos"></param>
 		/// <param name="range"></param>
 		/// <returns></returns>
-		public readonly bool InSquareRange(Position otherPos, float length)
+		public readonly bool InSquareRange(Position otherPos, float range)
 		{
-			return (Math.Abs(this.X - otherPos.X) <= length && Math.Abs(this.Y - otherPos.Y) <= length);
+			return (Math.Abs(this.X - otherPos.X) <= range && Math.Abs(this.Y - otherPos.Y) <= range);
 		}
 
 		/// <summary>
@@ -127,6 +127,23 @@ namespace Sabine.Shared.World
 		public readonly int GetDistance(Position otherPos)
 		{
 			return (int)Math.Sqrt(Math.Pow(this.X - otherPos.X, 2) + Math.Pow(this.Y - otherPos.Y, 2));
+		}
+
+		/// <summary>
+		/// Returns the direction the other position is in. Returns a
+		/// direction in one of the game's 8 cardinal directions.
+		/// </summary>
+		/// <param name="otherPos"></param>
+		/// <returns></returns>
+		public readonly Direction GetDirection(Position otherPos)
+		{
+			// 0 = South, 90 = East, 180 = North, 270 = West
+
+			var angleInDegrees = MathF.Atan2(this.X - otherPos.X, otherPos.Y - this.Y) * (180.0 / Math.PI);
+			if (angleInDegrees < 0)
+				angleInDegrees += 360.0;
+
+			return (Direction)((int)((angleInDegrees + 22.5f) / 45f) & 7);
 		}
 
 		/// <summary>
