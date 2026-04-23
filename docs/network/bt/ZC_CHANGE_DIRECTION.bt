@@ -1,9 +1,9 @@
 //------------------------------------------------
 //--- 010 Editor v8.0 Binary Template
 //
-//      File: CZ_REQUEST_MOVE.bt
+//      File: ZC_CHANGE_DIRECTION.bt
 //   Authors: exec
-//   Version: eu20070305 (euRO EP10)
+//   Version: eu20040512 (euRO EP5)
 //   Purpose: 
 //  Category: 
 // File Mask: 
@@ -11,11 +11,15 @@
 //   History: 
 //------------------------------------------------
 
-#include "inc/PackedPosition.bt"
+#define VERSION 0
+#include "inc/version.bt"
 
 short op;
 
-if (VERSION >= 2000)
-    PackedPosition p1;
-
-PackedPosition pos;
+int handle;
+if (VERSION >= 300)
+{
+    byte headTurn;
+    byte b2;
+}
+byte bodyDir;

@@ -92,23 +92,12 @@ namespace Sabine.Shared.Network
 
 			try
 			{
-				this.Send(buffer, packetSize);
+				this.Send(buffer, packetSize, static (data, len, type) => ArrayPool<byte>.Shared.Return(data));
 			}
 			catch (SocketException)
 			{
 				this.Close();
 			}
-		}
-
-		/// <summary>
-		/// Called after data sent is no longer needed by the connection.
-		/// </summary>
-		/// <param name="data"></param>
-		/// <param name="length"></param>
-		/// <param name="type"></param>
-		protected override void PostSend(byte[] data, int length, PostSendType type)
-		{
-			ArrayPool<byte>.Shared.Return(data);
 		}
 
 		/// <summary>

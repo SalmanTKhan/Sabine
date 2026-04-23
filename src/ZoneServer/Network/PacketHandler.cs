@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -15,6 +17,7 @@ using Sabine.Zone.Events.Args;
 using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
+using Sabine.Zone.Skills.Handlers.Novice;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Groups;
@@ -39,7 +42,7 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_ENTER)]
 		public void CZ_ENTER(ZoneConnection conn, Packet packet)
 		{
-			int accountId, sessionId, characterId;
+			int accountId, sessionId, characterId, tick;
 
 			if (Game.Version < Versions.Beta1)
 			{
@@ -47,14 +50,30 @@ namespace Sabine.Zone.Network
 				characterId = packet.GetInt();
 				sessionId = packet.GetInt();
 			}
-			else
+			else if (Game.Version < Versions.S2000)
 			{
 				accountId = packet.GetInt();
 				characterId = packet.GetInt();
 				sessionId = packet.GetInt();
 
 				// This isn't sessionId2. Looks like it might be a tick?
-				_ = packet.GetInt();
+				tick = packet.GetInt();
+			}
+			else
+			{
+				// It seems like this structure changed wildly over the
+				// years, going by eA's packet db, though they always only
+				// used the same five fields, and I don't see what the
+				// rest of the data would be either. Was this an
+				// obfuscation attempt by Gravity?
+
+				packet.Skip(2);
+				accountId = packet.GetInt();
+				packet.Skip(1);
+				characterId = packet.GetInt();
+				packet.Skip(4);
+				sessionId = packet.GetInt();
+				tick = packet.GetInt();
 			}
 
 			var sex = packet.GetByte();
@@ -127,7 +146,7 @@ namespace Sabine.Zone.Network
 			// account id to be sent upon connection, or it won't react to
 			// any packets...?
 			if (Game.Version >= Versions.Beta2)
-				conn.Send(BitConverter.GetBytes(account.Id));
+				Send.InitConnection(conn);
 
 			Send.ZC_ACCEPT_ENTER(conn, character);
 
@@ -217,6 +236,11 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_REQUEST_MOVE)]
 		public void CZ_REQUEST_MOVE(ZoneConnection conn, Packet packet)
 		{
+			// Three byte that don't seem to change or contain useful
+			// information?
+			if (Game.Version >= Versions.S2000)
+				packet.Skip(3);
+
 			var toPos = (Position)packet.GetPackedPosition();
 
 			var character = conn.GetCurrentCharacter();
@@ -449,6 +473,10 @@ namespace Sabine.Zone.Network
 			}
 
 			var character = conn.GetCurrentCharacter();
+
+			if (NV_BASIC.TryFail(character, BasicSkillAbility.UseEmotes))
+				return;
+
 			Send.ZC_EMOTION(character, emotion);
 		}
 
@@ -650,8 +678,36 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_REQUEST_ACT)]
 		public void CZ_REQUEST_ACT(ZoneConnection conn, Packet packet)
 		{
-			var targetHandle = packet.GetInt();
-			var action = (ActionType)packet.GetByte();
+			int targetHandle;
+			ActionType action;
+
+			if (Game.Version < Versions.S2000)
+			{
+				targetHandle = packet.GetInt();
+				action = (ActionType)packet.GetByte();
+			}
+			else
+			{
+				// It's currently unknown whether this is exclusive to
+				// euRO, but the eu20070305 client obfuscates this packet
+				// by using a dynamic size and writing the handle to a
+				// position somewhere in the middle of otherwise garbage
+				// data. 
+
+				var len = packet.GetShort();
+
+				var handleOffset = (len % 2 == 0) ? (4 + (len - 20) / 2) : ((len + 27) / 2);
+				var fillerLen1 = handleOffset - 4;
+				var fillerLen2 = len - handleOffset - 8;
+
+				packet.Skip(fillerLen1);
+
+				targetHandle = packet.GetInt();
+
+				packet.Skip(fillerLen2);
+
+				action = (ActionType)packet.GetInt();
+			}
 
 			var character = conn.GetCurrentCharacter();
 
@@ -661,6 +717,9 @@ namespace Sabine.Zone.Network
 			{
 				case ActionType.SitDown:
 				{
+					if (NV_BASIC.TryFail(character, BasicSkillAbility.Sit))
+						return;
+
 					character.SitDown();
 					break;
 				}
@@ -720,12 +779,37 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_CHANGE_DIRECTION)]
 		public void CZ_CHANGE_DIRECTION(ZoneConnection conn, Packet packet)
 		{
-			var direction = (Direction)packet.GetByte();
+			var headTurn = HeadTurn.Straight;
+			var bodyDir = Direction.South;
+
+			if (Game.Version < Versions.Beta2)
+			{
+				bodyDir = (Direction)packet.GetByte();
+			}
+			else if (Game.Version < Versions.S2000)
+			{
+				// Beta2 added the ability to turn the head in addition to
+				// the body
+
+				headTurn = (HeadTurn)packet.GetByte();
+				var b2 = packet.GetByte();
+				bodyDir = (Direction)packet.GetByte();
+			}
+			else
+			{
+				packet.Skip(5);
+				headTurn = (HeadTurn)packet.GetByte();
+				var b2 = packet.GetByte();
+				packet.Skip(1);
+				bodyDir = (Direction)packet.GetByte();
+			}
 
 			var character = conn.GetCurrentCharacter();
-			character.Direction = direction;
 
-			Send.ZC_CHANGE_DIRECTION(character, direction);
+			character.Direction = bodyDir;
+			character.HeadTurn = headTurn;
+
+			Send.ZC_CHANGE_DIRECTION(character, bodyDir, headTurn);
 		}
 
 		/// <summary>
@@ -1134,6 +1218,9 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			if (NV_BASIC.TryFail(character, BasicSkillAbility.Trade))
+				return;
+
 			ZoneServer.Instance.World.Trades.InitiateTrade(character, partner);
 		}
 
@@ -1261,6 +1348,9 @@ namespace Sabine.Zone.Network
 			var title = packet.GetString(titleLen);
 
 			var character = conn.GetCurrentCharacter();
+
+			if (NV_BASIC.TryFail(character, BasicSkillAbility.CreateChatRoom))
+				return;
 
 			limit = Math.Clamp(limit, 1, 20);
 
@@ -1498,8 +1588,11 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_MAKE_GROUP)]
 		public void CZ_MAKE_GROUP(ZoneConnection conn, Packet packet)
 		{
-			var partyName = packet.GetString(24).TrimEnd('\0');
+			var partyName = packet.GetString(Sizes.PartyNames).TrimEnd('\0');
 			var character = conn.GetCurrentCharacter();
+
+			if (NV_BASIC.TryFail(character, BasicSkillAbility.CreateParty))
+				return;
 
 			if (character.Party != null)
 			{

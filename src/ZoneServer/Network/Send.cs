@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Net;
 using Sabine.Shared;
@@ -10,11 +12,10 @@ using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.World;
 using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Skills;
-using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Actors;
+using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Util;
-using Yggdrasil.Logging;
 
 namespace Sabine.Zone.Network
 {
@@ -45,6 +46,19 @@ namespace Sabine.Zone.Network
 	public static partial class Send
 	{
 		/// <summary>
+		/// Sends data necessary to initialize the connection on newer
+		/// clients.
+		/// </summary>
+		/// <param name="conn"></param>
+		public static void InitConnection(ZoneConnection conn)
+		{
+			var buffer = ArrayPool<byte>.Shared.Rent(sizeof(int));
+			BinaryPrimitives.WriteInt32LittleEndian(buffer, conn.Account.Id);
+
+			conn.Send(buffer, sizeof(int), static (data, len, type) => ArrayPool<byte>.Shared.Return(data));
+		}
+
+		/// <summary>
 		/// Accepts connection request, makes client load map.
 		/// </summary>
 		/// <param name="conn"></param>
@@ -54,7 +68,7 @@ namespace Sabine.Zone.Network
 			using var packet = Packet.Rent(Op.ZC_ACCEPT_ENTER);
 
 			packet.PutInt(character.Id);
-			packet.AddPackedPosition(character.Position, 0);
+			packet.AddPackedPosition(character.Position, character.Direction);
 			packet.PutShort(0);
 
 			conn.Send(packet);
@@ -310,20 +324,20 @@ namespace Sabine.Zone.Network
 			packet.PutInt(target.Handle);
 
 			// The first string is displayed in parantheses after the
-			// character name. It seems like it's intended for the
-			// account name, because that's what the client displays
-			// for the player character itself. This might indicate
-			// that they had planned a "team name" kind of feature,
-			// similar to ToS, to have a common identifier between
-			// characters on one account. Not a terrible idea, but
-			// sending the account names of other players is not
-			// exactly ideal, so... maybe let's not do that.
-			// However, maybe we could add a display name for the
-			// accounts, which could be used here.
-			// Also: 16-24 free bytes for monster HP!
+			// character name. It seems like it's intended for the account
+			// name, because that's what the client displays for the
+			// player character itself. This might indicate that they had
+			// planned a "team name" kind of feature, similar to ToS, to
+			// have a common identifier between characters on one account.
+			// Not a terrible idea, but sending the account names of other
+			// players is not exactly ideal, so... maybe let's not do
+			// that. If we leave it empty, the client will just not
+			// display it. However, maybe we could add a display name for
+			// the accounts, which could be used here. Also: 16-24 free
+			// bytes for monster HP!
 
-			var secName = "";
-			var targetName = target.Name;
+			var secondaryName = ""; // target.Username
+			var mainName = target.Name;
 
 			if (target is Monster)
 			{
@@ -332,29 +346,32 @@ namespace Sabine.Zone.Network
 				switch (hpDisplayType)
 				{
 					case DisplayMonsterHpType.Percentage:
+					{
 						// Round to ceiling in case percentage falls below
 						// 1% and clamp it to 0~100, in case the calculation
-						// result ends up above 100. (Flots ftw, am I right?)
-						secName = string.Format("{0}%", Math2.Clamp(0, 100, Math.Ceiling(100f / target.Parameters.HpMax * target.Parameters.Hp)));
+						// result ends up above 100. (Floats ftw, am I right?)
+						secondaryName = string.Format("{0}%", Math2.Clamp(0, 100, Math.Ceiling(100f / target.Parameters.HpMax * target.Parameters.Hp)));
 						break;
-
+					}
 					case DisplayMonsterHpType.Actual:
-						secName = string.Format("{0}/{1}", target.Parameters.Hp, target.Parameters.HpMax);
+					{
+						secondaryName = string.Format("{0}/{1}", target.Parameters.Hp, target.Parameters.HpMax);
 						break;
+					}
 				}
 			}
 
 			// Append secName to targetName if the client doesn't support
 			// a secondary name anymore.
-			if (Game.Version > Versions.Alpha)
-				targetName = string.Format("{0} ({1})", targetName, secName);
+			if (Game.Version > Versions.Alpha && !string.IsNullOrWhiteSpace(secondaryName))
+				mainName = string.Format("{0} ({1})", mainName, secondaryName);
 
 			// This is still sent in Beta1, but the client doesn't display
 			// it anymore.
 			if (Game.Version < Versions.Beta2)
-				packet.PutString(secName, Sizes.CharacterNames); // target.Username
+				packet.PutString(secondaryName, Sizes.CharacterNames);
 
-			packet.PutString(targetName, Sizes.CharacterNames);
+			packet.PutString(mainName, Sizes.CharacterNames);
 
 			character.Connection.Send(packet);
 		}
@@ -659,16 +676,26 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Updates the character's direction.
+		/// Updates the character's direction on other players' clients.
 		/// </summary>
+		/// <remarks>
+		/// Doesn't affect the character's direction on their own client.
+		/// </remarks>
 		/// <param name="character"></param>
 		/// <param name="direction"></param>
-		/// <exception cref="NotImplementedException"></exception>
-		public static void ZC_CHANGE_DIRECTION(Character character, Direction direction)
+		/// <param name="headTurn"></param>
+		public static void ZC_CHANGE_DIRECTION(Character character, Direction direction, HeadTurn headTurn)
 		{
 			using var packet = Packet.Rent(Op.ZC_CHANGE_DIRECTION);
 
 			packet.PutInt(character.Handle);
+
+			if (Game.Version >= Versions.Beta2)
+			{
+				packet.PutByte((byte)headTurn);
+				packet.PutByte(0);
+			}
+
 			packet.PutByte((byte)direction);
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);
@@ -785,7 +812,7 @@ namespace Sabine.Zone.Network
 
 				packet.PutByte((byte)type);
 
-				if (Game.Version >= Versions.EP4)
+				if (Game.Version >= Versions.Beta2)
 					packet.PutShort((short)arg5);
 
 				character.Map.Broadcast(packet, character, BroadcastTargets.All);
@@ -1359,6 +1386,43 @@ namespace Sabine.Zone.Network
 				packet.PutShort((short)skillData.GetRange(level));
 
 			packet.PutByte(canUpgrade);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Informs the client about success or failure of a skill usage
+		/// request.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="skillId"></param>
+		/// <param name="result"></param>
+		/// <param name="failType"></param>
+		/// <param name="failReason"></param>
+		public static void ZC_ACK_TOUSESKILL(PlayerCharacter character, SkillId skillId, SkillUseResult result, SkillFailType failType, SkillFailReason failReason)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_TOUSESKILL);
+
+			if (Game.Version <= Versions.Alpha)
+			{
+				// The alpha client checks for success and displays a
+				// message on fail.
+
+				packet.PutShort((short)skillId);
+				packet.PutByte((byte)result);
+				packet.PutByte((byte)failReason);
+			}
+			else
+			{
+				// Beta2+ first checks for success. On fail it checks the
+				// fail type and either displays skill specific fail
+				// reasons, or generic ones.
+
+				packet.PutShort((short)skillId);
+				packet.PutInt((int)failReason);
+				packet.PutByte((byte)result);
+				packet.PutByte((byte)failType);
+			}
 
 			character.Connection.Send(packet);
 		}

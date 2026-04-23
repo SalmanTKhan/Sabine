@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Sabine.Char.Database;
 using Sabine.Shared;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data;
 using Sabine.Shared.Network;
 using Sabine.Shared.World;
 using Yggdrasil.Logging;
@@ -74,7 +72,7 @@ namespace Sabine.Char.Network
 			// account id to be sent upon connection, or it won't react to
 			// any packets...?
 			if (Game.Version >= Versions.Beta2)
-				conn.Send(BitConverter.GetBytes(account.Id));
+				Send.InitConnection(conn);
 
 			Send.HC_ACCEPT_ENTER(conn, characters);
 

@@ -20,10 +20,13 @@ namespace Sabine.Shared.Network
 			[Versions.Alpha] = LoadVersion100,
 			[Versions.Beta1] = LoadVersion200,
 			[Versions.Beta2] = LoadVersion300,
+			[Versions.S350] = LoadVersion350,
 			[Versions.EP3] = LoadVersion400,
 			[Versions.EP3_2] = LoadVersion500,
 			[Versions.EP4] = LoadVersion600,
 			[Versions.EP8] = LoadVersion700,
+			[Versions.EP8_2] = LoadVersion800,
+			[Versions.S2000] = LoadVersion2000,
 		};
 
 		/// <summary>
@@ -32,7 +35,7 @@ namespace Sabine.Shared.Network
 		/// </summary>
 		public static void Load()
 		{
-			foreach (var (version, loadTable) in Tables.OrderBy(a => a.Key))
+			foreach (var (version, loadTable) in Tables.OrderBy(static a => a.Key))
 			{
 				if (Game.Version < version)
 					break;

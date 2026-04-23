@@ -109,7 +109,7 @@ namespace Sabine.Zone.Scripting
 		/// </summary>
 		public static bool CanOpenStorage(PlayerCharacter player)
 		{
-			var basicSkillCheck = ZoneServer.Instance.Conf.World.BasicSkillCheck;
+			var basicSkillCheck = ZoneServer.Instance.Conf.World.CheckBasicSkills;
 			if (!basicSkillCheck) return true;
 
 			return !(player.Skills.GetLevel(SkillId.NV_BASIC) < 6 && player.Skills.GetLevel(SkillId.SU_BASIC_SKILL) < 1);
@@ -121,7 +121,7 @@ namespace Sabine.Zone.Scripting
 		/// </summary>
 		public static bool CanChangeJob(this PlayerCharacter player)
 		{
-			var basicSkillCheck = ZoneServer.Instance.Conf.World.BasicSkillCheck;
+			var basicSkillCheck = ZoneServer.Instance.Conf.World.CheckBasicSkills;
 			if (!basicSkillCheck) return true;
 
 			return player.Skills.GetLevel(SkillId.NV_BASIC) > 8;
