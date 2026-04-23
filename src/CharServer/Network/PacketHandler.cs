@@ -201,16 +201,19 @@ namespace Sabine.Char.Network
 				return;
 			}
 
-			//if (!CharServer.Instance.Data.Maps.TryFind(CharServer.Instance.Conf.Char.StartMapStringId, out var mapData))
-			//{
-			//	Log.Error("CH_MAKE_CHAR: Unknown start map '{0}'.", CharServer.Instance.Conf.Char.StartMapStringId);
-			//	Send.HC_REFUSE_MAKECHAR(conn, CharCreateError.Denied);
-			//	return;
-			//}
+			var charConf = CharServer.Instance.Conf.Char;
+			var mapsDb = CharServer.Instance.Data.Maps;
+
+			if (!StartLocation.TryGetDefault(mapsDb, charConf.StartMapStringId, charConf.StartPosition, out var startLocation))
+			{
+				Log.Error("CH_MAKE_CHAR: No valid start map found (configured '{0}').", charConf.StartMapStringId);
+				Send.HC_REFUSE_MAKECHAR(conn, CharCreateError.Denied);
+				return;
+			}
 
 			character.Hp = character.HpMax = (int)(40 * (1 + character.Vit / 100.0));
 			character.Sp = character.SpMax = (int)(10 * (1 + character.Int / 100.0));
-			character.Location = new Location(100036, 99, 81);
+			character.Location = startLocation;
 
 			db.CreateCharacter(account, ref character);
 			conn.Characters.Add(character);

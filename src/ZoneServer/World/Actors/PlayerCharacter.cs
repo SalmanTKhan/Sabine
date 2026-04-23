@@ -217,7 +217,20 @@ namespace Sabine.Zone.World.Actors
 			}
 
 			if (!ZoneServer.Instance.World.Maps.TryGet(location.MapId, out var map))
-				throw new ArgumentException($"Map '{location.MapId}' not found.");
+			{
+				Log.Warning("Warp: Map '{0}' not loaded; falling back to default start location for '{1}'.", location.MapId, this.Name);
+
+				var charConf = ZoneServer.Instance.Conf.Char;
+				var mapsDb = ZoneServer.Instance.Data.Maps;
+
+				if (!StartLocation.TryGetDefault(mapsDb, charConf.StartMapStringId, charConf.StartPosition, out location)
+					|| !ZoneServer.Instance.World.Maps.TryGet(location.MapId, out map))
+				{
+					throw new ArgumentException($"Map '{location.MapId}' not found and no fallback available.");
+				}
+
+				this.SaveLocation = location;
+			}
 
 			this.IsWarping = true;
 			this.WarpLocation = location;

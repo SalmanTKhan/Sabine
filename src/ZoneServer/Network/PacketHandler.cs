@@ -92,8 +92,19 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
-			if (character.SaveLocation.IsZero)
-				character.SaveLocation = new Location(100036, 99, 81);
+			var charConf = ZoneServer.Instance.Conf.Char;
+			var mapsDb = ZoneServer.Instance.Data.Maps;
+
+			if (character.SaveLocation.IsZero || !ZoneServer.Instance.World.Maps.TryGet(character.SaveLocation.MapId, out _))
+			{
+				if (!character.SaveLocation.IsZero)
+					Log.Warning("CZ_ENTER: Character '{0}' has a SaveLocation on unloaded map '{1}'. Resetting to default.", character.Name, character.SaveLocation.MapId);
+
+				if (StartLocation.TryGetDefault(mapsDb, charConf.StartMapStringId, charConf.StartPosition, out var defaultSave))
+					character.SaveLocation = defaultSave;
+				else
+					Log.Error("CZ_ENTER: No valid default save location found for character '{0}'.", character.Name);
+			}
 
 			if (ZoneServer.Instance.World.Maps.TryGetPlayerById(character.Id, out var existingCharacter))
 			{
@@ -138,11 +149,9 @@ namespace Sabine.Zone.Network
 			if (character.IsWarping)
 			{
 				character.FinalizeWarp();
+				return;
 			}
-			else
-			{
-				character.StartObserving();
-			}
+			character.StartObserving();
 
 			// Send all stats/parameters to the client that it didn't
 			// get from the char server yet. Also send a few that

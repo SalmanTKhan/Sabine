@@ -107,7 +107,24 @@ namespace Sabine.Zone.World.Actors
 			if (_currentAction == ActionState.Casting || _currentAction == ActionState.Sitting)
 				return;
 
-			this.InitiateAttack(target, autoAttack);
+			if (target == null || target == this || target.IsDead)
+				return;
+
+			this.StopCasting();
+			this.StopAttacking();
+
+			if (this.Position.InRange(target.Position, this.GetAttackRange()))
+			{
+				// Already in range: attack immediately via the base character loop.
+				_currentAction = ActionState.Attacking;
+				base.StartAttacking(target, autoAttack);
+			}
+			else
+			{
+				// Out of range: walk toward target first (UpdateAttackAction handles
+				// the transition once in range).
+				this.InitiateAttack(target, autoAttack);
+			}
 		}
 
 		/// <summary>
