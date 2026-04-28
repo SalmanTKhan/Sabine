@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Util;
@@ -54,6 +55,7 @@ namespace Sabine.Zone.Commands
 			this.Add("reloadconf", "", Localization.Get("Reloads server configuration."), this.ReloadConf);
 			this.Add("reloaddata", "", Localization.Get("Reloads data files."), this.ReloadData);
 			this.Add("debugpath", "", Localization.Get("Toggles path debugging on and off."), this.DebugPath);
+			this.Add("debugmode", "", Localization.Get("Toggles debug mode."), this.DebugMode);
 
 			// Aliases
 			this.AddAlias("reloadscripts", "rs");
@@ -236,12 +238,31 @@ namespace Sabine.Zone.Commands
 			if (!Enum.TryParse<SpriteType>(args.Get(0), out var type))
 				return CommandResult.InvalidArgument;
 
-			if (!int.TryParse(args.Get(1), out var value))
-				return CommandResult.InvalidArgument;
+			var value1 = 0;
+			var value2 = 0;
 
-			Send.ZC_SPRITE_CHANGE(target, type, value);
+			if (args.Count >= 2)
+			{
+				if (!int.TryParse(args.Get(1), out var value))
+					return CommandResult.InvalidArgument;
 
-			sender.ServerMessage(Localization.Get("Changed {0} to {1}."), type, value);
+				value1 = value;
+			}
+
+			if (args.Count >= 3)
+			{
+				if (!int.TryParse(args.Get(2), out var value))
+					return CommandResult.InvalidArgument;
+
+				value2 = value;
+			}
+
+			if (Game.Version < Versions.EP3_2)
+				Send.ZC_SPRITE_CHANGE(target, type, value1);
+			else
+				Send.ZC_SPRITE_CHANGE2(target, type, value1, value2);
+
+			sender.ServerMessage(Localization.Get("Changed {0} to {1}/{2}."), type, value1, value2);
 
 			return CommandResult.Okay;
 		}
@@ -454,7 +475,7 @@ namespace Sabine.Zone.Commands
 					var path = sender.Map.PathFinder.FindPath(fromPos, toPos);
 					foreach (var pathPos in path)
 					{
-						var npc = new Npc(66);
+						var npc = new Npc(IdentityId.JT_1_F_01);
 						npc.Warp(sender.Map.Id, pathPos);
 
 						Task.Delay(3000).ContinueWith(__ => sender.Map.RemoveNpc(npc));
@@ -475,6 +496,28 @@ namespace Sabine.Zone.Commands
 		}
 
 		/// <summary>
+		/// Toggles debug mode on and off, enabling debug messages for
+		/// testing during development.
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="target"></param>
+		/// <param name="message"></param>
+		/// <param name="commandName"></param>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		private CommandResult DebugMode(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			var enabled = target.Vars.Temp.ToggleBool("Sabine.DebugMode");
+
+			if (enabled)
+				sender.ServerMessage(Localization.Get("Debug mode is enabled."));
+			else
+				sender.ServerMessage(Localization.Get("Debug mode is disabled."));
+
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
 		/// Spawns monsters at the target's location.
 		/// </summary>
 		/// <param name="sender"></param>
@@ -488,7 +531,8 @@ namespace Sabine.Zone.Commands
 			if (args.Count == 0)
 				return CommandResult.InvalidArgument;
 
-			MonsterData monsterData = null;
+			var monsterData = (MonsterData)null;
+			var identityId = IdentityId.JT_PORING;
 
 			if (!int.TryParse(args.Get(0), out var monsterId))
 			{
@@ -500,12 +544,16 @@ namespace Sabine.Zone.Commands
 					return CommandResult.Okay;
 				}
 
-				monsterId = monsterData.Id;
+				identityId = monsterData.Id;
+			}
+			else
+			{
+				identityId = (IdentityId)monsterId;
 			}
 
 			if (monsterData == null)
 			{
-				if (!ZoneServer.Instance.Data.Monsters.TryFind(monsterId, out monsterData))
+				if (!ZoneServer.Instance.Data.Monsters.TryFind(identityId, out monsterData))
 				{
 					sender.ServerMessage(Localization.Get("Monster '{0}' not found."), monsterId);
 					return CommandResult.Okay;
@@ -530,18 +578,18 @@ namespace Sabine.Zone.Commands
 				hpMax = Math2.Clamp(1, 1_000_000, hpMax);
 			}
 
-			var aiName = args.Get("ai", monsterData.AiName);
+			var aiName = args.Get("ai", monsterData.AiName ?? "none");
 			var useAi = aiName != "none";
 
-			if (!ZoneServer.Instance.Data.Monsters.Contains(monsterId))
+			if (!ZoneServer.Instance.Data.Monsters.Contains(identityId))
 			{
-				sender.ServerMessage(Localization.Get("Monster with id '{0}' not found."), monsterId);
+				sender.ServerMessage(Localization.Get("Monster with id '{0}' not found."), identityId);
 				return CommandResult.Okay;
 			}
 
 			for (var i = 0; i < amount; ++i)
 			{
-				var monster = new Monster(monsterId);
+				var monster = new Monster(identityId);
 
 				if (useAi)
 				{

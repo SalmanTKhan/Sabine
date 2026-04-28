@@ -54,6 +54,25 @@ namespace Sabine.Shared.Data.Databases
 		/// <param name="entry"></param>
 		protected override void ReadEntry(JObject entry)
 		{
+			// This works, and is probably a clean enough solution, but I
+			// wish this wouldn't have to be in the db itself.
+			// VersionedDatabaseJsonIndexed incoming?
+			if (entry.ContainsKey("versionMin") || entry.ContainsKey("versionMax"))
+			{
+				var versionMin = entry.ReadInt("versionMin", 0);
+				var versionMax = entry.ReadInt("versionMax", int.MaxValue);
+
+				if (Game.Version < versionMin || Game.Version > versionMax)
+					return;
+
+				if (entry.ContainsKey("entries"))
+				{
+					foreach (JObject subEntry in entry["entries"])
+						this.ReadEntry(subEntry);
+					return;
+				}
+			}
+
 			entry.AssertNotMissing("id", "name", "type", "weight");
 
 			var data = new ItemData();
@@ -81,6 +100,16 @@ namespace Sabine.Shared.Data.Databases
 			{
 				if (data.WearSlots == EquipSlots.Accessory1 || data.WearSlots == EquipSlots.Accessory2)
 					data.WearSlots = EquipSlots.Accessories;
+			}
+
+			// Force headgear slots to Head for Beta1, since it couldn't
+			// handle multiple headgear slots yet.
+			if (Game.Version < Versions.Beta2)
+			{
+				if ((data.WearSlots & EquipSlots.HeadMiddle) != 0)
+					data.WearSlots = EquipSlots.Head;
+				else if ((data.WearSlots & EquipSlots.HeadTop) != 0)
+					data.WearSlots = EquipSlots.Head;
 			}
 
 			this.AddOrReplace(data.ClassId, data);

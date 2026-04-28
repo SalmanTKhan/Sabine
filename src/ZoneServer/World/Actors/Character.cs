@@ -7,8 +7,10 @@ using Sabine.Zone.Network;
 using Sabine.Zone.Skills;
 using Sabine.Zone.World.Actors.Components.Characters;
 using Sabine.Zone.World.Maps;
+using Yggdrasil.Logging;
 using Yggdrasil.Scheduling;
 using Yggdrasil.Util;
+using Yggdrasil.Versioning.ManagedEnum;
 
 namespace Sabine.Zone.World.Actors
 {
@@ -38,12 +40,11 @@ namespace Sabine.Zone.World.Actors
 		/// Returns the character's class id, defining (part of) its
 		/// appearance.
 		/// </summary>
-		public abstract int ClassId { get; protected set; }
+		public abstract IdentityId IdentityId { get; protected set; }
 
 		public BodyState BodyState { get; protected set; }
 		public EffectState EffectState { get; protected set; }
 		public HealthState HealthState { get; protected set; }
-
 
 		public virtual int OwnerHandle { get; protected set; } = 0;
 		public virtual int TargetHandle { get; protected set; } = 0;
@@ -51,11 +52,12 @@ namespace Sabine.Zone.World.Actors
 		public virtual bool IsCasting { get; protected set; } = false;
 
 		/// <summary>
-		/// Gets or sets the class id that the character will appear as.
+		/// Gets or sets the identity id that the character will appear as.
+		/// Falls back to <see cref="IdentityId"/> when not overridden.
 		/// </summary>
 		public int DisplayClassId
 		{
-			get => _displayClassId == -1 ? this.ClassId : _displayClassId;
+			get => _displayClassId == -1 ? (int)this.IdentityId : _displayClassId;
 			set => _displayClassId = value;
 		}
 		private int _displayClassId = -1;
@@ -72,16 +74,25 @@ namespace Sabine.Zone.World.Actors
 		public virtual int HairId { get; set; }
 
 		/// <summary>
+		/// Returns a character's upper headgear look.
+		/// </summary>
+		public virtual int HeadTopLook { get; set; }
+
+		/// <summary>
+		/// Returns a character's middle headgear look.
+		/// </summary>
+		public virtual int HeadMiddleLook { get; set; }
+
+		/// <summary>
+		/// Returns a character's lower headgear look.
+		/// </summary>
+		public virtual int HeadBottomLook { get; set; }
+
+		/// <summary>
 		/// Returns a character's weapon id, defining what weapon they
 		/// can be seen holding during combat.
 		/// </summary>
-		public virtual int WeaponId { get; set; }
-
-		/// <summary>
-		/// Returns a character's top headgear look, specifying what headgear
-		/// they're wearing.
-		/// </summary>
-		public virtual int HeadTopId { get; set; }
+		public virtual int WeaponLook { get; set; }
 
 		/// <summary>
 		/// Returns a character's current state.
@@ -308,8 +319,15 @@ namespace Sabine.Zone.World.Actors
 		/// <param name="state"></param>
 		private void Attack(CallbackState state)
 		{
-			var target = (Character)state.Arguments[0];
-			this.Attack(target, true);
+			try
+			{
+				var target = (Character)state.Arguments[0];
+				this.Attack(target, true);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("Error during auto attack: " + ex);
+			}
 		}
 
 		/// <summary>

@@ -63,12 +63,12 @@ namespace Sabine.Shared.Const
 		/// <summary>
 		/// Etc tab.
 		/// </summary>
-		Etc2 = 6,
+		Card = 6,
 
 		/// <summary>
 		/// Etc tab.
 		/// </summary>
-		Etc3 = 7,
+		PetEgg = 7,
 
 		/// <summary>
 		/// Equip tab.
@@ -89,13 +89,34 @@ namespace Sabine.Shared.Const
 		// Items assigned types greater than 9 don't appear in the
 		// inventory on the alpha client.
 
-		Card = 6,
-		PetEgg = 7,
+#pragma warning disable CA1069 // Enums values should not be duplicated
+
+		/// <summary>
+		/// Alias of RangedWeapon, used by some newer-client item data.
+		/// </summary>
 		PetArmor = 8,
+
+		/// <summary>
+		/// Equip tab.
+		/// </summary>
 		Ammo = 10,
+
+		/// <summary>
+		/// Newer-client item type.
+		/// </summary>
 		DelayConsume = 11,
+
+		/// <summary>
+		/// Newer-client equip-tab item type.
+		/// </summary>
 		ShadowGear = 12,
+
+		/// <summary>
+		/// Newer-client cash-shop item type.
+		/// </summary>
 		Cash = 18,
+
+#pragma warning restore CA1069 // Enums values should not be duplicated
 	}
 
 	/// <summary>
@@ -104,22 +125,103 @@ namespace Sabine.Shared.Const
 	[Flags]
 	public enum EquipSlots : uint
 	{
+#pragma warning disable CA1069 // Enums values should not be duplicated
+
 		None = 0x00,
+
+		/// <summary>
+		/// Alpha: Head slot.
+		/// Beta+: Bottom headgear.
+		/// </summary>
+		HeadBottom = 0x01,
+
+		/// <summary>
+		/// Alpha: Head slot.
+		/// Beta+: Bottom headgear.
+		/// </summary>
+		Head = 0x01,
+
+		/// <summary>
+		/// Newer-client alias of HeadBottom.
+		/// </summary>
 		HeadLow = 0x01,
+
+		/// <summary>
+		/// Weapons. Character's actual right hand on the left side in
+		/// the UI.
+		/// </summary>
 		RightHand = 0x02,
+
+		/// <summary>
+		/// Robes, Garmants
+		/// </summary>
+		Robe = 0x04,
+
+		/// <summary>
+		/// Newer-client alias of Robe.
+		/// </summary>
 		Garment = 0x04,
+
+		/// <summary>
+		/// Accessory slot on the left side.
+		/// </summary>
+		Accessory1 = 0x08,
+
+		/// <summary>
+		/// Newer-client alias of Accessory1.
+		/// </summary>
 		AccessoryLeft = 0x08,
+
+		/// <summary>
+		/// Armor, Clothes
+		/// </summary>
 		Body = 0x10,
+
+		/// <summary>
+		/// Shields, off-hand weapons. Character's actual left hand, on
+		/// the right side of the UI.
+		/// </summary>
 		LeftHand = 0x20,
+
+		/// <summary>
+		/// Shoes, Boots
+		/// </summary>
 		Shoes = 0x40,
+
+		/// <summary>
+		/// Accessory slot on the right side.
+		/// </summary>
+		Accessory2 = 0x80,
+
+		/// <summary>
+		/// Newer-client alias of Accessory2.
+		/// </summary>
 		AccessoryRight = 0x80,
+
+		/// <summary>
+		/// Top headgear. Not available in Alpha and Beta1.
+		/// </summary>
 		HeadTop = 0x100,
+
+		/// <summary>
+		/// Middle headgear. Not available in Alpha and Beta1.
+		/// </summary>
+		HeadMiddle = 0x200,
+
+		/// <summary>
+		/// Newer-client alias of HeadMiddle.
+		/// </summary>
 		HeadMid = 0x200,
+
+		// Newer-client costume slots.
 		CostumeHeadTop = 0x400,
 		CostumeHeadMid = 0x800,
 		CostumeHeadLow = 0x1000,
 		CostumeGarment = 0x2000,
+
 		Ammo = 0x8000,
+
+		// Newer-client shadow-gear slots.
 		ShadowArmor = 0x10000,
 		ShadowWeapon = 0x20000,
 		ShadowShield = 0x40000,
@@ -129,12 +231,12 @@ namespace Sabine.Shared.Const
 
 		ShadowAccessories = ShadowAccLeft | ShadowAccRight,
 
-		// Old client compatibility aliases
-		Head = HeadLow | HeadMid | HeadTop,
-		Accessory1 = AccessoryLeft,
-		Accessory2 = AccessoryRight,
-		Robe = Garment,
+		/// <summary>
+		/// Both/Either accessory slot.
+		/// </summary>
 		Accessories = Accessory1 | Accessory2,
+
+#pragma warning restore CA1069 // Enums values should not be duplicated
 	}
 
 	public enum WeaponType
@@ -182,11 +284,9 @@ namespace Sabine.Shared.Const
 			{
 				case ItemType.Weapon:
 				case ItemType.Armor:
-				case ItemType.PetArmor:
-				case ItemType.ShadowGear:
-				// Old client types
-				//case ItemType.RangedWeapon:
+				case ItemType.RangedWeapon: // also PetArmor (alias)
 				case ItemType.Weapon3:
+				case ItemType.ShadowGear:
 					return true;
 				default:
 					return false;

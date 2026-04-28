@@ -632,6 +632,25 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Updates the character's sprites for all players near them.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="type"></param>
+		/// <param name="value1"></param>
+		/// <param name="value2"></param>
+		public static void ZC_SPRITE_CHANGE2(Character character, SpriteType type, int value1, int value2)
+		{
+			using var packet = Packet.Rent(Op.ZC_SPRITE_CHANGE2);
+
+			packet.PutInt(character.Handle);
+			packet.PutByte((byte)type);
+			packet.PutShort((short)value1);
+			packet.PutShort((short)value2);
+
+			character.Map.Broadcast(packet, character, BroadcastTargets.All);
+		}
+
+		/// <summary>
 		/// Sends the number of players who are online to the client.
 		/// </summary>
 		/// <param name="conn"></param>
@@ -820,6 +839,27 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Informs the character that their attack failed due to the
+		/// target being out of range, making them get closer.
+		/// </summary>
+		/// <param name="character">The character whose attack failed.</param>
+		/// <param name="target">The target character that is out of range.</param>
+		/// <param name="range">The range into which the character should get to attack.</param>
+		public static void ZC_ATTACK_FAILURE_FOR_DISTANCE(PlayerCharacter character, Character target, int range)
+		{
+			using var packet = Packet.Rent(Op.ZC_ATTACK_FAILURE_FOR_DISTANCE);
+
+			packet.PutInt(target.Handle);
+			packet.PutShort((short)target.Position.X);
+			packet.PutShort((short)target.Position.Y);
+			packet.PutShort((short)character.Position.X);
+			packet.PutShort((short)character.Position.Y);
+			packet.PutShort((short)range);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Displays dialog on character's client.
 		/// </summary>
 		/// <param name="character"></param>
@@ -912,10 +952,6 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ITEM_PICKUP_ACK);
 
-			var wearSlots = item.WearSlots;
-			if (!character.CanEquip(item))
-				wearSlots = EquipSlots.None;
-
 			packet.PutShort((short)item.InventoryId);
 			packet.PutShort((short)amount);
 
@@ -923,7 +959,7 @@ namespace Sabine.Zone.Network
 			{
 				packet.PutString(item.StringId, Sizes.ItemNames);
 				packet.PutByte((byte)item.Type);
-				packet.PutByte((byte)wearSlots);
+				packet.PutByte((byte)item.GetSlotsFor(character));
 			}
 			else
 			{
@@ -935,7 +971,7 @@ namespace Sabine.Zone.Network
 				packet.PutShort(0);  // Card2
 				packet.PutShort(0);  // Card3
 				packet.PutShort(0);  // Card4
-				packet.PutShort((short)wearSlots);
+				packet.PutShort((short)item.GetSlotsFor(character));
 				packet.PutByte((byte)item.Type);
 			}
 
@@ -1086,11 +1122,7 @@ namespace Sabine.Zone.Network
 				if (!item.Type.IsEquip())
 					continue;
 
-				var wearSlots = item.WearSlots;
-				if (!character.CanEquip(item))
-					wearSlots = EquipSlots.None;
-
-				packet.AddEquipItem(item, wearSlots);
+				packet.AddEquipItem(item, item.GetSlotsFor(character));
 			}
 
 			character.Connection.Send(packet);
@@ -1111,11 +1143,7 @@ namespace Sabine.Zone.Network
 				if (!item.Type.IsEquip())
 					continue;
 
-				var wearSlots = item.WearSlots;
-				if (!character.CanEquip(item))
-					wearSlots = EquipSlots.None;
-
-				packet.AddEquipItem(item, wearSlots);
+				packet.AddEquipItem(item, item.GetSlotsFor(character));
 			}
 
 			character.Connection.Send(packet);
@@ -1205,27 +1233,49 @@ namespace Sabine.Zone.Network
 			character.Connection.Send(packet);
 		}
 
-		/// <summary>
-		/// Response to equip request, makes character equip the item
-		/// in the given slot.
-		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="invId"></param>
-		/// <param name="equipSlot"></param>
-		public static void ZC_REQ_WEAR_EQUIP_ACK(PlayerCharacter character, int invId, EquipSlots equipSlot)
+		public static class ZC_REQ_WEAR_EQUIP_ACK
 		{
-			using var packet = Packet.Rent(Op.ZC_REQ_WEAR_EQUIP_ACK);
+			/// <summary>
+			/// Successful response to equip request, makes character
+			/// equip the item in the given slot.
+			/// </summary>
+			/// <param name="character"></param>
+			/// <param name="invId"></param>
+			/// <param name="equipSlot"></param>
+			public static void Success(PlayerCharacter character, int invId, EquipSlots equipSlot)
+				=> Raw(character, invId, equipSlot, true);
 
-			packet.PutShort((short)invId);
+			/// <summary>
+			/// Negative response to equip request, displaying error
+			/// message.
+			/// </summary>
+			/// <param name="character"></param>
+			/// <param name="invId"></param>
+			public static void Fail(PlayerCharacter character, int invId)
+				=> Raw(character, invId, EquipSlots.None, false);
 
-			if (Game.Version < Versions.Beta2)
-				packet.PutByte((byte)equipSlot);
-			else
-				packet.PutShort((short)equipSlot);
+			/// <summary>
+			/// Response to equip request.
+			/// </summary>
+			/// <param name="character"></param>
+			/// <param name="invId"></param>
+			/// <param name="equipSlot"></param>
+			/// <param name="success"></param>
+			public static void Raw(PlayerCharacter character, int invId, EquipSlots equipSlot, bool success)
+			{
+				using var packet = Packet.Rent(Op.ZC_REQ_WEAR_EQUIP_ACK);
 
-			packet.PutByte(true);
+				packet.PutShort((short)invId);
 
-			character.Connection.Send(packet);
+				if (Game.Version < Versions.Beta2)
+					packet.PutByte((byte)equipSlot);
+				else
+					packet.PutShort((short)equipSlot);
+
+				packet.PutByte(success);
+
+				character.Connection.Send(packet);
+			}
 		}
 
 		/// <summary>
@@ -1247,6 +1297,20 @@ namespace Sabine.Zone.Network
 				packet.PutShort((short)equipSlot);
 
 			packet.PutByte(true);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Makes the character's client display the given item as
+		/// equipped ammo.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="item"></param>
+		public static void ZC_EQUIP_ARROW(PlayerCharacter character, Item item)
+		{
+			using var packet = Packet.Rent(Op.ZC_EQUIP_ARROW);
+			packet.PutShort((short)(item?.InventoryId ?? 0));
 
 			character.Connection.Send(packet);
 		}
@@ -1725,6 +1789,56 @@ namespace Sabine.Zone.Network
 			packet.PutByte((byte)result);
 
 			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Displays effect on character, for them and the characters
+		/// nearby.
+		/// </summary>
+		/// <remarks>
+		/// First seen in i20030430, where the client handles 5 effects,
+		/// from 0 to 4. Based on their usage in eAthena, those might be:
+		/// 
+		/// - 0: BaseLevelUp
+		/// - 1: JobLevelUp
+		/// - 2: RefineFail
+		/// - 3: RefineUp
+		/// - 4: ?
+		/// 
+		/// Unfortunately no clients that were tested did anything when
+		/// these were sent on their own.
+		/// </remarks>
+		/// <param name="character"></param>
+		/// <param name="effectId"></param>
+		public static void ZC_NOTIFY_EFFECT(PlayerCharacter character, int effectId)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_EFFECT);
+
+			packet.PutInt(character.Handle);
+			packet.PutInt((int)effectId);
+
+			character.Map.Broadcast(packet, character, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Displays effect on character, for them and the characters
+		/// nearby.
+		/// </summary>
+		/// <remarks>
+		/// First seen in eu20040512, these effects appear to be more
+		/// general purpose than the original ZC_NOTIFY_EFFECT and make
+		/// up the vast majority of effects in use.
+		/// </remarks>
+		/// <param name="character"></param>
+		/// <param name="effectId"></param>
+		public static void ZC_NOTIFY_EFFECT2(PlayerCharacter character, EffectId effectId)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_EFFECT2);
+
+			packet.PutInt(character.Handle);
+			packet.PutInt((int)effectId);
+
+			character.Map.Broadcast(packet, character, BroadcastTargets.All);
 		}
 	}
 }

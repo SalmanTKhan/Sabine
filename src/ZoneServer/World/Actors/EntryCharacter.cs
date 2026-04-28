@@ -10,15 +10,10 @@ namespace Sabine.Zone.World.Actors
 	public interface IStandEntry : IActor
 	{
 		/// <summary>
-		/// Returns the character's class id, specifying (part of) its
+		/// Returns the character's identity id, specifying (part of) its
 		/// appearance.
 		/// </summary>
-		int ClassId { get; }
-
-		/// <summary>
-		/// Returns the class id that the character appears as.
-		/// </summary>
-		int DisplayClassId { get; }
+		IdentityId IdentityId { get; }
 
 		/// <summary>
 		/// Returns the character's speed.
@@ -40,13 +35,25 @@ namespace Sabine.Zone.World.Actors
 		/// Returns a character's weapon id, specifying what weapon they
 		/// can be seen holding during combat.
 		/// </summary>
-		int WeaponId { get; }
+		int WeaponLook { get; }
 
 		/// <summary>
-		/// Returns a character's top headgear look, specifying what headgear
-		/// they're wearing.
+		/// Returns a character's top headgear look, specifying what
+		/// headgear they're wearing.
 		/// </summary>
-		int HeadTopId { get; }
+		int HeadTopLook { get; }
+
+		/// <summary>
+		/// Returns a character's middle headgear look, specifying what
+		/// headgear they're wearing.
+		/// </summary>
+		int HeadMiddleLook { get; }
+
+		/// <summary>
+		/// Returns a character's bottom headgear look, specifying what
+		/// headgear they're wearing.
+		/// </summary>
+		int HeadBottomLook { get; }
 
 		/// <summary>
 		/// Returns the direction the character is turned towards.

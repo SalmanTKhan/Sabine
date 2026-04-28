@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Sabine.Shared;
 using Sabine.Shared.Const;
+using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.Util;
@@ -190,6 +191,9 @@ namespace Sabine.Zone.Network
 			Send.ZC_NORMAL_ITEMLIST(character, items);
 			Send.ZC_EQUIPMENT_ITEMLIST(character, items);
 
+			if (character.Inventory.Ammo != null)
+				Send.ZC_EQUIP_ARROW(character, character.Inventory.Ammo);
+
 			character.Skills.RefreshClient();
 
 			if (character.IsDead)
@@ -255,7 +259,7 @@ namespace Sabine.Zone.Network
 				var path = character.Map.PathFinder.FindPath(fromPos, toPos);
 				foreach (var pathPos in path)
 				{
-					var npc = new Npc(66);
+					var npc = new Npc(IdentityId.JT_1_F_01);
 					npc.Warp(character.Map.Id, pathPos);
 
 					Task.Delay(5000).ContinueWith(_ => character.Map.RemoveNpc(npc));
@@ -281,7 +285,7 @@ namespace Sabine.Zone.Network
 			if (index != -1)
 				text = text.Substring(index + 1).Trim();
 
-			if (Game.Version >= Versions.EP4)
+			if (Game.Version >= Versions.EP5)
 			{
 				// What is this...? It's part of the message, and the client
 				// doesn't display it when it's sent back to it, but what
@@ -492,15 +496,13 @@ namespace Sabine.Zone.Network
 
 			var character = conn.GetCurrentCharacter();
 
-			var itemNameData = ZoneServer.Instance.Data.ItemNames.Find(a => a.AlphaName == itemStringId || a.BetaName == itemStringId);
-			if (itemNameData == null)
+			if (!ZoneServer.Instance.Data.ItemNames.TryFind(a => a.AlphaName == itemStringId || a.BetaName == itemStringId, out var itemNameData))
 			{
 				Log.Warning("CZ_REQ_ITEM_EXPLANATION_BYNAME: Item name data for '{0}' not found.", itemStringId);
 				return;
 			}
 
-			var itemData = ZoneServer.Instance.Data.Items.Find(itemNameData.Id);
-			if (itemData == null)
+			if (!ZoneServer.Instance.Data.Items.TryFind(itemNameData.Id, out var itemData))
 			{
 				Log.Warning("CZ_REQ_ITEM_EXPLANATION_BYNAME: Item data for '{0}' not found.", itemStringId);
 				return;
@@ -534,7 +536,7 @@ namespace Sabine.Zone.Network
 					sb.AppendFormat("Attack:^777777 {0}-{1}^000000", itemData.AttackMin, itemData.AttackMax);
 					sb.AppendFormat(", Weight:^777777 {0:0.#}^000000", itemData.Weight / 10f);
 					sb.AppendFormat(", Required Level:^777777 {0}^000000", itemData.RequiredLevel);
-					sb.AppendFormat(", Jobs:^777777 {0}^000000", itemData.JobsAllowed);
+					sb.AppendFormat(", Jobs:^777777 {0}^000000", itemData.JobsAllowed.ToReadableString());
 					break;
 				}
 				case ItemType.Armor:
@@ -542,7 +544,7 @@ namespace Sabine.Zone.Network
 					sb.AppendFormat("Defense:^777777 {0}^000000", itemData.Defense);
 					sb.AppendFormat(", Weight:^777777 {0:0.#}^000000", itemData.Weight / 10f);
 					sb.AppendFormat(", Required Level:^777777 {0}^000000", itemData.RequiredLevel);
-					sb.AppendFormat(", Jobs:^777777 {0}^000000", itemData.JobsAllowed);
+					sb.AppendFormat(", Jobs:^777777 {0}^000000", itemData.JobsAllowed.ToReadableString());
 					break;
 				}
 				default:
@@ -736,10 +738,31 @@ namespace Sabine.Zone.Network
 					// tacking when not intended, the client sends the
 					// packet CZ_CANCEL_LOCKON right after the ACT packet.
 
-					var target = character.Map.GetCharacter(targetHandle);
-					if (target == null)
+					if (!character.Map.TryGetCharacter(targetHandle, out var target))
 					{
 						Log.Debug("CZ_REQUEST_ACT: User '{0}' tried to attack a character who doesn't exist.", conn.Account.Username);
+						return;
+					}
+
+					var attackRange = character.GetAttackRange();
+
+					if (character.Vars.Temp.GetBool("Sabine.DebugMode", false))
+					{
+						var distance = character.Position.GetDistance(target.Position);
+						var inRange = character.Position.InRange(target.Position, attackRange);
+
+						character.DebugMessage("Attack Range: {0}, Distance: {1}, InRange: {2}", attackRange, distance, inRange);
+					}
+
+					if (!character.Position.InRange(target.Position, attackRange))
+					{
+						// The alpha client does its own range checks and
+						// the distance fail packet doesn't exist yet.
+						// It's safe to assume that nothing more but
+						// stopping the attack is expected from us for
+						// the alpha here.
+						if (Game.Version >= Versions.Beta1)
+							Send.ZC_ATTACK_FAILURE_FOR_DISTANCE(character, target, attackRange - 1);
 						return;
 					}
 
@@ -929,8 +952,19 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_REQ_WEAR_EQUIP)]
 		public void CZ_REQ_WEAR_EQUIP(ZoneConnection conn, Packet packet)
 		{
-			var itemInvId = packet.GetShort();
-			var equipSlots = (EquipSlots)packet.GetByte();
+			int itemInvId;
+			EquipSlots equipSlots;
+
+			if (Game.Version < Versions.Beta2)
+			{
+				itemInvId = packet.GetShort();
+				equipSlots = (EquipSlots)packet.GetByte();
+			}
+			else
+			{
+				itemInvId = packet.GetShort();
+				equipSlots = (EquipSlots)packet.GetShort();
+			}
 
 			var character = conn.GetCurrentCharacter();
 			var item = character.Inventory.GetItem(itemInvId);
@@ -943,17 +977,57 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			if (character.Vars.Temp.GetBool("Sabine.DebugMode", false))
+			{
+				character.DebugMessage("Equip {0} on {1}", item.Data.Name, equipSlots);
+			}
+
 			if (!character.CanEquip(item))
 			{
-				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item they can't equip.", conn.Account.Username);
-				conn.Close();
+				if (Game.Version < Versions.Beta1)
+				{
+					Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item they can't equip.", conn.Account.Username);
+					conn.Close();
+					return;
+				}
+
+				if (character.Parameters.BaseLevel < item.Data.RequiredLevel)
+					character.ServerMessage(Localization.Get("You need to be at east level {0} to equip this item."), item.Data.RequiredLevel);
+
+				Send.ZC_REQ_WEAR_EQUIP_ACK.Fail(character, itemInvId);
+				return;
+			}
+
+			if (item.Type == ItemType.Ammo)
+			{
+				character.Inventory.EquipAmmo(item);
+				return;
+			}
+
+			if (equipSlots == EquipSlots.None)
+			{
+				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item in None (Item: {1} ({2}), Data Slots: {3}).", conn.Account.Username, item.Data.Name, item.ClassId, item.Data.WearSlots);
+
+				if (Game.Version < Versions.Beta1)
+				{
+					conn.Close();
+					return;
+				}
+
+				Send.ZC_REQ_WEAR_EQUIP_ACK.Fail(character, itemInvId);
 				return;
 			}
 
 			if (item.Data.WearSlots != equipSlots)
 			{
-				Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item in an invalid slot (Item: {1}, Request: {2}).", conn.Account.Username, item.Data.WearSlots, equipSlots);
-				conn.Close();
+				if (Game.Version < Versions.Beta1)
+				{
+					Log.Debug("CZ_REQ_WEAR_EQUIP: User '{0}' tried to equip an item in an invalid slot (Item: {1}, Request: {2}).", conn.Account.Username, item.Data.WearSlots, equipSlots);
+					conn.Close();
+					return;
+				}
+
+				Send.ZC_REQ_WEAR_EQUIP_ACK.Fail(character, itemInvId);
 				return;
 			}
 
@@ -1192,6 +1266,134 @@ namespace Sabine.Zone.Network
 			var text = packet.GetString(len - 4);
 
 			Send.ZC_BROADCAST(text);
+		}
+
+		/// <summary>
+		/// Request to use a skill on a target.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_USE_SKILL)]
+		public void CZ_USE_SKILL(ZoneConnection conn, Packet packet)
+		{
+			var level = packet.GetShort();
+			var skillId = (SkillId)packet.GetShort();
+			var targetHandle = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!character.Skills.TryGet(skillId, out var skill))
+			{
+				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
+				return;
+			}
+
+			if (skill.Level == 0)
+			{
+				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}' at level 0.", conn.Account.Username, skillId);
+				return;
+			}
+
+			if (!character.Map.TryGetCharacter(targetHandle, out var target))
+			{
+				character.ServerMessage(Localization.Get("Target not found."));
+				return;
+			}
+
+			// Clamp level, but don't warn about invalid values, since the
+			// requested level may be too high if the skill changed after
+			// it was hotkeyed.
+			level = Math2.Clamp(1, skill.Level, level);
+
+			Send.ZC_NOTIFY_PLAYERCHAT(character, skill.Data.StringId + "!!!");
+
+			switch (skillId)
+			{
+				case SkillId.SM_BASH:
+				{
+					if (!character.TrySpendSp(skill.SpCost))
+					{
+						character.ServerMessage(Localization.Get("Not enough SP."));
+						return;
+					}
+
+					character.Controller.StopMove();
+
+					var attacker = character;
+					var damage = level * 5;
+
+					var attackMotionDelay = attacker.Parameters.AttackMotionDelay;
+					var damageMotionDelay = target.Parameters.DamageMotionDelay;
+
+					target.TakeDamage(damage, character);
+
+					Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), ActionType.Attack, damage, attackMotionDelay, damageMotionDelay);
+					break;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Request to use a skill targeting the ground.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_USE_SKILL_TOGROUND)]
+		public void CZ_USE_SKILL_TOGROUND(ZoneConnection conn, Packet packet)
+		{
+			var level = packet.GetShort();
+			var skillId = (SkillId)packet.GetShort();
+			var x = packet.GetShort();
+			var y = packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!character.Skills.TryGet(skillId, out var skill))
+			{
+				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
+				return;
+			}
+
+			if (skill.Level == 0)
+			{
+				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}' at level 0.", conn.Account.Username, skillId);
+				return;
+			}
+
+			var targetPos = new Position(x, y);
+
+			// Clamp level, but don't warn about invalid values, since the
+			// requested level may be too high if the skill changed after
+			// it was hotkeyed.
+			level = Math2.Clamp(1, skill.Level, level);
+
+			Send.ZC_NOTIFY_PLAYERCHAT(character, skill.Data.StringId + "!!!");
+
+			switch (skillId)
+			{
+				case SkillId.MG_FIREWALL:
+				{
+					if (!character.InUseRange(skill, targetPos))
+					{
+						character.ServerMessage(Localization.Get("Too far away."));
+						return;
+					}
+
+					if (!character.TrySpendSp(skill.SpCost))
+					{
+						character.ServerMessage(Localization.Get("Not enough SP."));
+						return;
+					}
+
+					character.Controller.StopMove();
+
+					var npc = new Npc(IdentityId.JT_1_F_01);
+					npc.Warp(character.Map.Id, targetPos);
+
+					Task.Delay(3000).ContinueWith(__ => character.Map.RemoveNpc(npc));
+					break;
+				}
+			}
 		}
 
 		/// <summary>

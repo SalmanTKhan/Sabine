@@ -369,7 +369,7 @@ namespace Sabine.Zone.Network
 
 			packet.PutByte(1); // visible
 
-			if (Game.Version >= Versions.EP4)
+			if (Game.Version >= Versions.S350)
 			{
 				packet.PutByte((byte)level);
 			}

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data.Databases;
 using Sabine.Shared.L10N;
@@ -82,9 +83,9 @@ namespace Sabine.Zone.World.Actors
 		/// Returns the character's class id, which is equal to its
 		/// current job id.
 		/// </summary>
-		public override int ClassId
+		public override IdentityId IdentityId
 		{
-			get => (int)this.JobId;
+			get => (IdentityId)this.JobId;
 			protected set => throw new NotSupportedException();
 		}
 
@@ -157,6 +158,12 @@ namespace Sabine.Zone.World.Actors
 		public int ChatRoomId { get; set; }
 
 		/// <summary>
+		/// Gets or sets the item class id currently designated as ammo
+		/// for the character.
+		/// </summary>
+		public int AmmoClassId { get; set; }
+
+		/// <summary>
 		/// Creates a new character.
 		/// </summary>
 		public PlayerCharacter(JobId jobId)
@@ -195,6 +202,22 @@ namespace Sabine.Zone.World.Actors
 				format = string.Format(format, args);
 
 			var message = string.Format(Localization.Get("[Server] : {0}"), format);
+
+			Send.ZC_NOTIFY_CHAT(this, 0, message);
+		}
+
+		/// <summary>
+		/// Sends a debug message to the character's client that is
+		/// displayed in the chat log.
+		/// </summary>
+		/// <param name="format"></param>
+		/// <param name="args"></param>
+		public void DebugMessage(string format, params object[] args)
+		{
+			if (args.Length > 0)
+				format = string.Format(format, args);
+
+			var message = string.Format(Localization.Get("[Debug] : {0}"), format);
 
 			Send.ZC_NOTIFY_CHAT(this, 0, message);
 		}
@@ -444,12 +467,18 @@ namespace Sabine.Zone.World.Actors
 			switch (type)
 			{
 				case SpriteType.Hair: this.HairId = lookId; break;
-				case SpriteType.Weapon: this.WeaponId = lookId; break;
+				case SpriteType.Weapon: this.WeaponLook = lookId; break;
+				case SpriteType.HeadTop: this.HeadTopLook = lookId; break;
+				case SpriteType.HeadMiddle: this.HeadMiddleLook = lookId; break;
+				case SpriteType.HeadBottom: this.HeadBottomLook = lookId; break;
 				default:
 					throw new ArgumentException($"Unsupported type '{type}'.");
 			}
 
-			Send.ZC_SPRITE_CHANGE(this, type, lookId);
+			if (Game.Version < Versions.EP3_2)
+				Send.ZC_SPRITE_CHANGE(this, type, lookId);
+			else
+				Send.ZC_SPRITE_CHANGE2(this, type, lookId, 0);
 		}
 
 		/// <summary>
@@ -478,7 +507,10 @@ namespace Sabine.Zone.World.Actors
 			this.Heal();
 
 			// Visual change
-			Send.ZC_SPRITE_CHANGE(this, SpriteType.Class, (int)jobId);
+			if (Game.Version < Versions.EP3_2)
+				Send.ZC_SPRITE_CHANGE(this, SpriteType.Class, (int)jobId);
+			else
+				Send.ZC_SPRITE_CHANGE2(this, SpriteType.Class, (int)jobId, 0);
 
 			// Update client with new stats (Job Level 1, new Exp requirements, new HP/SP)
 			Send.ZC_STATUS(this);
@@ -501,11 +533,24 @@ namespace Sabine.Zone.World.Actors
 			// Range is 3 for normal attacks and 16 for ranged
 			// in the alpha client. This is hardcoded, based on
 			// the type of the item that was equipped.
+			if (Game.Version < Versions.Beta1)
+			{
+				if (this.Inventory.RightHand?.Type == ItemType.RangedWeapon)
+					return 16;
 
-			if (this.Inventory.RightHand?.Type == ItemType.RangedWeapon)
-				return 16;
+				return 3;
+			}
 
-			return 3;
+			// If you're coming here to check on the attack range of bows
+			// in Beta1, I can tell you that the behavior you're
+			// witnessing appears correct. While their range was hardcoded
+			// to 16 in the alpha, all the data I saw suggests that all
+			// bows had a range of 5 in the beta. That's what 2003 servers
+			// used and the db websites of the time don't mention ranges
+			// or range differences. But the range can be changed in the
+			// item data, so all is good in the world.
+
+			return this.Inventory.RightHand?.Data.AttackRange ?? 3;
 		}
 
 		/// <summary>

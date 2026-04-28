@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data;
@@ -154,38 +155,36 @@ namespace Sabine.Zone.World.Actors
 		private void LoadData(int classId)
 		{
 			if (!ZoneServer.Instance.Data.Items.TryFind(classId, out var data))
-				throw new ArgumentException($"Class id '{classId}' not found in database.");
+			{
+				if (!ZoneServer.Instance.Data.Items.TryFind(512, out data))
+					throw new ArgumentException($"Item with class id '{classId}' not found in database, fallback Apple also failed.");
+			}
 
-			ZoneServer.Instance.Data.ItemNames.TryFind(classId, out var nameData);
-
-			this.LoadData(data, nameData);
-		}
-
-		/// <summary>
-		/// Loads the given data.
-		/// </summary>
-		/// <param name="data"></param>
-		/// <param name="nameData"></param>
-		private void LoadData(ItemData data, ItemNameData nameData)
-		{
 			this.Data = data;
-			this.NameData = nameData;
 
 			// This solution isn't ideal, since it's very inflexible.
 			// However, there's only two known clients available that
 			// require string ids (Alpha and Beta1), and this is a
 			// simple solution to getting the correct strings to those
 			// two clients.
-			if (this.NameData != null)
+			if (ZoneServer.Instance.Data.ItemNames.TryFind(this.Data.ClassId, out var nameData))
 			{
-				if (Game.Version < Versions.Beta1)
-					this.StringId = this.NameData.AlphaName;
-				else
-					this.StringId = this.NameData.BetaName;
-			}
+				this.NameData = nameData;
 
-			if (this.StringId == null)
+				if (Game.Version < Versions.Beta1)
+					this.StringId = this.NameData.AlphaName ?? "Apple";
+				else
+					this.StringId = this.NameData.BetaName ?? "Apple";
+			}
+			// For <= Beta1 we fall back to Apple to prevent crashes
+			else if (Game.Version <= Versions.Beta1)
+			{
+				this.StringId = "Apple";
+			}
+			else
+			{
 				this.StringId = this.Data.Name;
+			}
 		}
 
 		/// <summary>
@@ -203,6 +202,34 @@ namespace Sabine.Zone.World.Actors
 			this.DropDisappearTime = DateTime.Now.AddSeconds(disappearSeconds);
 
 			map.AddItem(this);
+		}
+
+		/// <summary>
+		/// Returns the valid equip slots for this item on the given
+		/// character.
+		/// </summary>
+		/// <remarks>
+		/// Effectively nullifies the wear slots if the character can't
+		/// equip the item, which prevents the client from showing the
+		/// item as equippable. Affects only alpha clients.
+		/// </remarks>
+		/// <param name="character"></param>
+		/// <returns></returns>
+		public EquipSlots GetSlotsFor(PlayerCharacter character)
+		{
+			var wearSlots = this.WearSlots;
+
+			// Disable equipping by setting slots to None, because the
+			// alpha client doesn't react to equip fail packets, locking
+			// up the client. On newer versions we can leave the slots as
+			// is and gracefully decline in the packet handler.
+			if (Game.Version < Versions.Beta1)
+			{
+				if (!character.CanEquip(this))
+					wearSlots = EquipSlots.None;
+			}
+
+			return wearSlots;
 		}
 	}
 }

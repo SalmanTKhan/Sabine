@@ -1,94 +1,79 @@
-//--- Sabine Script Conversion ------------------------------------------
-// Automatically converted by convert_spawns.py utility.
+﻿//--- Sabine Script ---------------------------------------------------------
+// Prontera Monster Spawns
+//--- Description -----------------------------------------------------------
+// Sets up monster spawners in and around Prontera.
+//--- Credits ---------------------------------------------------------------
+// Athena (Dev 2.1.1), Prontera.net
 //---------------------------------------------------------------------------
 
-using System;
 using Sabine.Zone.Scripting;
+using static Sabine.Shared.Const.IdentityId;
 using static Sabine.Zone.Scripting.Shortcuts;
 
-public class PronteraMonstersScriptBeta1 : GeneralScript
+[RequiresMaps("prt_fild00", "prt_fild01", "prt_maze01")]
+public class PronteraMonstersScript_200 : GeneralScript
 {
 	public override void Load()
 	{
-		if (!MapsExist("prt_fild00", "prt_fild01", "prt_fild02", "prt_fild03", "prt_fild04", "prt_fild05", "prt_fild06", "prt_fild07", "prt_fild08"))
-			return;
+		AddSpawner("prt_fild00", "Poring", JT_PORING, 10);
+		AddSpawner("prt_fild00", "Lunatic", JT_LUNATIC, 5);
+		AddSpawner("prt_fild00", "Fabre", JT_FABRE, 10);
+		AddSpawner("prt_fild00", "Pupa", JT_PUPA, 10);
+		AddSpawner("prt_fild00", "Creamy", JT_CREAMY, 5);
+		AddSpawner("prt_fild00", "Roda Frog", JT_RODA_FROG, 15);
+		AddSpawner("prt_fild00", "Hornet", JT_HORNET, 5);
 
-		// Spawns for prt_fild00
-		AddSpawner("prt_fild00", "Creamy", 1018, 10);
-		AddSpawner("prt_fild00", "Fabre", 1007, 20);
-		AddSpawner("prt_fild00", "Pupa", 1008, 30);
-		AddSpawner("prt_fild00", "Lunatic", 1063, 30);
-		AddSpawner("prt_fild00", "Poring", 1002, 40);
-		AddSpawner("prt_fild00", "Hornet", 1004, 70);
-		AddSpawner("prt_fild00", "Shining Plant", 1083, 1, 227, 212, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(30));
-		AddSpawner("prt_fild00", "Green Plant", 1080, 5, 285, 138, 10, 10, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(6));
+		AddSpawner("prt_fild01", "Poring", JT_PORING, 10);
+		AddSpawner("prt_fild01", "Lunatic", JT_LUNATIC, 5);
+		AddSpawner("prt_fild01", "Fabre", JT_FABRE, 10);
+		AddSpawner("prt_fild01", "Pupa", JT_PUPA, 5);
+		AddSpawner("prt_fild01", "Thief Bug Egg", JT_THIEF_BUG_EGG, 10);
+		AddSpawner("prt_fild01", "Roda Frog", JT_RODA_FROG, 5);
 
-		// Spawns for prt_fild01
-		AddSpawner("prt_fild01", "Thief Bug", 1051, 30);
-		AddSpawner("prt_fild01", "Fabre", 1007, 20);
-		AddSpawner("prt_fild01", "Pupa", 1008, 10);
-		AddSpawner("prt_fild01", "Lunatic", 1063, 80);
-		AddSpawner("prt_fild01", "Poring", 1002, 30);
-		AddSpawner("prt_fild01", "Green Plant", 1080, 3, 199, 266, 3, 3, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(6));
-		AddSpawner("prt_fild01", "Blue Plant", 1079, 1, 199, 266, 3, 3, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(15));
+		AddSpawner("prt_fild02", "Thief Bug", JT_THIEF_BUG, 20);
+		AddSpawner("prt_fild02", "Thief Bug", JT_THIEF_BUG_, 10);
+		AddSpawner("prt_fild00", "Roda Frog", JT_RODA_FROG, 15);
+		AddSpawner("prt_fild03", "Yoyo", JT_YOYO, 5);
+		AddSpawner("prt_fild01", "Orc Hero", JT_ORK_HERO, 1, initialDelay: Hours(3), respawnDelay: Hours(6));
 
-		// Spawns for prt_fild02
-		AddSpawner("prt_fild02", "Mandragora", 1020, 70);
-		AddSpawner("prt_fild02", "Fabre", 1007, 50);
-		AddSpawner("prt_fild02", "Pupa", 1008, 20);
-		AddSpawner("prt_fild02", "Lunatic", 1063, 10);
-		AddSpawner("prt_fild02", "Poring", 1002, 30);
-		AddSpawner("prt_fild02", "Eclipse", 1093, 1, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(30));
-		AddSpawner("prt_fild02", "Shining Plant", 1083, 1, 339, 309, 3, 3, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(30));
-		AddSpawner("prt_fild02", "Shining Plant", 1083, 2, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(30));
+		AddSpawner("prt_fild03", "Lunatic", JT_LUNATIC, 10);
+		AddSpawner("prt_fild03", "Fabre", JT_FABRE, 5);
+		AddSpawner("prt_fild03", "Pupa", JT_PUPA, 15);
+		AddSpawner("prt_fild03", "Creamy", JT_CREAMY, 10);
+		AddSpawner("prt_fild03", "Thief Bug Egg", JT_THIEF_BUG_EGG, 10);
+		AddSpawner("prt_fild03", "Poporing", JT_POPORING, 10);
+		AddSpawner("prt_fild03", "Yoyo", JT_YOYO, 5);
 
-		// Spawns for prt_fild03
-		AddSpawner("prt_fild03", "Yoyo", 1057, 80);
-		AddSpawner("prt_fild03", "Smokie", 1056, 40);
-		AddSpawner("prt_fild03", "Choco", 1214, 1);
-		AddSpawner("prt_fild03", "Poporing", 1031, 10);
-		AddSpawner("prt_fild03", "Green Plant", 1080, 5, 296, 58, 15, 15, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("prt_fild03", "Blue Plant", 1079, 2, 296, 58, 15, 15, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(15));
-		AddSpawner("prt_fild03", "Green Plant", 1080, 5, 307, 75, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(6));
-		AddSpawner("prt_fild03", "Green Plant", 1080, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(6));
-		AddSpawner("prt_fild03", "Green Plant", 1080, 5, 148, 107, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(6));
+		AddSpawner("prt_fild04", "Poring", JT_PORING, 10);
+		AddSpawner("prt_fild04", "Lunatic", JT_LUNATIC, 10);
+		AddSpawner("prt_fild04", "Roda Frog", JT_RODA_FROG, 10);
+		AddSpawner("prt_fild04", "Hornet", JT_HORNET, 15);
+		AddSpawner("prt_fild04", "Rocker", JT_ROCKER, 10);
 
-		// Spawns for prt_fild04
-		AddSpawner("prt_fild04", "Rocker", 1052, 70);
-		AddSpawner("prt_fild04", "Creamy", 1018, 40);
-		AddSpawner("prt_fild04", "Pupa", 1008, 10);
-		AddSpawner("prt_fild04", "Poring", 1002, 30);
-		AddSpawner("prt_fild04", "Vocal", 1088, 1, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(30));
-		AddSpawner("prt_fild04", "Green Plant", 1080, 5, 350, 114, 10, 10, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(15));
+		AddSpawner("prt_fild05", "Poring", JT_PORING, 10);
+		AddSpawner("prt_fild05", "Lunatic", JT_LUNATIC, 10);
+		AddSpawner("prt_fild05", "Fabre", JT_FABRE, 5);
+		AddSpawner("prt_fild05", "Pupa", JT_PUPA, 5);
+		AddSpawner("prt_fild05", "Elder Willow", JT_ELDER_WILOW, 5);
 
-		// Spawns for prt_fild05
-		AddSpawner("prt_fild05", "Poring", 1002, 70);
-		AddSpawner("prt_fild05", "Thief Bug Egg", 1048, 20);
-		AddSpawner("prt_fild05", "Lunatic", 1063, 30);
-		AddSpawner("prt_fild05", "Pupa", 1008, 30);
-		AddSpawner("prt_fild05", "Thief Bug", 1051, 10);
-		AddSpawner("prt_fild05", "Green Plant", 1080, 6, 208, 37, 10, 10, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(15));
-		AddSpawner("prt_fild05", "Blue Plant", 1079, 1, 208, 37, 10, 10, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(15));
+		AddSpawner("prt_fild06", "Poring", JT_PORING, 5);
+		AddSpawner("prt_fild06", "Lunatic", JT_LUNATIC, 5);
+		AddSpawner("prt_fild06", "Fabre", JT_FABRE, 5);
+		AddSpawner("prt_fild06", "Pupa", JT_PUPA, 10);
+		AddSpawner("prt_fild06", "Roda Frog", JT_RODA_FROG, 5);
+		AddSpawner("prt_fild06", "Thief Bug Egg", JT_THIEF_BUG_EGG, 10);
+		AddSpawner("prt_fild06", "Thief Bug", JT_THIEF_BUG, 5);
 
-		// Spawns for prt_fild06
-		AddSpawner("prt_fild06", "Lunatic", 1063, 60);
-		AddSpawner("prt_fild06", "Thief Bug Egg", 1048, 20);
-		AddSpawner("prt_fild06", "Thief Bug", 1051, 10);
-		AddSpawner("prt_fild06", "Pupa", 1008, 20);
-		AddSpawner("prt_fild06", "Poring", 1002, 60);
-		AddSpawner("prt_fild06", "Green Plant", 1080, 15, 222, 30, 40, 10, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(15));
+		AddSpawner("prt_fild07", "Roda Frog", JT_RODA_FROG, 10);
+		AddSpawner("prt_fild07", "Rocker", JT_ROCKER, 10);
+		AddSpawner("prt_fild07", "Smokie", JT_SMOKIE, 10);
+		AddSpawner("prt_fild07", "Elder Willow", JT_ELDER_WILOW, 10);
 
-		// Spawns for prt_fild07
-		AddSpawner("prt_fild07", "Rocker", 1052, 80);
-		AddSpawner("prt_fild07", "Poporing", 1031, 30);
-		AddSpawner("prt_fild07", "Vocal", 1088, 1, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(30));
-		AddSpawner("prt_fild07", "Black Mushroom", 1084, 3, 225, 110, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(6));
-
-		// Spawns for prt_fild08
-		AddSpawner("prt_fild08", "Lunatic", 1063, 40);
-		AddSpawner("prt_fild08", "Pupa", 1008, 20);
-		AddSpawner("prt_fild08", "Poring", 1002, 70);
-		AddSpawner("prt_fild08", "Drops", 1113, 10);
-
+		AddSpawner("prt_fild08", "Poring", JT_PORING, 10);
+		AddSpawner("prt_fild08", "Lunatic", JT_LUNATIC, 15);
+		AddSpawner("prt_fild08", "Fabre", JT_FABRE, 5);
+		AddSpawner("prt_fild08", "Pupa", JT_PUPA, 10);
+		AddSpawner("prt_fild08", "Chonchon", JT_CHONCHON, 5);
+		AddSpawner("prt_fild08", "Roda Frog", JT_RODA_FROG, 15);
 	}
 }

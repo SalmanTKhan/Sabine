@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Sabine.Shared.Const;
 using Sabine.Shared.World;
 using Sabine.Zone.Ais;
 using Sabine.Zone.World.Actors;
@@ -17,9 +18,9 @@ namespace Sabine.Zone.World.Spawning
 		private bool _disposed;
 
 		/// <summary>
-		/// Returns the id of the monster that is being spawned.
+		/// Returns the identity id of the monster that is being spawned.
 		/// </summary>
-		public int MonsterId { get; }
+		public IdentityId IdentityId { get; }
 
 		/// <summary>
 		/// Returns the maximum amount of monsters to spawn.
@@ -57,13 +58,13 @@ namespace Sabine.Zone.World.Spawning
 		/// <summary>
 		/// Creates new map-wide spawner.
 		/// </summary>
-		/// <param name="monsterClassId"></param>
+		/// <param name="identityId"></param>
 		/// <param name="amount"></param>
 		/// <param name="initialDelay"></param>
 		/// <param name="respawnDelayMin"></param>
 		/// <param name="respawnDelayMax"></param>
 		/// <param name="mapId"></param>
-		public Spawner(int monsterClassId, int amount, TimeSpan initialDelay, TimeSpan respawnDelayMin, TimeSpan respawnDelayMax, int mapId)
+		public Spawner(IdentityId identityId, int amount, TimeSpan initialDelay, TimeSpan respawnDelayMin, TimeSpan respawnDelayMax, int mapId)
 		{
 			if (!ZoneServer.Instance.World.Maps.TryGet(mapId, out var map))
 				throw new ArgumentException($"Map {mapId} not found.");
@@ -76,7 +77,7 @@ namespace Sabine.Zone.World.Spawning
 			if (respawnDelayMax < respawnDelayMin)
 				respawnDelayMax = respawnDelayMin;
 
-			this.MonsterId = monsterClassId;
+			this.IdentityId = identityId;
 			this.Amount = amount;
 			this.InitialDelay = initialDelay;
 			this.RespawnDelayMin = respawnDelayMin;
@@ -92,8 +93,8 @@ namespace Sabine.Zone.World.Spawning
 		/// <summary>
 		/// Area-specific spawner.
 		/// </summary>
-		public Spawner(int monsterClassId, int amount, TimeSpan initialDelay, TimeSpan respawnDelayMin, TimeSpan respawnDelayMax, int mapId, int x, int y, int spanX, int spanY)
-			: this(monsterClassId, amount, initialDelay, respawnDelayMin, respawnDelayMax, mapId)
+		public Spawner(IdentityId identityId, int amount, TimeSpan initialDelay, TimeSpan respawnDelayMin, TimeSpan respawnDelayMax, int mapId, int x, int y, int spanX, int spanY)
+			: this(identityId, amount, initialDelay, respawnDelayMin, respawnDelayMax, mapId)
 		{
 			this.SpawnCenter = new Position(x, y);
 			this.SpawnSpanX = spanX;
@@ -162,7 +163,7 @@ namespace Sabine.Zone.World.Spawning
 				pos = this.Map.GetRandomWalkablePosition();
 			}
 
-			var monster = new Monster(this.MonsterId);
+			var monster = new Monster(this.IdentityId);
 			monster.Killed += this.OnMonsterKilled;
 
 			if (monster.Data.AiName != null)

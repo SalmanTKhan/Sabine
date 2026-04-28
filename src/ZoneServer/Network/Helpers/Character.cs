@@ -1,4 +1,5 @@
 ﻿using Sabine.Shared;
+using Sabine.Shared.Const;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.World;
@@ -31,14 +32,14 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutByte(0);  // Status Effects?
 				}
 
-				packet.PutByte((byte)character.DisplayClassId);
+				packet.PutByte((byte)character.IdentityId.ToNetwork());
 				packet.PutByte((byte)character.Sex);
 				packet.AddPackedPosition(character.Position, character.Direction);
 				packet.PutByte(0);
 				packet.PutByte(0);
 				packet.PutByte((byte)character.HairId);
-				packet.PutByte((byte)character.WeaponId);
-				packet.PutByte((byte)character.HeadTopId);
+				packet.PutByte((byte)character.WeaponLook);
+				packet.PutByte((byte)character.HeadBottomLook);
 				packet.PutByte((byte)character.State);
 			}
 			else
@@ -46,13 +47,13 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
-				packet.PutShort((short)character.DisplayClassId);
+				packet.PutShort((short)character.IdentityId.ToNetwork());
 				packet.PutShort((short)character.HairId);
-				packet.PutShort((short)character.WeaponId);
-				packet.PutShort(0);     // Head1
+				packet.PutShort((short)character.WeaponLook);
+				packet.PutShort((short)character.HeadBottomLook);
 				packet.PutShort(0);     // Shield
-				packet.PutShort(0);     // Head2
-				packet.PutShort(0);     // Head3
+				packet.PutShort((short)character.HeadTopLook);
+				packet.PutShort((short)character.HeadMiddleLook);
 				packet.PutShort(0);     // HairColor
 				packet.PutShort(0);     // ClothesColor
 				packet.PutShort((short)character.HeadTurn);
@@ -67,7 +68,7 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutByte(0);      // ?
 				packet.PutByte((byte)character.State);
 
-				if (Game.Version >= Versions.EP4)
+				if (Game.Version >= Versions.EP5)
 					packet.PutShort(0); // ?
 			}
 		}
@@ -82,7 +83,7 @@ namespace Sabine.Zone.Network.Helpers
 			packet.PutInt(character.Handle);
 			packet.PutShort((short)character.Speed);
 
-			if (Game.Version < Versions.EP4)
+			if (Game.Version < Versions.EP5)
 			{
 				if (Game.Version >= Versions.Beta1)
 				{
@@ -92,27 +93,27 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutByte(0);  // Status Effects?
 				}
 
-				packet.PutByte((byte)character.DisplayClassId);
+				packet.PutByte((byte)character.IdentityId.ToNetwork());
 				packet.PutByte((byte)character.Sex);
 				packet.AddPackedPosition(character.Position, character.Direction);
 				packet.PutByte(0);
 				packet.PutByte(0);
 				packet.PutByte((byte)character.HairId);
-				packet.PutByte((byte)character.WeaponId);
-				packet.PutByte((byte)character.HeadTopId);
+				packet.PutByte((byte)character.WeaponLook);
+				packet.PutByte((byte)character.HeadBottomLook);
 			}
 			else
 			{
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
-				packet.PutShort((short)character.DisplayClassId);
+				packet.PutShort((short)character.IdentityId.ToNetwork());
 				packet.PutShort((short)character.HairId);
-				packet.PutShort((short)character.WeaponId);
-				packet.PutShort(0);     // Head1?
+				packet.PutShort((short)character.WeaponLook);
+				packet.PutShort((short)character.HeadBottomLook);
 				packet.PutShort(0);     // Shield?
-				packet.PutShort(0);     // Head2?
-				packet.PutShort(0);     // Head3?
+				packet.PutShort((short)character.HeadTopLook);
+				packet.PutShort((short)character.HeadMiddleLook);
 				packet.PutShort(0);     // HairColor?
 				packet.PutShort(0);     // ClothesColor?
 				packet.PutShort(0);     // HeadDir?
@@ -144,27 +145,27 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutByte(0);  // Status Effects?
 				}
 
-				packet.PutByte((byte)character.DisplayClassId);
+				packet.PutByte((byte)character.IdentityId.ToNetwork());
 				packet.PutByte((byte)character.Sex);
 				packet.AddPackedPosition(character.Position, character.Direction);
 				packet.PutByte(0);
 				packet.PutByte(0);
 				packet.PutByte((byte)character.HairId);
-				packet.PutByte((byte)character.WeaponId);
-				packet.PutByte((byte)character.HeadTopId);
+				packet.PutByte((byte)character.WeaponLook);
+				packet.PutByte((byte)character.HeadBottomLook);
 			}
 			else
 			{
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
-				packet.PutShort((short)character.DisplayClassId);
+				packet.PutShort((short)character.IdentityId.ToNetwork());
 				packet.PutShort((short)character.HairId);
-				packet.PutShort((short)character.WeaponId);
-				packet.PutShort(0);     // Head1
-				packet.PutShort(0);     // Shield
-				packet.PutShort(0);     // Head2
-				packet.PutShort(0);     // Head3
+				packet.PutShort((short)character.WeaponLook);
+				packet.PutShort((short)character.HeadBottomLook);
+				packet.PutShort(0);     // Shield?
+				packet.PutShort((short)character.HeadTopLook);
+				packet.PutShort((short)character.HeadMiddleLook);
 				packet.PutShort(0);     // HairColor
 				packet.PutShort(0);     // ClothesColor
 				packet.PutShort(0);     // HeadDir
@@ -178,7 +179,7 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutByte(0);      // ?
 				packet.PutByte(0);      // ?
 
-				if (Game.Version >= Versions.EP4)
+				if (Game.Version >= Versions.EP5)
 					packet.PutShort(0); // ?
 			}
 		}
@@ -205,13 +206,13 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutByte(0);
 				}
 
-				packet.PutByte((byte)character.DisplayClassId);
+				packet.PutByte((byte)character.IdentityId.ToNetwork());
 				packet.PutByte((byte)character.Sex);
 				packet.AddPackedMove(from, to, 8, 8);
 				packet.PutShort(0);
 				packet.PutByte((byte)character.HairId);
-				packet.PutByte((byte)character.WeaponId);
-				packet.PutByte(0);
+				packet.PutByte((byte)character.WeaponLook);
+				packet.PutByte((byte)character.HeadBottomLook);
 				packet.PutInt(Game.GetTick());
 			}
 			else
@@ -219,14 +220,14 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
-				packet.PutShort((short)character.DisplayClassId);
+				packet.PutShort((short)character.IdentityId.ToNetwork());
 				packet.PutShort((short)character.HairId);
-				packet.PutShort((short)character.WeaponId);
-				packet.PutShort(0);     // Head1
+				packet.PutShort((short)character.WeaponLook);
+				packet.PutShort((short)character.HeadBottomLook);
 				packet.PutInt(Game.GetTick());
 				packet.PutShort(0);     // Shield
-				packet.PutShort(0);     // Head2
-				packet.PutShort(0);     // Head3
+				packet.PutShort((short)character.HeadTopLook);
+				packet.PutShort((short)character.HeadMiddleLook);
 				packet.PutShort(0);     // HairColor
 				packet.PutShort(0);     // ClothesColor
 				packet.PutShort(0);     // HeadDir
@@ -240,7 +241,7 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutByte(0);      // ?
 				packet.PutByte(0);      // ?
 
-				if (Game.Version >= Versions.EP4)
+				if (Game.Version >= Versions.EP5)
 					packet.PutShort(0); // ?
 			}
 		}

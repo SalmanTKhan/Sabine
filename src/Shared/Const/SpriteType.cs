@@ -5,21 +5,35 @@
 	/// </summary>
 	public enum SpriteType : short
 	{
+#pragma warning disable CA1069 // Enums values should not be duplicated
+
+		// Alpha/Beta1
+		Class = 0,
 		Base = 0,
 		Hair = 1,
 		Weapon = 2,
+		Head = 3,
+
+		// Beta2
 		HeadBottom = 3,
 		HeadTop = 4,
+		HeadMiddle = 5,
 		HeadMid = 5,
 		HairColor = 6,
 		ClothesColor = 7,
 		Shield = 8,
-		Shoes = 9,
+
+		// Type 9 is mentioned in eA as a shoe type, but it doesn't seem
+		// like it was ever used. A type 9 does exist in the client though,
+		// seen in ZC_SPRITE_CHANGE2 on eu20040512, and applied only for
+		// other players.
+		//Shoes = 9,
+
+		// Newer-client additions
 		Body = 10,
 		Robe = 12,
 		Body2 = 13,
 
-		// Old client compatibility alias
-		Class = Base,
+#pragma warning restore CA1069 // Enums values should not be duplicated
 	}
 }

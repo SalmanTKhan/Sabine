@@ -73,20 +73,20 @@ namespace Sabine.Char.Network.Helpers
 				packet.PutByte((byte)character.Slot);
 				packet.PutByte(0); // Gap
 				packet.PutByte((byte)character.HairId);
-				packet.PutByte((byte)character.WeaponId);
-				packet.PutByte((byte)character.HeadTopId);
+				packet.PutByte((byte)character.WeaponLook);
+				packet.PutByte((byte)character.HeadBottomLook);
 			}
 			else
 			{
 				packet.PutShort((short)character.JobId);
 				packet.PutShort((short)character.HairId);
-				packet.PutShort((short)character.WeaponId);
+				packet.PutShort((short)character.WeaponLook);
 				packet.PutShort((short)character.BaseLevel);
 				packet.PutShort(0); // SkillPoints
-				packet.PutShort(0); // HeadBottomId
+				packet.PutShort((short)character.HeadBottomLook);
 				packet.PutShort(0); // ShieldId
-				packet.PutShort((byte)character.HeadTopId);
-				packet.PutShort(0); // HeadMidId
+				packet.PutShort((short)character.HeadTopLook);
+				packet.PutShort((short)character.HeadMiddleLook);
 				packet.PutShort((short)character.HairColorId);
 				packet.PutShort(0); // ClothesColorId
 				packet.PutString(character.Name, Sizes.CharacterNames);
