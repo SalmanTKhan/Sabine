@@ -41,6 +41,18 @@ namespace Sabine.Zone.World.Actors
 		public Inventory Inventory { get; }
 
 		/// <summary>
+		/// Returns a reference to the character's quest list.
+		/// </summary>
+		public QuestList Quests { get; }
+
+		/// <summary>
+		/// Equipment-flavored alias for <see cref="Inventory"/>. Lets converted
+		/// scripts read <c>player.Equipment.IsEquipped(...)</c> the way rAthena
+		/// expresses it without forcing a separate component.
+		/// </summary>
+		public Inventory Equipment => this.Inventory;
+
+		/// <summary>
 		/// Returns this character's username.
 		/// </summary>
 		public override string Username => this.Connection.Account.Username;
@@ -170,6 +182,7 @@ namespace Sabine.Zone.World.Actors
 		{
 			this.JobId = jobId;
 			this.Inventory = new Inventory(this);
+			this.Quests = new QuestList(this);
 
 			this.Parameters = new PlayerCharacterParameters(this);
 			this.Components.Add(new RegenComponent(this));

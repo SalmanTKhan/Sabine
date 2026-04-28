@@ -23,6 +23,25 @@ namespace Sabine.Zone.Scripting
 		private static long AnonymousShopCounter = 1;
 
 		/// <summary>
+		/// Returns the map name with any trailing client-side suffix removed.
+		/// Scripts converted from rAthena/eAthena occasionally carry a
+		/// ".gat" or ".rsw" suffix; centralizing the strip here keeps every
+		/// other shortcut from having to repeat the check.
+		/// </summary>
+		private static string NormalizeMapName(string mapStringId)
+		{
+			if (string.IsNullOrEmpty(mapStringId))
+				return mapStringId;
+
+			if (mapStringId.EndsWith(".gat", StringComparison.OrdinalIgnoreCase))
+				return mapStringId[..^4];
+			if (mapStringId.EndsWith(".rsw", StringComparison.OrdinalIgnoreCase))
+				return mapStringId[..^4];
+
+			return mapStringId;
+		}
+
+		/// <summary>
 		/// A function that initializes a shop.
 		/// </summary>
 		/// <param name="shop"></param>
@@ -123,8 +142,7 @@ namespace Sabine.Zone.Scripting
 		/// <exception cref="ArgumentException"></exception>
 		public static Npc AddNpc(string name, FlexIdentityId identityId, string mapStringId, int x, int y, Direction direction, DialogFunc dialogFunc = null)
 		{
-			if (mapStringId.EndsWith(".gat"))
-				mapStringId = mapStringId.Substring(0, mapStringId.Length - 4);
+			mapStringId = NormalizeMapName(mapStringId);
 
 			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
 				throw new ArgumentException($"Map '{mapStringId}' not found.");
@@ -232,6 +250,8 @@ namespace Sabine.Zone.Scripting
 		/// <exception cref="ArgumentException"></exception>
 		public static Npc AddWarpTrigger(string mapStringId, int x, int y, int rangeX, int rangeY, TriggerFunc triggerFunc)
 		{
+			mapStringId = NormalizeMapName(mapStringId);
+
 			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
 				throw new ArgumentException($"Map '{mapStringId}' not found.");
 
@@ -297,6 +317,8 @@ namespace Sabine.Zone.Scripting
 		/// <returns></returns>
 		private static Location ToLocation(string mapStringId, int x, int y)
 		{
+			mapStringId = NormalizeMapName(mapStringId);
+
 			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
 				throw new ArgumentException($"Map '{mapStringId}' not found.");
 
@@ -323,8 +345,7 @@ namespace Sabine.Zone.Scripting
 		/// </summary>
 		public static void AddSpawner(string mapStringId, string monsterName, IdentityId monsterId, int amount, int x, int y, int spanX, int spanY, TimeSpan initialDelay, TimeSpan respawnDelayMin, TimeSpan respawnDelayMax)
 		{
-			if (mapStringId.EndsWith(".gat"))
-				mapStringId = mapStringId.Substring(0, mapStringId.Length - 4);
+			mapStringId = NormalizeMapName(mapStringId);
 
 			if (!ZoneServer.Instance.Data.Monsters.TryFind(monsterId, out var monsterData))
 				return;
@@ -388,8 +409,7 @@ namespace Sabine.Zone.Scripting
 		/// <param name="respawnDelayMax"></param>
 		public static void AddSpawner(string mapStringId, string monsterName, FlexIdentityId identityId, int amount, TimeSpan initialDelay, TimeSpan respawnDelayMin, TimeSpan respawnDelayMax)
 		{
-			if (mapStringId.EndsWith(".gat"))
-				mapStringId = mapStringId.Substring(0, mapStringId.Length - 4);
+			mapStringId = NormalizeMapName(mapStringId);
 
 			if (!ZoneServer.Instance.Data.Monsters.TryFind(identityId, out var monsterData))
 				return;
@@ -413,7 +433,7 @@ namespace Sabine.Zone.Scripting
 		{
 			foreach (var stringId in mapStringIds)
 			{
-				if (!ZoneServer.Instance.World.Maps.TryGetByStringId(stringId, out _))
+				if (!ZoneServer.Instance.World.Maps.TryGetByStringId(NormalizeMapName(stringId), out _))
 					return false;
 			}
 

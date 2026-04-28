@@ -67,15 +67,6 @@ CREATE TABLE `vars_character` (
   `value` mediumtext NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=COMPACT;
 
-CREATE TABLE IF NOT EXISTS `updates` (
-  `path` varchar(255) NOT NULL,
-  PRIMARY KEY (`path`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-INSERT INTO `updates` (`path`) VALUES
-('main.sql');
-
-
 ALTER TABLE `accounts`
   ADD PRIMARY KEY (`accountId`);
 

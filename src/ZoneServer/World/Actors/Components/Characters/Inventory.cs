@@ -542,6 +542,38 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Returns the total amount of an item across all stacks in the
+		/// inventory. Equivalent to rAthena's <c>countitem</c>.
+		/// </summary>
+		/// <param name="classId"></param>
+		public int CountItem(int classId)
+		{
+			var count = 0;
+
+			lock (_syncLock)
+			{
+				foreach (var item in _items)
+				{
+					if (item.ClassId == classId)
+						count += item.Amount;
+				}
+			}
+
+			return count;
+		}
+
+		/// <summary>
+		/// Returns true if any item is equipped on the given slot.
+		/// Mirrors rAthena's <c>getequipisequiped</c>.
+		/// </summary>
+		/// <param name="slot"></param>
+		public bool IsEquipped(EquipSlots slot)
+		{
+			lock (_syncLock)
+				return (_occupiedSlots & slot) != 0;
+		}
+
+		/// <summary>
 		/// Returns true if the inventory contains at least the given
 		/// amount of the item.
 		/// </summary>

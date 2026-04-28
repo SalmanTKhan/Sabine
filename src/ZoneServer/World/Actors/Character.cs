@@ -224,6 +224,22 @@ namespace Sabine.Zone.World.Actors
 		public abstract void Warp(Location location);
 
 		/// <summary>
+		/// Plays an emote above this character. Mirrors rAthena's
+		/// <c>emotion</c> script command.
+		/// </summary>
+		/// <param name="emotionId"></param>
+		public void Emote(EmotionId emotionId)
+			=> Send.ZC_EMOTION(this, emotionId);
+
+		/// <summary>
+		/// int-id overload, used by auto-converted scripts that pass
+		/// raw rAthena ET_* numeric constants.
+		/// </summary>
+		/// <param name="emotionId"></param>
+		public void Emote(int emotionId)
+			=> this.Emote((EmotionId)emotionId);
+
+		/// <summary>
 		/// Sets character's map id and position.
 		/// </summary>
 		/// <param name="location"></param>
