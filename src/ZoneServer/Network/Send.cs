@@ -1811,6 +1811,13 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		/// <param name="effectId"></param>
 		public static void ZC_NOTIFY_EFFECT(PlayerCharacter character, int effectId)
+			=> ZC_NOTIFY_EFFECT((Character)character, effectId);
+
+		/// <summary>
+		/// Character-base overload of <see cref="ZC_NOTIFY_EFFECT"/>, so
+		/// NPCs and monsters can also be the source of an effect.
+		/// </summary>
+		public static void ZC_NOTIFY_EFFECT(Character character, int effectId)
 		{
 			using var packet = Packet.Rent(Op.ZC_NOTIFY_EFFECT);
 
@@ -1832,6 +1839,12 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		/// <param name="effectId"></param>
 		public static void ZC_NOTIFY_EFFECT2(PlayerCharacter character, EffectId effectId)
+			=> ZC_NOTIFY_EFFECT2((Character)character, effectId);
+
+		/// <summary>
+		/// Character-base overload of <see cref="ZC_NOTIFY_EFFECT2"/>.
+		/// </summary>
+		public static void ZC_NOTIFY_EFFECT2(Character character, EffectId effectId)
 		{
 			using var packet = Packet.Rent(Op.ZC_NOTIFY_EFFECT2);
 

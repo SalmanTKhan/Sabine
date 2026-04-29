@@ -727,6 +727,74 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Heals a percentage of the character's max HP and SP. Mirrors
+		/// rAthena's <c>percentheal</c>. Negative values damage instead
+		/// of heal. Values are clamped to [-100, 100].
+		/// </summary>
+		/// <param name="hpPercent">Percentage of max HP to restore (or remove, if negative).</param>
+		/// <param name="spPercent">Percentage of max SP to restore (or remove, if negative).</param>
+		public void HealPercent(int hpPercent, int spPercent)
+		{
+			hpPercent = Math.Clamp(hpPercent, -100, 100);
+			spPercent = Math.Clamp(spPercent, -100, 100);
+
+			if (hpPercent != 0)
+			{
+				var hpAmount = (int)((long)this.Parameters.HpMax * hpPercent / 100);
+				this.HealHp(hpAmount);
+			}
+
+			if (spPercent != 0)
+			{
+				var spAmount = (int)((long)this.Parameters.SpMax * spPercent / 100);
+				this.HealSp(spAmount);
+			}
+		}
+
+		/// <summary>
+		/// True if movement requests from this player should be ignored.
+		/// Set via <see cref="SetMovementBlock"/> / rAthena's
+		/// <c>setpcblock(PCBLOCK_MOVE, 1)</c>.
+		/// </summary>
+		public bool MovementBlocked { get; private set; }
+
+		/// <summary>
+		/// True if skill use requests from this player should be ignored.
+		/// Set via <see cref="SetSkillBlock"/> / rAthena's
+		/// <c>setpcblock(PCBLOCK_SKILL, 1)</c>.
+		/// </summary>
+		public bool SkillBlocked { get; private set; }
+
+		/// <summary>
+		/// Toggles the movement block flag for this player.
+		/// </summary>
+		public void SetMovementBlock(bool blocked)
+		{
+			this.MovementBlocked = blocked;
+		}
+
+		/// <summary>
+		/// Toggles the skill block flag for this player.
+		/// </summary>
+		public void SetSkillBlock(bool blocked)
+		{
+			this.SkillBlocked = blocked;
+		}
+
+		/// <summary>
+		/// Sets a marker on the player's minimap. Stub: alpha-era
+		/// clients have no compass/viewpoint packet, so this is a
+		/// no-op + debug log. Mirrors rAthena's <c>viewpoint</c>.
+		/// </summary>
+		/// <param name="id">Marker id.</param>
+		/// <param name="pos">Map position.</param>
+		/// <param name="color">Marker color (RGB int).</param>
+		public void SetMinimapMark(int id, MapPos pos, int color)
+		{
+			Log.Debug("PlayerCharacter.SetMinimapMark: stubbed for alpha client (player='{0}', id={1}, pos={2}, color=0x{3:X6}).", this.Name, id, pos, color);
+		}
+
+		/// <summary>
 		/// Kills the character.
 		/// </summary>
 		/// <param name="killer"></param>
@@ -801,5 +869,26 @@ namespace Sabine.Zone.World.Actors
 
 			CallSafe(RunNpcDialogAsync());
 		}
+	}
+
+	/// <summary>
+	/// Map position struct for minimap markers and similar APIs that
+	/// need a (map, x, y) tuple. Map is identified by string id (the
+	/// rAthena-friendly form).
+	/// </summary>
+	public readonly struct MapPos
+	{
+		public string MapStringId { get; }
+		public int X { get; }
+		public int Y { get; }
+
+		public MapPos(string mapStringId, int x, int y)
+		{
+			this.MapStringId = mapStringId;
+			this.X = x;
+			this.Y = y;
+		}
+
+		public override string ToString() => $"{this.MapStringId} ({this.X},{this.Y})";
 	}
 }

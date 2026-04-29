@@ -552,5 +552,51 @@ namespace Sabine.Zone.World.Actors
 
 			return pos.InRange(targetPos, range);
 		}
+
+		/// <summary>
+		/// Plays a special effect at the character's position, visible
+		/// to all players in sight. Mirrors rAthena's <c>specialeffect</c>.
+		/// </summary>
+		/// <param name="effectId">Numeric effect id (raw rAthena EF_* constant).</param>
+		public void SendSpecialEffect(int effectId)
+		{
+			Send.ZC_NOTIFY_EFFECT(this, effectId);
+		}
+
+		/// <summary>
+		/// Plays a special effect at the character's position using the
+		/// later, more general effect packet. Mirrors rAthena's
+		/// <c>specialeffect2</c>.
+		/// </summary>
+		public void SendSpecialEffect2(EffectId effectId)
+		{
+			Send.ZC_NOTIFY_EFFECT2(this, effectId);
+		}
+
+		/// <summary>
+		/// Plays a sound effect at this character's position. Stub:
+		/// alpha-era clients have no sound effect packet, so this is a
+		/// no-op + debug log. Mirrors rAthena's <c>soundeffect</c>.
+		/// </summary>
+		/// <param name="wav">WAV file name.</param>
+		/// <param name="type">0 = play once, 1 = stop.</param>
+		public void PlaySound(string wav, int type)
+		{
+			Log.Debug("Character.PlaySound: stubbed for alpha client (character='{0}', wav='{1}', type={2}).", this.Name, wav, type);
+		}
+
+		/// <summary>
+		/// Sends a chat-bubble message above the character to nearby
+		/// players. Covers both rAthena's <c>npctalk</c> (when this is an
+		/// <see cref="Npc"/>) and <c>unittalk</c> (any character).
+		/// </summary>
+		/// <param name="message">The message to display.</param>
+		public void Talk(string message)
+		{
+			if (this.Map == null || this.Map == Sabine.Zone.World.Maps.Map.Limbo)
+				return;
+
+			Send.ZC_NOTIFY_CHAT(this, message);
+		}
 	}
 }

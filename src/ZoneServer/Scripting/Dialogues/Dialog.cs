@@ -370,6 +370,67 @@ namespace Sabine.Zone.Scripting.Dialogues
 		}
 
 		/// <summary>
+		/// Closes the dialog window on the client without aborting the
+		/// running script. Mirrors rAthena's <c>close2</c>: the script
+		/// continues so it can perform follow-up actions (warps, item
+		/// grants, ...) before exiting.
+		/// </summary>
+		public void Close2()
+		{
+			_lastAction = DialogActionType.Close;
+			if (this.State == DialogState.Ended) return;
+			Send.ZC_CLOSE_DIALOG(this.Player, this.Npc.Handle);
+		}
+
+		/// <summary>
+		/// Variant of <see cref="Close2"/> that also clears any queued
+		/// dialog state (cutins, portrait). Mirrors rAthena's
+		/// <c>close3</c>.
+		/// </summary>
+		public void Close3()
+		{
+			this.HideCutin();
+			this.Portrait = null;
+			this.Close2();
+		}
+
+		/// <summary>
+		/// Shows a cutin image at the given screen position.
+		/// </summary>
+		/// <remarks>
+		/// Alpha-era clients have no cutin packet; this is a no-op stub
+		/// so that converted scripts can call it without crashing. The
+		/// state is cached on the dialog so a future client backend can
+		/// emit the packet when one becomes available.
+		/// </remarks>
+		/// <param name="image">Cutin image name (without extension).</param>
+		/// <param name="pos">Screen position.</param>
+		public void ShowCutin(string image, CutinPos pos = CutinPos.Mid)
+		{
+			this.CurrentCutin = image;
+			this.CurrentCutinPos = pos;
+			Log.Debug("Dialog.ShowCutin: stubbed for alpha client (image='{0}', pos={1}).", image, pos);
+		}
+
+		/// <summary>
+		/// Removes any cutin currently shown.
+		/// </summary>
+		public void HideCutin()
+		{
+			if (this.CurrentCutin == null)
+				return;
+			this.CurrentCutin = null;
+			this.CurrentCutinPos = CutinPos.None;
+			Log.Debug("Dialog.HideCutin: stubbed for alpha client.");
+		}
+
+		/// <summary>Last cutin image set via <see cref="ShowCutin"/>, or null.</summary>
+		public string CurrentCutin { get; private set; }
+
+		/// <summary>Last cutin position set via <see cref="ShowCutin"/>.</summary>
+		public CutinPos CurrentCutinPos { get; private set; } = CutinPos.None;
+
+		/// <summary>
 		/// Opens a shop for the player, where the given items are
 		/// for sale.
 		/// </summary>
@@ -451,4 +512,19 @@ namespace Sabine.Zone.Scripting.Dialogues
 	/// <param name="options"></param>
 	/// <returns></returns>
 	public delegate Task<int> DialogSelectFunc(params string[] options);
+
+	/// <summary>
+	/// Position of a cutin image, mirrors rAthena's cutin position constants.
+	/// </summary>
+	public enum CutinPos
+	{
+		None = -1,
+		BottomLeft = 0,
+		BottomMid = 1,
+		BottomRight = 2,
+		Mid = 3,
+		TopLeft = 4,
+		TopMid = 5,
+		TopRight = 6,
+	}
 }

@@ -879,6 +879,46 @@ namespace Sabine.Zone.World.Maps
 		}
 
 		/// <summary>
+		/// Map-wide broadcast of a server message via the
+		/// ZC_BROADCAST packet. Only players on this map receive the
+		/// announcement (unlike the global <c>announce</c>). Mirrors
+		/// rAthena's <c>mapannounce</c>.
+		/// </summary>
+		/// <param name="message">The message to display.</param>
+		public void Announce(string message)
+		{
+			using var packet = Packet.Rent(Op.ZC_BROADCAST);
+			packet.PutString(message);
+			this.Broadcast(packet);
+		}
+
+		/// <summary>
+		/// Warps every player on this map to the given destination.
+		/// Mirrors rAthena's <c>mapwarp</c>.
+		/// </summary>
+		/// <param name="destMapStringId">Target map string id.</param>
+		/// <param name="x">Target X.</param>
+		/// <param name="y">Target Y.</param>
+		public void WarpAll(string destMapStringId, int x, int y)
+		{
+			using var players = new PooledListSnapshot<PlayerCharacter>();
+			using (SlimLock.Read(_playersLock))
+				players.AddRange(_players.Values);
+
+			foreach (var player in players)
+			{
+				try
+				{
+					player.Warp(destMapStringId, x, y);
+				}
+				catch (Exception ex)
+				{
+					Log.Warning("Map.WarpAll: warp of '{0}' to '{1}' failed: {2}", player.Name, destMapStringId, ex.Message);
+				}
+			}
+		}
+
+		/// <summary>
 		/// Broadcasts packet to players on this map.
 		/// </summary>
 		/// <param name="packet">Packet to send.</param>

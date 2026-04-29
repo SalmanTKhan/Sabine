@@ -713,6 +713,30 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Returns true if the inventory has weight headroom for `amount`
+		/// more units of `classId`. Mirrors rAthena's <c>checkweight</c>;
+		/// returns false (no headroom) if the item id isn't in the DB so
+		/// scripts fail safely instead of silently letting unknown items
+		/// through.
+		/// </summary>
+		/// <param name="classId"></param>
+		/// <param name="amount"></param>
+		public bool CanCarry(int classId, int amount)
+		{
+			if (amount <= 0)
+				return true;
+
+			if (!ZoneServer.Instance.Data.Items.TryFind(classId, out var data))
+				return false;
+
+			var addedWeight = data.Weight * amount;
+			var newWeight = this.GetWeight() + addedWeight;
+			var max = this.Character.Parameters.WeightMax;
+
+			return newWeight <= max;
+		}
+
+		/// <summary>
 		/// Returns true if the inventory contains at least the given
 		/// amount of the item.
 		/// </summary>
@@ -788,5 +812,46 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 		internal Item[] GetEquippedItems()
 			=> this.GetItems(i => i.IsEquipped);
+
+		/// <summary>
+		/// Returns true if any of the given item class ids are currently
+		/// equipped. Mirrors rAthena's <c>isequipped</c> (one-of
+		/// semantics).
+		/// </summary>
+		/// <param name="classIds">Item class ids to check.</param>
+		public bool IsAnyEquipped(params int[] classIds)
+		{
+			if (classIds == null || classIds.Length == 0)
+				return false;
+
+			lock (_syncLock)
+			{
+				foreach (var item in _items)
+				{
+					if (!item.IsEquipped)
+						continue;
+
+					for (var i = 0; i < classIds.Length; ++i)
+					{
+						if (item.ClassId == classIds[i])
+							return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// Returns the class id of the item currently equipped in the
+		/// given slot, or 0 if nothing is equipped there. Mirrors
+		/// rAthena's <c>getequipid</c>.
+		/// </summary>
+		/// <param name="slot">Slot to query.</param>
+		public int GetEquippedId(EquipSlots slot)
+		{
+			var item = this.GetEquip(slot);
+			return item?.ClassId ?? 0;
+		}
 	}
 }

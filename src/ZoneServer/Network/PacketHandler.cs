@@ -250,7 +250,7 @@ namespace Sabine.Zone.Network
 			var character = conn.GetCurrentCharacter();
 			var fromPos = character.Position;
 
-			if (character.IsImmobilized)
+			if (character.IsImmobilized || character.MovementBlocked)
 				return;
 
 			// Confusion: ignore the requested destination and pick a
@@ -623,6 +623,12 @@ namespace Sabine.Zone.Network
 			//Task.Delay(5000).ContinueWith(_ => Send.ZC_SAY_DIALOG(character, npcHandle, "Goodbye, World!"));
 			//Task.Delay(6000).ContinueWith(_ => Send.ZC_WAIT_DIALOG(character, npcHandle));
 			//Task.Delay(8000).ContinueWith(_ => Send.ZC_MENU_LIST(character, npcHandle, "Option 1", "Option 2", "End"));
+
+			if (!npc.Visible)
+			{
+				Log.Debug("CZ_CONTACTNPC: User '{0}' tried to contact a hidden NPC.", conn.Account.Username);
+				return;
+			}
 
 			if (npc.DialogFunc == null)
 				return;
@@ -1298,7 +1304,7 @@ namespace Sabine.Zone.Network
 
 			var character = conn.GetCurrentCharacter();
 
-			if (character.IsImmobilized || character.IsSilenced)
+			if (character.IsImmobilized || character.IsSilenced || character.SkillBlocked)
 				return;
 
 			if (!character.Skills.TryGet(skillId, out var skill))
@@ -1376,7 +1382,7 @@ namespace Sabine.Zone.Network
 
 			var character = conn.GetCurrentCharacter();
 
-			if (character.IsImmobilized || character.IsSilenced)
+			if (character.IsImmobilized || character.IsSilenced || character.SkillBlocked)
 				return;
 
 			if (!character.Skills.TryGet(skillId, out var skill))

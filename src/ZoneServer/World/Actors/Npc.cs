@@ -2,8 +2,10 @@
 using System.Threading;
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
+using Sabine.Zone.Network;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Actors.Components.Characters;
+using Yggdrasil.Logging;
 
 namespace Sabine.Zone.World.Actors
 {
@@ -80,6 +82,173 @@ namespace Sabine.Zone.World.Actors
 
 			curMap.RemoveNpc(this);
 			newMap.AddNpc(this);
+		}
+
+		/// <summary>
+		/// Returns true if the NPC is currently visible to players and
+		/// can be interacted with. Toggled by <see cref="Hide"/> and
+		/// <see cref="Show"/>; mirrors rAthena's <c>enablenpc</c>/
+		/// <c>disablenpc</c>.
+		/// </summary>
+		public bool Visible { get; private set; } = true;
+
+		/// <summary>
+		/// Hides the NPC from all players on its map. Subsequent click/
+		/// touch interactions are ignored until <see cref="Show"/> is
+		/// called. Mirrors rAthena's <c>disablenpc</c>.
+		/// </summary>
+		public void Hide()
+		{
+			if (!this.Visible)
+				return;
+			this.Visible = false;
+
+			if (this.Map != null && this.Map != Sabine.Zone.World.Maps.Map.Limbo)
+				Send.ZC_NOTIFY_VANISH(this, DisappearType.Vanish);
+		}
+
+		/// <summary>
+		/// Re-shows a previously hidden NPC. Mirrors rAthena's
+		/// <c>enablenpc</c>.
+		/// </summary>
+		public void Show()
+		{
+			if (this.Visible)
+				return;
+			this.Visible = true;
+
+			if (this.Map != null && this.Map != Sabine.Zone.World.Maps.Map.Limbo)
+				Send.ZC_NOTIFY_STANDENTRY_NPC(this);
+		}
+
+		/// <summary>
+		/// Per-player cloak toggle. Stub: alpha-era clients do not have
+		/// a per-recipient cloak packet, so this is a no-op + debug log.
+		/// </summary>
+		public void SetCloaked(PlayerCharacter player, bool cloaked)
+		{
+			Log.Debug("Npc.SetCloaked: stubbed for alpha client (npc='{0}', player='{1}', cloaked={2}).", this.Name, player?.Name, cloaked);
+		}
+
+		/// <summary>
+		/// Sets the quest indicator displayed above this NPC. Stub:
+		/// pre-renewal clients do not support quest icon packets.
+		/// State is cached on the NPC for future use.
+		/// </summary>
+		public QuestState QuestIcon { get; private set; }
+
+		/// <summary>
+		/// Sets the quest indicator displayed above this NPC. See
+		/// <see cref="QuestIcon"/>. Stub for the alpha client.
+		/// </summary>
+		public void SetQuestIcon(QuestState state)
+		{
+			this.QuestIcon = state;
+			Log.Debug("Npc.SetQuestIcon: stubbed for alpha client (npc='{0}', state={1}).", this.Name, state);
+		}
+
+		/// <summary>
+		/// Returns metadata about this NPC. Field selector mirrors
+		/// rAthena's <c>strnpcinfo</c>:
+		/// 0 = name, 1 = visible name (alias), 2 = map id (string),
+		/// 3 = x, 4 = y, 5 = direction.
+		/// </summary>
+		public string GetInfo(int field)
+		{
+			return field switch
+			{
+				0 => this.Name ?? string.Empty,
+				1 => this.Name ?? string.Empty,
+				2 => this.Map?.StringId ?? string.Empty,
+				3 => this.Position.X.ToString(),
+				4 => this.Position.Y.ToString(),
+				5 => ((int)this.Direction).ToString(),
+				_ => string.Empty,
+			};
+		}
+
+		private NpcTimer _timer;
+
+		/// <summary>
+		/// Returns the NPC's timer, used by converted scripts to drive
+		/// <c>OnTimer&lt;ms&gt;</c>-style callbacks. The timer is created
+		/// on first access; <c>initnpctimer</c> maps to <c>Timer.Start()</c>
+		/// and <c>stopnpctimer</c> to <c>Timer.Stop()</c>.
+		/// </summary>
+		public NpcTimer Timer => _timer ??= new NpcTimer(this);
+	}
+
+	/// <summary>
+	/// Drives <c>OnTimer&lt;ms&gt;</c>-style callbacks on an NPC. Tracks
+	/// elapsed milliseconds since the last <see cref="Start"/> and fires
+	/// <see cref="Tick"/> on a configurable interval.
+	/// </summary>
+	public class NpcTimer
+	{
+		private readonly Npc _owner;
+		private Timer _timer;
+		private DateTime _startedAt;
+
+		/// <summary>
+		/// Returns the milliseconds elapsed since the last
+		/// <see cref="Start"/>, or 0 if the timer is stopped.
+		/// </summary>
+		public int Elapsed => this.IsRunning ? (int)(DateTime.Now - _startedAt).TotalMilliseconds : 0;
+
+		/// <summary>True while the timer is running.</summary>
+		public bool IsRunning { get; private set; }
+
+		/// <summary>
+		/// Fired on each tick. Argument is the elapsed milliseconds
+		/// since <see cref="Start"/> was called.
+		/// </summary>
+		public Action<int> Tick;
+
+		/// <summary>
+		/// Tick interval. Defaults to 100ms to match rAthena's npc
+		/// timer resolution closely enough for label dispatch.
+		/// </summary>
+		public TimeSpan Interval { get; set; } = TimeSpan.FromMilliseconds(100);
+
+		internal NpcTimer(Npc owner)
+		{
+			_owner = owner;
+		}
+
+		/// <summary>
+		/// Starts (or restarts) the timer. Mirrors <c>initnpctimer</c>.
+		/// </summary>
+		public void Start()
+		{
+			this.Stop();
+			_startedAt = DateTime.Now;
+			this.IsRunning = true;
+			_timer = new Timer(this.OnTick, null, this.Interval, this.Interval);
+		}
+
+		/// <summary>
+		/// Stops the timer. Mirrors <c>stopnpctimer</c>.
+		/// </summary>
+		public void Stop()
+		{
+			if (_timer != null)
+			{
+				_timer.Dispose();
+				_timer = null;
+			}
+			this.IsRunning = false;
+		}
+
+		private void OnTick(object? _)
+		{
+			try
+			{
+				this.Tick?.Invoke(this.Elapsed);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("NpcTimer: tick handler for '{0}' threw: {1}", _owner.Name, ex);
+			}
 		}
 	}
 
