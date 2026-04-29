@@ -35,7 +35,7 @@ namespace Sabine.Zone.Network
 			packet.PutShort((short)sentIcon);
 			packet.PutInt(character.Handle);
 
-			if (Game.Version >= Versions.EP3)
+			if (Game.Version >= Versions.S400)
 				packet.PutByte(active);
 
 			character.Connection.Send(packet);

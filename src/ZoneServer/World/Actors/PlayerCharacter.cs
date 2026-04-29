@@ -503,7 +503,7 @@ namespace Sabine.Zone.World.Actors
 					throw new ArgumentException($"Unsupported type '{type}'.");
 			}
 
-			if (Game.Version < Versions.EP3_2)
+			if (Game.Version < Versions.S500)
 				Send.ZC_SPRITE_CHANGE(this, type, lookId);
 			else
 				Send.ZC_SPRITE_CHANGE2(this, type, lookId, 0);
@@ -535,7 +535,7 @@ namespace Sabine.Zone.World.Actors
 			this.Heal();
 
 			// Visual change
-			if (Game.Version < Versions.EP3_2)
+			if (Game.Version < Versions.S500)
 				Send.ZC_SPRITE_CHANGE(this, SpriteType.Class, (int)jobId);
 			else
 				Send.ZC_SPRITE_CHANGE2(this, SpriteType.Class, (int)jobId, 0);
