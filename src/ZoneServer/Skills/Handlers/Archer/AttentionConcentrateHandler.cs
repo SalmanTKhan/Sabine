@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+using System;
+using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
@@ -8,19 +9,13 @@ namespace Sabine.Zone.Skills.Handlers.Archer
 	[SkillHandler(SkillId.AC_CONCENTRATION)]
 	public class AttentionConcentrateHandler : ISkillHandler
 	{
+		// eAthena classic AC_CONCENTRATION duration: 30s + 10s/level.
 		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
-			// This is a self-buff.
-			// TODO: Implement a status effect system to grant AGI and DEX bonuses.
-			// Also reveals hidden enemies in a small radius.
-			var duration = 40000 + (10000 * (skill.Level / 2)); // Example duration
-
 			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
 
-			if (caster is PlayerCharacter pc)
-			{
-				pc.ServerMessage("Attention Concentrate is not fully implemented yet.");
-			}
+			var duration = TimeSpan.FromSeconds(30 + 10 * skill.Level);
+			caster.StatusEffects.Start(StatusId.Concentration, skill.Level, duration, caster, skill.Level);
 
 			return Task.CompletedTask;
 		}

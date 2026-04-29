@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Collections;
 
@@ -35,7 +35,7 @@ namespace Sabine.Zone.Ais.Impl
 				(origin: Character.Position, range: attackRange, guildId: myGuildId),
 				static (state, p) =>
 				{
-					if (p.IsDead)
+					if (p.IsDead || p.IsHidden)
 						return false;
 
 					if (p.GuildId == state.guildId)

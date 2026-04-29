@@ -1,6 +1,7 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Threading.Tasks;
 using Sabine.Shared.Const;
+using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 
@@ -12,26 +13,28 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
 			if (target is not Character targetCharacter)
-			{
 				return Task.CompletedTask;
-			}
 
-			// Damage formula: MATK * (0.8 + (0.1 * skill.Level)) - Example: 90% to 180%
-			var damageMultiplier = 0.8f + (0.1f * skill.Level);
-			var baseDamage = (int)(caster.Parameters.MagicAttack * damageMultiplier);
+			var skillRatio = 0.8f + 0.1f * skill.Level;
 
-			// Show skill effect at target's location
-			Send.ZC_NOTIFY_SKILL_POSITION(caster, target.Handle, skill.Id, skill.Level, target.Position, baseDamage, 0, 0, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL_POSITION(caster, target.Handle, skill.Id, skill.Level, target.Position, 0, 0, 0, ActionType.Skill);
 
-			// Find all characters in a 3x3 radius around the target
 			var targets = caster.Map.GetCharactersInRange(target.Position, 3)
 				.Where(c => c.IsHostileTo(caster));
 
 			foreach (var aoeTarget in targets)
 			{
-				// TODO: Damage should have element (Fire) and be reduced by MDEF.
-				var finalDamage = baseDamage;
-				aoeTarget.TakeDamage(finalDamage, caster);
+				var ctx = new AttackContext(caster, aoeTarget)
+				{
+					SkillId = skill.Id,
+					SkillLevel = skill.Level,
+					Kind = AttackKind.Magic,
+					SkillRatio = skillRatio,
+					AttackElement = ElementType.Fire,
+				};
+				var result = BattleCalculator.Calc(ctx);
+				if (!result.IsMiss)
+					aoeTarget.TakeDamage(result.Damage, caster);
 			}
 
 			return Task.CompletedTask;

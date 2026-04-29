@@ -46,6 +46,7 @@ namespace Sabine.Zone.Commands
 			this.Add("level", "<level>", Localization.Get("Sets the character's base level."), this.Level);
 			this.Add("speed", "<speed>", Localization.Get("Sets the character's speed."), this.Speed);
 			this.Add("skill", "<id> [level]", Localization.Get("Adds the skill to the character."), this.Skill);
+			this.Add("homunlearn", "<skillId>", Localization.Get("Spends one homunculus skill point to learn or rank up the given skill."), this.HomunLearn);
 			this.Add("zeny", "<modifier>", Localization.Get("Changes the character's zeny."), this.Zeny);
 
 			// Dev commands
@@ -858,6 +859,32 @@ namespace Sabine.Zone.Commands
 		/// <param name="commandName"></param>
 		/// <param name="args"></param>
 		/// <returns></returns>
+		private CommandResult HomunLearn(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (args.Count < 1) return CommandResult.InvalidArgument;
+			if (target.Homunculus == null || !target.Homunculus.HasContract)
+			{
+				sender.ServerMessage(Localization.Get("Target has no homunculus."));
+				return CommandResult.Okay;
+			}
+
+			SkillId skillId;
+			var arg0 = args.Get(0);
+			if (Enum.TryParse<SkillId>(arg0, out var parsed)) skillId = parsed;
+			else if (int.TryParse(arg0, out var num)) skillId = (SkillId)num;
+			else { sender.ServerMessage(Localization.Get("Invalid skill id '{0}'."), arg0); return CommandResult.Okay; }
+
+			var newLv = target.Homunculus.TryLearn(skillId);
+			if (newLv == 0)
+			{
+				sender.ServerMessage(Localization.Get("Cannot learn '{0}' (no points, missing prereq, or wrong type)."), skillId);
+				return CommandResult.Okay;
+			}
+
+			sender.ServerMessage(Localization.Get("{0} → level {1}. Skill points remaining: {2}."), skillId, newLv, target.Homunculus.SkillPoints);
+			return CommandResult.Okay;
+		}
+
 		private CommandResult Skill(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
 			if (args.Count < 1)

@@ -92,6 +92,15 @@ namespace Sabine.Zone.World.Actors
 		private byte _refineLevel = 0;
 
 		/// <summary>
+		/// Cards inserted into this item's slots. Sized to
+		/// <see cref="ItemData.Slots"/>; entries are card class ids (0
+		/// = empty slot). Card-script application is not implemented in
+		/// v1 — this is a placeholder so save/load and equip flows can
+		/// preserve slot contents until the engine arrives.
+		/// </summary>
+		public int[] Cards { get; private set; } = Array.Empty<int>();
+
+		/// <summary>
 		/// Gets or sets the id of the map the item is on, if any.
 		/// </summary>
 		public int MapId { get; set; }
@@ -161,6 +170,9 @@ namespace Sabine.Zone.World.Actors
 			}
 
 			this.Data = data;
+
+			if (data.Slots > 0 && this.Cards.Length != data.Slots)
+				this.Cards = new int[data.Slots];
 
 			// This solution isn't ideal, since it's very inflexible.
 			// However, there's only two known clients available that

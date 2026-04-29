@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Sabine.Zone.Ais.Base;
 using Sabine.Zone.Ais.Impl;
 using Sabine.Zone.World.Actors;
@@ -34,7 +34,7 @@ namespace Sabine.Zone.Ais.Impl
 				(origin: Character.Position, range: chaseRange),
 				static (state, p) =>
 				{
-					if (p.IsDead)
+					if (p.IsDead || p.IsHidden)
 						return false;
 
 					if (!p.Position.InRange(state.origin, state.range))

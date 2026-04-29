@@ -116,6 +116,7 @@ namespace Sabine.Zone.Database
 			}
 
 			character.Vars.Perm.Load(this.GetVars("vars_character", character.Id));
+			character.Homunculus?.LoadFrom(character.Vars.Perm);
 			character.Parameters.RecalculateAll();
 
 			// Set HP and SP to max on first load, after the characters'
@@ -234,6 +235,7 @@ namespace Sabine.Zone.Database
 				trans.Commit();
 			}
 
+			character.Homunculus?.SaveTo(character.Vars.Perm);
 			this.SaveVars("vars_character", character.Id, character.Vars.Perm.GetList());
 		}
 	}

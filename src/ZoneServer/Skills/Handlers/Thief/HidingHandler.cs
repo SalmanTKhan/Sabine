@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+using System;
+using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
@@ -10,16 +11,18 @@ namespace Sabine.Zone.Skills.Handlers.Thief
 	{
 		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
-			// Hiding is a self-buff that makes the character invisible.
-			// TODO: Apply 'Hiding' status effect. This should make the character vanish.
-
-			// For now, we manually make the character vanish.
-			Send.ZC_NOTIFY_VANISH(caster, DisappearType.Vanish);
-
-			if (caster is PlayerCharacter pc)
+			// Toggling: if Hiding is already active, end it.
+			if (caster.StatusEffects.Has(StatusId.Hiding))
 			{
-				pc.ServerMessage("Hiding is not fully implemented yet.");
+				caster.StatusEffects.Stop(StatusId.Hiding);
+				return Task.CompletedTask;
 			}
+
+			// eAthena classic TF_HIDING: 30s + 30s/level (clamped).
+			var duration = TimeSpan.FromSeconds(30 * skill.Level);
+			caster.StatusEffects.Start(StatusId.Hiding, skill.Level, duration, caster);
+
+			Send.ZC_NOTIFY_VANISH(caster, DisappearType.Vanish);
 
 			return Task.CompletedTask;
 		}

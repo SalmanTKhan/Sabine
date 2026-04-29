@@ -250,6 +250,19 @@ namespace Sabine.Zone.Network
 			var character = conn.GetCurrentCharacter();
 			var fromPos = character.Position;
 
+			if (character.IsImmobilized)
+				return;
+
+			// Confusion: ignore the requested destination and pick a
+			// random nearby cell. Mirrors eAthena pc_walktoxy override.
+			if (character.StatusEffects?.Has(StatusId.Confusion) == true)
+			{
+				var rnd = Yggdrasil.Util.RandomProvider.Get();
+				toPos = new Sabine.Shared.World.Position(
+					fromPos.X + rnd.Next(-3, 4),
+					fromPos.Y + rnd.Next(-3, 4));
+			}
+
 			character.Controller.MoveTo(toPos);
 
 			// Spawn some NPCs to visualize the path the server calculated
@@ -737,6 +750,9 @@ namespace Sabine.Zone.Network
 					// clients used AutoAttack. To not actually keep at-
 					// tacking when not intended, the client sends the
 					// packet CZ_CANCEL_LOCKON right after the ACT packet.
+
+					if (character.IsImmobilized)
+						return;
 
 					if (!character.Map.TryGetCharacter(targetHandle, out var target))
 					{
@@ -1282,6 +1298,9 @@ namespace Sabine.Zone.Network
 
 			var character = conn.GetCurrentCharacter();
 
+			if (character.IsImmobilized || character.IsSilenced)
+				return;
+
 			if (!character.Skills.TryGet(skillId, out var skill))
 			{
 				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
@@ -1320,14 +1339,23 @@ namespace Sabine.Zone.Network
 					character.Controller.StopMove();
 
 					var attacker = character;
-					var damage = level * 5;
+
+					var ctx = new Sabine.Zone.Battle.AttackContext(attacker, target)
+					{
+						SkillId = SkillId.SM_BASH,
+						SkillLevel = level,
+						SkillRatio = 1.3f + 0.2f * level,
+					};
+					var result = Sabine.Zone.Battle.BattleCalculator.Calc(ctx);
+					var damage = result.IsMiss ? 0 : result.Damage;
 
 					var attackMotionDelay = attacker.Parameters.AttackMotionDelay;
 					var damageMotionDelay = target.Parameters.DamageMotionDelay;
 
-					target.TakeDamage(damage, character);
+					if (!result.IsMiss)
+						target.TakeDamage(damage, character);
 
-					Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), ActionType.Attack, damage, attackMotionDelay, damageMotionDelay);
+					Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), result.ActionType, damage, attackMotionDelay, damageMotionDelay);
 					break;
 				}
 			}
@@ -1347,6 +1375,9 @@ namespace Sabine.Zone.Network
 			var y = packet.GetShort();
 
 			var character = conn.GetCurrentCharacter();
+
+			if (character.IsImmobilized || character.IsSilenced)
+				return;
 
 			if (!character.Skills.TryGet(skillId, out var skill))
 			{

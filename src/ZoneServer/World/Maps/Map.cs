@@ -32,6 +32,9 @@ namespace Sabine.Zone.World.Maps
 		private readonly Dictionary<int, Npc> _npcs = new();
 		private readonly Dictionary<int, Item> _items = new();
 
+		private readonly ReaderWriterLockSlim _skillUnitsLock = new();
+		private readonly Dictionary<int, SkillUnits.SkillUnit> _skillUnits = new();
+
 		/// <summary>
 		/// Returns a reference to the Limbo map. See Limbo class for
 		/// more information.
@@ -133,6 +136,83 @@ namespace Sabine.Zone.World.Maps
 			this.RemoveDroppedItems();
 			this.UpdateVisibility();
 			this.UpdateCharacters(elapsed);
+			this.UpdateSkillUnits(elapsed);
+		}
+
+		/// <summary>
+		/// Adds a skill unit (Fire Wall, Pneuma, etc.) to this map.
+		/// </summary>
+		public void AddSkillUnit(SkillUnits.SkillUnit unit)
+		{
+			unit.Map = this;
+			using (SlimLock.Write(_skillUnitsLock))
+				_skillUnits[unit.Handle] = unit;
+		}
+
+		/// <summary>
+		/// Removes a skill unit from this map and notifies clients.
+		/// </summary>
+		public void RemoveSkillUnit(SkillUnits.SkillUnit unit)
+		{
+			using (SlimLock.Write(_skillUnitsLock))
+				_skillUnits.Remove(unit.Handle);
+
+			if (unit.Owner != null)
+				Send.ZC_SKILL_DISAPPEAR(unit.Owner, unit.Handle);
+		}
+
+		/// <summary>
+		/// Returns all skill units occupying the given cell.
+		/// </summary>
+		public List<SkillUnits.SkillUnit> GetSkillUnitsAt(Position position)
+		{
+			var result = new List<SkillUnits.SkillUnit>();
+			using (SlimLock.Read(_skillUnitsLock))
+			{
+				foreach (var unit in _skillUnits.Values)
+				{
+					if (unit.Position.X == position.X && unit.Position.Y == position.Y)
+						result.Add(unit);
+				}
+			}
+			return result;
+		}
+
+		/// <summary>
+		/// Ticks all skill units, removing any that expired.
+		/// </summary>
+		private void UpdateSkillUnits(TimeSpan elapsed)
+		{
+			List<SkillUnits.SkillUnit> snapshot;
+			using (SlimLock.Read(_skillUnitsLock))
+			{
+				if (_skillUnits.Count == 0)
+					return;
+				snapshot = new List<SkillUnits.SkillUnit>(_skillUnits.Values);
+			}
+
+			foreach (var unit in snapshot)
+			{
+				if (unit.IsExpired)
+				{
+					this.RemoveSkillUnit(unit);
+					continue;
+				}
+
+				unit.Update(elapsed);
+
+				// Damage-on-touch: enemies standing on the cell trigger
+				// OnTouch each tick. Filtering for enemies is the unit's
+				// concern.
+				foreach (var character in this.GetCharactersInRange(unit.Position, 0))
+				{
+					if (character.Position.X != unit.Position.X || character.Position.Y != unit.Position.Y)
+						continue;
+					unit.OnTouch(character);
+					if (unit.IsExpired)
+						break;
+				}
+			}
 		}
 
 		/// <summary>

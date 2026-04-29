@@ -18,6 +18,13 @@ namespace Sabine.Zone.World.Actors
 		private readonly List<Item> _dropItems = new();
 
 		/// <summary>
+		/// Drop-table indices already taken by Steal on this instance.
+		/// Prevents stealing the same drop slot twice from the same mob.
+		/// In-memory only; cleared implicitly on respawn.
+		/// </summary>
+		public HashSet<int> StolenDropSlots { get; } = new();
+
+		/// <summary>
 		/// Return a reference to the monster's data.
 		/// </summary>
 		public MonsterData Data { get; }
@@ -131,6 +138,12 @@ namespace Sabine.Zone.World.Actors
 
 			playerCharacter.GainBaseExp(baseExp);
 			playerCharacter.GainJobExp(jobExp);
+
+			// Homunculus EXP share — 10% of the owner's base EXP.
+			// Mirrors eAthena: pet/homun share with no kill-credit
+			// requirement on the homun itself.
+			if (playerCharacter.Homunculus?.IsActive == true)
+				playerCharacter.Homunculus.GainExp(baseExp / 10);
 		}
 
 		/// <summary>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Sabine.Shared;
 using Sabine.Shared.Const;
+using Sabine.Zone.Battle.Cards;
 using Sabine.Zone.Network;
 
 namespace Sabine.Zone.World.Actors.Components.Characters
@@ -15,7 +16,14 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		private readonly object _syncLock = new();
 
 		private readonly List<Item> _items = new();
+		private readonly List<Item> _cartItems = new();
 		private EquipSlots _occupiedSlots;
+
+		/// <summary>Maximum total weight of the cart contents.</summary>
+		public const int CartMaxWeight = 8000;
+
+		/// <summary>Maximum number of distinct item slots in the cart.</summary>
+		public const int CartMaxSlots = 100;
 
 		/// <summary>
 		/// Returns the character this inventory belongs to.
@@ -67,6 +75,133 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		{
 			lock (_syncLock)
 				return _items.Sum(static a => a.Data.Weight * a.Amount);
+		}
+
+		/// <summary>
+		/// Returns the total weight of all items currently inside the
+		/// player's cart. Used by Cart Revolution for damage scaling.
+		/// </summary>
+		public int CartWeight
+		{
+			get
+			{
+				lock (_syncLock)
+					return _cartItems.Sum(static a => a.Data.Weight * a.Amount);
+			}
+		}
+
+		/// <summary>Number of distinct item stacks in the cart.</summary>
+		public int CartItemCount
+		{
+			get
+			{
+				lock (_syncLock)
+					return _cartItems.Count;
+			}
+		}
+
+		/// <summary>Snapshot of all cart contents.</summary>
+		public Item[] GetCartItems()
+		{
+			lock (_syncLock)
+				return _cartItems.ToArray();
+		}
+
+		/// <summary>
+		/// Moves up to <paramref name="amount"/> of <paramref name="item"/>
+		/// from the body inventory into the cart. Returns the amount that
+		/// was actually moved (may be 0 if the cart is full or the
+		/// weight cap is exceeded). Stacks merge with an existing stack
+		/// of the same class id.
+		/// </summary>
+		public int MoveToCart(Item item, int amount)
+		{
+			if (item == null || amount <= 0) return 0;
+
+			lock (_syncLock)
+			{
+				if (!_items.Contains(item)) return 0;
+
+				var moveAmount = Math.Min(amount, item.Amount);
+				var addedWeight = item.Data.Weight * moveAmount;
+				if (this.CartWeight + addedWeight > CartMaxWeight) return 0;
+
+				var existing = _cartItems.FirstOrDefault(a => a.ClassId == item.ClassId && item.IsStackable);
+				if (existing != null)
+				{
+					existing.Amount += moveAmount;
+				}
+				else
+				{
+					if (_cartItems.Count >= CartMaxSlots) return 0;
+
+					if (moveAmount == item.Amount)
+					{
+						_items.Remove(item);
+						_cartItems.Add(item);
+						return moveAmount;
+					}
+
+					var split = new Item(item.ClassId, moveAmount);
+					split.InventoryId = item.InventoryId;
+					_cartItems.Add(split);
+				}
+
+				item.Amount -= moveAmount;
+				if (item.Amount == 0)
+					_items.Remove(item);
+
+				return moveAmount;
+			}
+		}
+
+		/// <summary>
+		/// Reverse of <see cref="MoveToCart"/>: moves items from the cart
+		/// back into the body inventory. Returns the amount moved.
+		/// </summary>
+		public int MoveToBody(Item item, int amount)
+		{
+			if (item == null || amount <= 0) return 0;
+
+			lock (_syncLock)
+			{
+				if (!_cartItems.Contains(item)) return 0;
+
+				var moveAmount = Math.Min(amount, item.Amount);
+
+				var existing = _items.FirstOrDefault(a => a.ClassId == item.ClassId && item.IsStackable);
+				if (existing != null)
+				{
+					existing.Amount += moveAmount;
+				}
+				else
+				{
+					if (moveAmount == item.Amount)
+					{
+						_cartItems.Remove(item);
+						item.InventoryId = this.GetNewInventoryId();
+						_items.Add(item);
+						return moveAmount;
+					}
+
+					var split = new Item(item.ClassId, moveAmount);
+					split.InventoryId = this.GetNewInventoryId();
+					_items.Add(split);
+				}
+
+				item.Amount -= moveAmount;
+				if (item.Amount == 0)
+					_cartItems.Remove(item);
+
+				return moveAmount;
+			}
+		}
+
+		/// <summary>Returns the cart item with the given inventory id, or null.</summary>
+		public Item GetCartItem(int invId)
+		{
+			lock (_syncLock)
+				return _cartItems.FirstOrDefault(a => a.InventoryId == invId);
 		}
 
 		/// <summary>
@@ -404,6 +539,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// <param name="slots">The slot(s) the item was equipped on.</param>
 		private void OnEquippedItem(Item item, EquipSlots slots)
 		{
+			CardHandlerManager.ApplyEquipped(this.Character, item);
+
 			if ((slots & EquipSlots.RightHand) != 0)
 				this.Character.ChangeLook(SpriteType.Weapon, item.Data.LookId);
 
@@ -451,6 +588,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// <param name="slots">The slot(s) the item was unequipped from.</param>
 		private void OnUnequippedItem(Item item, EquipSlots slots)
 		{
+			CardHandlerManager.ApplyUnequipped(this.Character, item);
+
 			if ((slots & EquipSlots.RightHand) != 0)
 				this.Character.ChangeLook(SpriteType.Weapon, 0);
 

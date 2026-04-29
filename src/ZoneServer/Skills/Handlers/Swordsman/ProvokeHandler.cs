@@ -1,6 +1,7 @@
-﻿using System.Threading.Tasks;
+using System;
+using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.Ais;
+using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Swordsman
@@ -8,31 +9,23 @@ namespace Sabine.Zone.Skills.Handlers.Swordsman
 	[SkillHandler(SkillId.SM_PROVOKE)]
 	public class ProvokeHandler : ISkillHandler
 	{
+		// eAthena classic SM_PROVOKE: 30s flat duration, never resists
+		// when cast on a player target; BL_MOB has a level-scaled resist
+		// roll which we skip in v1 (always lands on monsters).
 		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
 			if (target is not Character targetCharacter)
-			{
 				return Task.CompletedTask;
-			}
 
-			// TODO: Add proper status effect system for Provoke.
-			// Effect: Increase target's ATK, decrease target's DEF.
-			// For now, this is a placeholder direct modification.
-			var defenseReduction = 5 + (5 * skill.Level); // 10% to 55% DEF reduction
-			var attackIncrease = 2 + (3 * skill.Level);   // 5% to 32% ATK increase
+			// Bosses are immune in eAthena; closest analogue here is the
+			// IsHostileTo check — provoke must be cast on an enemy.
+			if (!caster.IsHostileTo(targetCharacter))
+				return Task.CompletedTask;
 
-			// This is not how it should be implemented long-term.
-			// These should be temporary bonuses/penalties.
-			// targetCharacter.Bonuses.Add(BonusType.DefPercent, -defenseReduction, 10000);
-			// targetCharacter.Bonuses.Add(BonusType.AtkPercent, attackIncrease, 10000);
+			var duration = TimeSpan.FromSeconds(30);
+			targetCharacter.StatusEffects.Start(StatusId.Provoke, skill.Level, duration, caster, skill.Level);
 
-			if (caster is PlayerCharacter pc)
-			{
-				pc.ServerMessage("Provoke is not fully implemented yet.");
-			}
-
-			// Make the target aggressive towards the caster
-			// targetCharacter.OnAttacked(caster);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
 
 			return Task.CompletedTask;
 		}

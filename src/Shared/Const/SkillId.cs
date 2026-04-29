@@ -21,6 +21,7 @@
 	/// </summary>
 	public enum SkillId : short
 	{
+		None = 0,
 		NV_BASIC = 1,
 		SM_SWORD = 2,
 		SM_TWOHAND = 3,

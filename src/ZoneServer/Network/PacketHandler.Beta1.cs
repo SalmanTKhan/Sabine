@@ -24,11 +24,24 @@ namespace Sabine.Zone.Network
 			var count = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
-			// TODO: Add cart and item moving logic
-			Log.Debug("CZ_MOVE_ITEM_FROM_BODY_TO_CART: Char '{0}' wants to move item at index {1} ({2} amount) to cart.", character.Name, index, count);
+			if (character.Parameters.Cart == 0)
+			{
+				Send.ZC_ACK_ADDITEM_TO_CART(character, false);
+				return;
+			}
 
-			// Placeholder response
-			Send.ZC_ACK_ADDITEM_TO_CART(character, true);
+			var item = character.Inventory.GetItem(index);
+			if (item == null)
+			{
+				Send.ZC_ACK_ADDITEM_TO_CART(character, false);
+				return;
+			}
+
+			var moved = character.Inventory.MoveToCart(item, count);
+			Send.ZC_ACK_ADDITEM_TO_CART(character, moved > 0);
+
+			if (moved > 0)
+				SendCartCount(character);
 		}
 
 		/// <summary>
@@ -41,8 +54,25 @@ namespace Sabine.Zone.Network
 			var count = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
-			// TODO: Add cart and item moving logic
-			Log.Debug("CZ_MOVE_ITEM_FROM_CART_TO_BODY: Char '{0}' wants to move item at index {1} ({2} amount) from cart.", character.Name, index, count);
+			if (character.Parameters.Cart == 0)
+				return;
+
+			var item = character.Inventory.GetCartItem(index);
+			if (item == null)
+				return;
+
+			var moved = character.Inventory.MoveToBody(item, count);
+			if (moved > 0)
+				SendCartCount(character);
+		}
+
+		private static void SendCartCount(PlayerCharacter character)
+		{
+			Send.ZC_NOTIFY_CARTITEM_COUNTINFO(character,
+				character.Inventory.CartItemCount,
+				Sabine.Zone.World.Actors.Components.Characters.Inventory.CartMaxSlots,
+				character.Inventory.CartWeight,
+				Sabine.Zone.World.Actors.Components.Characters.Inventory.CartMaxWeight);
 		}
 
 		/// <summary>

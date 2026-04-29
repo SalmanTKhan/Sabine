@@ -568,6 +568,41 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		public int AspdBonus { get; set; }
 
 		/// <summary>
+		/// Gets or sets the weapon-derived portion of the character's
+		/// physical attack (renewal-only split). In pre-renewal mode
+		/// <see cref="Attack"/> is the unified value and this is unused.
+		/// </summary>
+		public int WeaponAtk { get; set; }
+
+		/// <summary>
+		/// Gets or sets the stat-derived portion of the character's
+		/// physical attack (renewal-only split — STR/DEX/LUK/Level).
+		/// </summary>
+		public int StatusAtk { get; set; }
+
+		/// <summary>
+		/// Gets or sets the weapon-derived portion of the character's
+		/// magic attack (renewal-only split). Weapons don't carry a
+		/// MATK field in Sabine yet, so this stays 0.
+		/// </summary>
+		public int WeaponMatk { get; set; }
+
+		/// <summary>
+		/// Gets or sets the stat-derived portion of the character's
+		/// magic attack (renewal-only split — INT-driven).
+		/// </summary>
+		public int StatusMatk { get; set; }
+
+		/// <summary>
+		/// Gets or sets the mastery ATK bonus from passive weapon-mastery
+		/// skills (Sword Mastery, Vulture's Eye, etc.). In pre-renewal
+		/// this is also baked into <see cref="Attack"/> so the status
+		/// window reflects it; in renewal the calculator uses it as a
+		/// separate addend.
+		/// </summary>
+		public int MasteryAtk { get; set; }
+
+		/// <summary>
 		/// Returns the value for the given parameter.
 		/// </summary>
 		/// <param name="type"></param>

@@ -53,6 +53,19 @@ namespace Sabine.Shared.Data.Databases
 
 			return !this.Tiles[x, y].IsWalkable;
 		}
+
+		/// <summary>
+		/// Returns true if the given tile is a water tile (TileType.Unk2 —
+		/// the alpha-client's water type). Used by Aqua Benedicta and any
+		/// future water-cell-dependent skill.
+		/// </summary>
+		public bool IsWater(int x, int y)
+		{
+			if (!this.IsPositionOnMap(x, y))
+				return false;
+
+			return this.Tiles[x, y].Type == TileType.Unk2;
+		}
 	}
 
 	/// <summary>

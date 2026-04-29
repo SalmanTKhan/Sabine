@@ -186,6 +186,15 @@ namespace Sabine.Shared.Network
 		/// <param name="opNetwork"></param>
 		/// <returns></returns>
 		/// <exception cref="ArgumentException"></exception>
+		/// <summary>
+		/// Returns true if the host op is registered for the
+		/// currently-loaded version. Useful for optional packets
+		/// that only exist on later clients (e.g. ZC_PROPERTY_HOMUN
+		/// is euRO-EP10+ only).
+		/// </summary>
+		public static bool IsRegistered(Op op)
+			=> HostToNetwork.ContainsKey(op);
+
 		public static int GetSize(int opNetwork)
 		{
 			if (!Sizes.TryGetValue(opNetwork, out var size))

@@ -5,11 +5,14 @@ using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Network;
 using Sabine.Zone.Ais;
+using Sabine.Zone.Battle.Cards;
+using Sabine.Zone.Battle.Listeners;
 using Sabine.Zone.Commands;
 using Sabine.Zone.Database;
 using Sabine.Zone.Events;
 using Sabine.Zone.Network;
 using Sabine.Zone.Skills;
+using Sabine.Zone.Skills.StatusEffects;
 using Sabine.Zone.World;
 using Yggdrasil.Logging;
 using Yggdrasil.Network.TCP;
@@ -82,6 +85,9 @@ namespace Sabine.Zone
 			this.CreateDebugInfo();
 
 			SkillHandlerManager.Initialize();
+			StatusEffectHandlerManager.Initialize();
+			CardHandlerManager.Initialize();
+			CombatListenerInit.Initialize();
 
 			this.World.Start();
 

@@ -59,6 +59,9 @@ namespace Sabine.Zone.Network
 
 			if (character != null)
 			{
+				if (character.Homunculus?.IsActive == true)
+					Sabine.Zone.Skills.Homunculi.HomunculusService.Detach(character);
+
 				character?.Map.RemovePlayer(character);
 			}
 

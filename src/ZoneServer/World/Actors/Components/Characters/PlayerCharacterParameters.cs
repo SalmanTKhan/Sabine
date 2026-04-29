@@ -4,6 +4,7 @@ using Sabine.Shared.Const;
 using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Util;
+using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
 
 namespace Sabine.Zone.World.Actors.Components.Characters
@@ -160,19 +161,65 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var fromWeapon = 0;
 			var fromWeaponMin = 0;
 			var fromWeaponMax = 0;
+			var refineBonus = 0;
 
 			if (weapon != null)
 			{
 				fromWeapon = weapon.Data.Attack;
 				fromWeaponMin = weapon.Data.AttackMin;
 				fromWeaponMax = weapon.Data.AttackMax;
+				refineBonus = RefinementTable.GetWeaponAtkBonus(weapon.Data.WeaponLevel, weapon.RefineLevel);
 			}
 
-			this.Attack = fromStats + fromWeapon;
-			this.AttackMin = fromStatsMin + fromWeaponMin;
-			this.AttackMax = fromStatsMax + fromWeaponMax;
+			var masteryBonus = this.CalculateMasteryAtk(weapon);
+			this.MasteryAtk = masteryBonus;
+
+			this.Attack = fromStats + fromWeapon + refineBonus + masteryBonus;
+			this.AttackMin = fromStatsMin + fromWeaponMin + refineBonus + masteryBonus;
+			this.AttackMax = fromStatsMax + fromWeaponMax + refineBonus + masteryBonus;
+
+			// Renewal status/weapon-ATK split. These mirror rAthena
+			// status_base_atk and are populated even when renewal is
+			// disabled — the calculator only reads them in renewal
+			// mode, so leaving them current is harmless and cheap.
+			this.StatusAtk = (this.BaseLevel / 4) + mainStat + (mainStat * mainStat) / 100 + (this.Dex / 5) + (this.Luk / 5);
+			this.WeaponAtk = fromWeapon + refineBonus;
 
 			this.UpdateClient(ParameterType.AttackMin, ParameterType.AttackMax);
+		}
+
+		/// <summary>
+		/// Returns the flat ATK bonus from passive weapon-mastery skills
+		/// based on the currently equipped weapon. Mirrors eAthena
+		/// pc_calc_atk: +4/level for sword/two-hand mastery, +1/level
+		/// for Vulture's Eye on Bow.
+		/// </summary>
+		private int CalculateMasteryAtk(Item weapon)
+		{
+			var skills = this.Character.Skills;
+			if (skills == null)
+				return 0;
+
+			var bonus = 0;
+			var weaponType = weapon?.Data.GetWeaponType() ?? WeaponType.Unknown;
+
+			switch (weaponType)
+			{
+				case WeaponType.OneHandedSword:
+				case WeaponType.Dagger:
+					bonus += skills.GetLevel(SkillId.SM_SWORD) * 4;
+					break;
+
+				case WeaponType.TwoHandedSword:
+					bonus += skills.GetLevel(SkillId.SM_TWOHAND) * 4;
+					break;
+
+				case WeaponType.Bow:
+					bonus += skills.GetLevel(SkillId.AC_OWL) * 1;
+					break;
+			}
+
+			return bonus;
 		}
 
 		/// <summary>
@@ -185,6 +232,13 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			this.MagicAttack = (int)(this.Int + Math.Pow(this.Int / 10, 2)) / 2;
 			this.MagicAttackMin = (int)(this.Int + Math.Pow(this.Int / 7, 2));
 			this.MagicAttackMax = (int)(this.Int + Math.Pow(this.Int / 5, 2));
+
+			// Renewal status/weapon-MATK split (rAthena status_base_matk).
+			// sMATK trait stat (Spl) is added 1:1 for 4th-job characters.
+			this.StatusMatk = (this.BaseLevel / 4) + this.Int + (this.Int * this.Int) / 25 + this.Spl + this.Smatk;
+
+			var weapon = this.Character.Inventory.RightHand;
+			this.WeaponMatk = weapon?.Data.MagicAttack ?? 0;
 
 			this.UpdateClient(ParameterType.MagicAttack);
 		}

@@ -20,15 +20,20 @@
 { name: "Beta1", enabled: false, children: [
 	// Enables characters to raise their job level.
 	{ name: "JobLevels", enabled: true },
-	
+
 	// Enables the mage class, which was not available in the alpha.
 	{ name: "Mage", enabled: true },
-	
+
 	// Enables skills, which were not available in the alpha.
 	// This feature doesn't do anything if the alpha client is used.
 	{ name: "Skills", enabled: true },
-	
+
 	// Gives characters a higher max weight.
 	{ name: "HigherMaxWeight", enabled: true },
 ]},
+
+// Switches damage calculation to the renewal formulas (multiplicative
+// DEF/MDEF, weapon ATK split into mastery and base ATK, etc.). Disabled
+// by default; classic/pre-renewal formulas are used while this is off.
+{ name: "Renewal", enabled: false },
 ]

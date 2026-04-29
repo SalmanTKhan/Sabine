@@ -9,6 +9,14 @@ namespace Sabine.Shared.Data.Databases
 	{
 		public static readonly string JobLevels = "JobLevels";
 		public static readonly string HigherMaxWeight = "HigherMaxWeight";
+
+		/// <summary>
+		/// When enabled the renewal damage formulas are used for physical
+		/// and magic attacks; when disabled the pre-renewal formulas are
+		/// used. Defaults to disabled (pre-renewal) since Sabine targets
+		/// classic-era servers.
+		/// </summary>
+		public static readonly string Renewal = "Renewal";
 	}
 
 	/// <summary>

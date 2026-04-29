@@ -172,6 +172,33 @@ namespace Sabine.Zone.World.Actors
 		public SkillComponent Skills { get; protected set; }
 
 		/// <summary>
+		/// Returns the character's status effect manager component.
+		/// </summary>
+		public StatusEffectComponent StatusEffects { get; protected set; }
+
+		/// <summary>
+		/// Returns the character's accumulated damage modifiers (race /
+		/// element / size add and sub bonuses). Used by the battle
+		/// calculator. Populated by the card / equip engine in the
+		/// future; all-zero in v1.
+		/// </summary>
+		public Sabine.Zone.Battle.BonusModifiers Modifiers { get; } = new Sabine.Zone.Battle.BonusModifiers();
+
+		/// <summary>True if Hiding (TF_HIDING) is active on the character.</summary>
+		public bool IsHidden => this.StatusEffects?.Has(StatusId.Hiding) == true;
+
+		/// <summary>True if the character is petrified, frozen, asleep, or stunned — i.e. cannot act.</summary>
+		public bool IsImmobilized
+			=> this.StatusEffects != null && (
+				this.StatusEffects.Has(StatusId.Stone)
+				|| this.StatusEffects.Has(StatusId.Freeze)
+				|| this.StatusEffects.Has(StatusId.Sleep)
+				|| this.StatusEffects.Has(StatusId.Stun));
+
+		/// <summary>True while Silence is active — can't cast skills.</summary>
+		public bool IsSilenced => this.StatusEffects?.Has(StatusId.Silence) == true;
+
+		/// <summary>
 		/// Returns the character's components.
 		/// </summary>
 		public CharacterComponents Components { get; } = new CharacterComponents();
@@ -183,6 +210,62 @@ namespace Sabine.Zone.World.Actors
 		{
 			this.Components.Add(this.Controller = new MovementController(this));
 			this.Components.Add(this.Skills = new SkillComponent(this));
+			this.Components.Add(this.StatusEffects = new StatusEffectComponent(this));
+		}
+
+		/// <summary>
+		/// Sets or clears the BodyState (opt1). Body state is
+		/// non-stackable (Stone/Freeze/Stun/Sleep are mutually exclusive)
+		/// so callers pass <c>BodyState.None</c> to clear. The state is
+		/// broadcast via ZC_STATE_CHANGE.
+		/// </summary>
+		internal void SetBodyState(BodyState state)
+		{
+			if (this.BodyState == state)
+				return;
+
+			this.BodyState = state;
+			Send.ZC_STATE_CHANGE(this);
+		}
+
+		/// <summary>
+		/// Clears the BodyState only if the current state matches the
+		/// expected one. Avoids one expiring effect (e.g. Stone) wiping
+		/// a different body state set by a later effect.
+		/// </summary>
+		internal void ClearBodyState(BodyState expected)
+		{
+			if (this.BodyState != expected)
+				return;
+			this.SetBodyState(BodyState.None);
+		}
+
+		/// <summary>
+		/// Toggles a HealthState (opt2) flag and broadcasts the new state
+		/// to nearby clients via ZC_STATE_CHANGE.
+		/// </summary>
+		internal void SetHealthStateFlag(HealthState flag, bool on)
+		{
+			var newState = on ? (this.HealthState | flag) : (this.HealthState & ~flag);
+			if (newState == this.HealthState)
+				return;
+
+			this.HealthState = newState;
+			Send.ZC_STATE_CHANGE(this);
+		}
+
+		/// <summary>
+		/// Toggles an EffectState (opt3) flag and broadcasts the new state
+		/// to nearby clients via ZC_STATE_CHANGE.
+		/// </summary>
+		internal void SetEffectStateFlag(EffectState flag, bool on)
+		{
+			var newState = on ? (this.EffectState | flag) : (this.EffectState & ~flag);
+			if (newState == this.EffectState)
+				return;
+
+			this.EffectState = newState;
+			Send.ZC_STATE_CHANGE(this);
 		}
 
 		/// <summary>
@@ -280,6 +363,12 @@ namespace Sabine.Zone.World.Actors
 
 			var remainingHp = this.Parameters.Modify(ParameterType.Hp, -amount);
 
+			// Sleep breaks on the first non-zero hit. Run after the
+			// damage is applied so the 1.5x sleep multiplier already
+			// took effect on the breaking hit.
+			if (amount > 0 && this.StatusEffects?.Has(StatusId.Sleep) == true)
+				this.StatusEffects.Stop(StatusId.Sleep);
+
 			if (remainingHp == 0)
 				this.Kill(attacker);
 
@@ -355,21 +444,19 @@ namespace Sabine.Zone.World.Actors
 		{
 			var attacker = this;
 
-			if (_cancelAttack || target.IsDead || target.Map != attacker.Map)
+			if (_cancelAttack || target.IsDead || target.Map != attacker.Map || attacker.IsImmobilized || attacker.IsDead)
 			{
 				_attackCallbackId = 0;
 				return;
 			}
 
-			var rnd = RandomProvider.Get();
+			var ctx = new Sabine.Zone.Battle.AttackContext(attacker, target);
+			var result = Sabine.Zone.Battle.BattleCalculator.Calc(ctx);
 
-			var hitChance = Math.Max(5, 80 + attacker.Parameters.Hit - target.Parameters.Flee);
-			var damage = 0; // Miss
+			var damage = result.IsMiss ? 0 : result.Damage;
 
-			if (rnd.Next(100) < hitChance)
+			if (!result.IsMiss)
 			{
-				damage = rnd.Next(attacker.Parameters.AttackMin, attacker.Parameters.AttackMax + 1);
-
 				target.TakeDamage(damage, attacker);
 				target.StunEndTime = DateTime.Now.AddSeconds(1);
 				target.Controller.StopMove();
@@ -389,7 +476,7 @@ namespace Sabine.Zone.World.Actors
 			var attackMotionDelay = attacker.Parameters.AttackMotionDelay;
 			var damageMotionDelay = target.Parameters.DamageMotionDelay;
 
-			Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), ActionType.Attack, damage, attackMotionDelay, damageMotionDelay);
+			Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), result.ActionType, damage, attackMotionDelay, damageMotionDelay);
 
 			if (target.IsDead)
 				autoAttack = false;
@@ -430,7 +517,7 @@ namespace Sabine.Zone.World.Actors
 			this.Parameters.Modify(ParameterType.Hp, healAmount);
 		}
 
-		internal bool IsHostileTo(Character target)
+		internal virtual bool IsHostileTo(Character target)
 		{
 			return (this is Monster && target is PlayerCharacter) || (this is PlayerCharacter && target is Monster);
 		}

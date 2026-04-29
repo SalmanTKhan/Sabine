@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Linq;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Collections;
@@ -44,7 +44,7 @@ namespace Sabine.Zone.Ais.Impl
 				(origin: Character.Position, range: attackRange),
 				static (state, p) =>
 				{
-					if (p.IsDead)
+					if (p.IsDead || p.IsHidden)
 						return false;
 
 					if (!p.Position.InRange(state.origin, state.range))

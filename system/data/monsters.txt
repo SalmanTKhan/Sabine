@@ -118,5 +118,14 @@
 { id: 1086, name: "GOLDEN_BUG", level: 50, hp: 4500, sp: 0, exp: 78, jexp: 0, mvpExp: 39, attackMin: 56, attackMax: 70, def: 85, mdef: 80, str: 1, agi: 85, vit: 15, int: 1, dex: 55, luk: 50, attackRange: 1, viewRange: 10, chaseRange: 10, size: "Large", race: "Insect", element: "Fire", elementLevel: 4, ai: "Type03", speed: 100, attackDelay: 768, attackMotion: 768, damageMotion: 480, drops: [{ itemId: 928, chance: 50.0 },{ itemId: 510, chance: 30.0 },{ itemId: 701, chance: 5.0 },{ itemId: 2610, chance: 2.0 },{ itemId: 969, chance: 1.0 },{ itemId: 4128, chance: 0.01 },{ itemId: 512, chance: 0.0 }] },
 { id: 1087, name: "ORK_HERO", level: 60, hp: 8500, sp: 0, exp: 236, jexp: 0, mvpExp: 119, attackMin: 136, attackMax: 170, def: 45, mdef: 50, str: 1, agi: 60, vit: 120, int: 1, dex: 85, luk: 60, attackRange: 1, viewRange: 10, chaseRange: 10, size: "Large", race: "DemiHuman", element: "Earth", elementLevel: 4, ai: "Type03", speed: 150, attackDelay: 1678, attackMotion: 780, damageMotion: 648, drops: [{ itemId: 922, chance: 80.0 },{ itemId: 968, chance: 55.0 },{ itemId: 912, chance: 30.0 },{ itemId: 725, chance: 5.0 },{ itemId: 1124, chance: 1.0 },{ itemId: 4143, chance: 0.01 }] },
 
+// Homunculi (placeholder stat lines; the real values scale with the
+// owner's level and homunculus level, applied at spawn time by the
+// HomunculusService once the per-type stat-table lands).
+//---------------------------------------------------------------------------
+{ id: 6001, name: "LIF", level: 1, hp: 150, sp: 0, exp: 0, jexp: 0, attackMin: 10, attackMax: 14, def: 6, mdef: 4, str: 5, agi: 5, vit: 5, int: 10, dex: 5, luk: 5, attackRange: 1, viewRange: 10, chaseRange: 12, size: "Medium", race: "Brute", element: "Neutral", elementLevel: 1, speed: 200, attackDelay: 1000, attackMotion: 500, damageMotion: 300 },
+{ id: 6002, name: "AMISTR", level: 1, hp: 250, sp: 0, exp: 0, jexp: 0, attackMin: 14, attackMax: 18, def: 12, mdef: 2, str: 8, agi: 4, vit: 10, int: 4, dex: 5, luk: 5, attackRange: 1, viewRange: 10, chaseRange: 12, size: "Medium", race: "Brute", element: "Earth", elementLevel: 1, speed: 200, attackDelay: 1000, attackMotion: 500, damageMotion: 300 },
+{ id: 6003, name: "FILIR", level: 1, hp: 120, sp: 0, exp: 0, jexp: 0, attackMin: 16, attackMax: 22, def: 4, mdef: 3, str: 7, agi: 12, vit: 4, int: 4, dex: 8, luk: 5, attackRange: 1, viewRange: 10, chaseRange: 12, size: "Small", race: "Brute", element: "Wind", elementLevel: 1, speed: 150, attackDelay: 800, attackMotion: 400, damageMotion: 250 },
+{ id: 6004, name: "VANILMIRTH", level: 1, hp: 180, sp: 0, exp: 0, jexp: 0, attackMin: 12, attackMax: 16, def: 6, mdef: 8, str: 5, agi: 6, vit: 6, int: 12, dex: 6, luk: 6, attackRange: 1, viewRange: 10, chaseRange: 12, size: "Small", race: "Formless", element: "Neutral", elementLevel: 1, speed: 200, attackDelay: 1000, attackMotion: 500, damageMotion: 300 },
+
 ]},
 ]

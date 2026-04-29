@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Collections;
 
@@ -37,7 +37,7 @@ namespace Sabine.Zone.Ais.Impl
 				(targetHandle: _targetCharacterHandle, origin: Character.Position, range: chaseRange),
 				static (state, p) =>
 				{
-					if (p.IsDead)
+					if (p.IsDead || p.IsHidden)
 						return false;
 
 					if (p.Handle == state.targetHandle) // Not the current target

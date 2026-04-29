@@ -176,6 +176,12 @@ namespace Sabine.Zone.World.Actors
 		public int AmmoClassId { get; set; }
 
 		/// <summary>
+		/// Homunculus-state bookkeeping for the player. Created with
+		/// the player; Type=None means no contract yet.
+		/// </summary>
+		public HomunculusComponent Homunculus { get; private set; }
+
+		/// <summary>
 		/// Creates a new character.
 		/// </summary>
 		public PlayerCharacter(JobId jobId)
@@ -186,6 +192,8 @@ namespace Sabine.Zone.World.Actors
 
 			this.Parameters = new PlayerCharacterParameters(this);
 			this.Components.Add(new RegenComponent(this));
+			this.Homunculus = new HomunculusComponent(this);
+			this.Components.Add(this.Homunculus);
 
 			this.LoadJobData(jobId);
 		}
@@ -273,6 +281,13 @@ namespace Sabine.Zone.World.Actors
 
 			this.CancelAction();
 			this.StopObserving();
+
+			// Detach the homunculus before the map switch — the
+			// entity needs to come off the source map. The contract
+			// persists via HomunculusComponent so the player can
+			// recall after arriving.
+			if (this.Homunculus?.IsActive == true)
+				Sabine.Zone.Skills.Homunculi.HomunculusService.Detach(this);
 
 			Send.ZC_NPCACK_MAPMOVE(this, map.StringId, location.Position);
 		}
@@ -718,6 +733,9 @@ namespace Sabine.Zone.World.Actors
 		public override void Kill(Character killer)
 		{
 			base.Kill(killer);
+
+			if (this.Homunculus?.IsActive == true)
+				Sabine.Zone.Skills.Homunculi.HomunculusService.Detach(this);
 
 			Send.ZC_NOTIFY_VANISH(this, DisappearType.StrikedDead);
 		}

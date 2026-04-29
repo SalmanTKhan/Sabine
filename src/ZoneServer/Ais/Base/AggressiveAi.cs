@@ -34,7 +34,7 @@ namespace Sabine.Zone.Ais.Base
 				(origin: Character.Position, range: chaseRange),
 				static (state, p) =>
 				{
-					if (p.IsDead)
+					if (p.IsDead || p.IsHidden)
 						return false;
 
 					if (!p.Position.InRange(state.origin, state.range))

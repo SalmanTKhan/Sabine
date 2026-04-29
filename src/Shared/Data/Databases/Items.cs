@@ -29,6 +29,31 @@ namespace Sabine.Shared.Data.Databases
 		public int WeaponLevel { get; set; }
 		public int LookId { get; set; }
 
+		/// <summary>
+		/// Element this item adds to attacks when used as a weapon (or
+		/// fired as ammo). Defaults to Neutral.
+		/// </summary>
+		public ElementType Element { get; set; } = ElementType.Neutral;
+
+		/// <summary>
+		/// Defense element granted by this armor when worn. Defaults to
+		/// <c>None</c> (i.e. no override). When the player has at least
+		/// one piece of armor with a non-None DefenseElement equipped,
+		/// it overrides the default Neutral defense element.
+		/// </summary>
+		public ElementType DefenseElement { get; set; } = ElementType.None;
+
+		/// <summary>
+		/// Magic attack granted by this weapon when wielded.
+		/// </summary>
+		public int MagicAttack { get; set; }
+
+		/// <summary>
+		/// Number of card slots this item has. Cards are stored on the
+		/// in-world <c>Item</c> instance, not the data entry.
+		/// </summary>
+		public int Slots { get; set; }
+
 		public WeaponType GetWeaponType()
 		{
 			// Check if the LookId is a defined member of the WeaponType enum.
@@ -95,6 +120,10 @@ namespace Sabine.Shared.Data.Databases
 			data.RequiredLevel = entry.ReadInt("equipLevel", 1);
 			data.WeaponLevel = entry.ReadInt("weaponLevel", 0);
 			data.LookId = entry.ReadInt("look", 0);
+			data.Element = entry.ReadEnum("element", ElementType.Neutral);
+			data.DefenseElement = entry.ReadEnum("defenseElement", ElementType.None);
+			data.MagicAttack = entry.ReadInt("magicAttack", 0);
+			data.Slots = entry.ReadInt("slots", 0);
 
 			if (Game.Version >= Versions.Beta2)
 			{

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+using System;
+using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
@@ -10,22 +11,23 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 	{
 		public Task HandleAsync(Character caster, Character target, Skill skill)
 		{
-			// Sight is a ground-based AoE that reveals hidden enemies.
-			// The skill is cast on the caster themselves.
-			var radius = 3 + (skill.Level / 2); // Example radius
-
-			// TODO: Implement "Hiding" status and reveal logic.
-			// var hiddenEntities = caster.Map.GetEntitiesInRange(caster.Position, radius)
-			//     .Where(e => e.Status.Has(StatusType.Hiding));
-			// foreach(var entity in hiddenEntities) { entity.Status.Remove(StatusType.Hiding); }
-
-			// Show a visual effect on the ground around the caster.
-			Send.ZC_SKILL_ENTRY(caster, skill.Id, caster.Position);
-
-			if (caster is PlayerCharacter pc)
+			// eAthena classic MG_SIGHT: ~10s buff that reveals hidden
+			// enemies in radius 7. The reveal sweep happens at cast time
+			// (before the status is started) so anyone hiding nearby is
+			// dispelled immediately even if they're caught walking in
+			// before our visibility tick.
+			var radius = 7;
+			foreach (var other in caster.Map.GetCharactersInRange(caster.Position, radius))
 			{
-				pc.ServerMessage("Sight is not fully implemented yet.");
+				if (other == caster) continue;
+				if (other.IsHidden)
+					other.StatusEffects.Stop(StatusId.Hiding);
 			}
+
+			var duration = TimeSpan.FromSeconds(10);
+			caster.StatusEffects.Start(StatusId.Sight, skill.Level, duration, caster);
+
+			Send.ZC_SKILL_ENTRY(caster, skill.Id, caster.Position);
 
 			return Task.CompletedTask;
 		}
