@@ -160,6 +160,42 @@ namespace Sabine.Zone.World.Actors
 		public Party Party { get; set; }
 
 		/// <summary>
+		/// Returns a reference to the character's guild, if any.
+		/// </summary>
+		public Guild Guild { get; set; }
+
+		/// <summary>
+		/// Returns the character's guild ID, or 0 if not in a guild.
+		/// </summary>
+		public override int GuildId
+		{
+			get => Guild?.Id ?? 0;
+			protected set => throw new NotSupportedException("GuildId is derived from Guild membership.");
+		}
+
+		/// <summary>
+		/// UTC time until which the character is muted, if any. Public chat
+		/// from this character is dropped while this is in the future.
+		/// </summary>
+		public DateTime? MutedUntil { get; set; }
+
+		/// <summary>
+		/// Character id this character is married to, if any.
+		/// </summary>
+		public int? MarriedToCharId { get; set; }
+
+		/// <summary>
+		/// Renewal-style cosmetic body style index. Stored verbatim; the
+		/// alpha client ignores it, but the value persists.
+		/// </summary>
+		public int BodyStyle { get; set; }
+
+		/// <summary>
+		/// Returns true if the character is currently muted.
+		/// </summary>
+		public bool IsMuted => this.MutedUntil.HasValue && this.MutedUntil.Value > DateTime.UtcNow;
+
+		/// <summary>
 		/// Returns the character's party ID, or 0 if not in a party.
 		/// </summary>
 		public int PartyId => Party?.Id ?? 0;

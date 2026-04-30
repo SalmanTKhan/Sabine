@@ -314,6 +314,13 @@ namespace Sabine.Zone.Network
 			if (ZoneServer.Instance.ChatCommands.TryExecute(character, text))
 				return;
 
+			if (character.IsMuted)
+			{
+				var remaining = (character.MutedUntil.Value - DateTime.UtcNow).TotalSeconds;
+				character.ServerMessage(Localization.Get("You are muted for another {0:0} seconds."), remaining);
+				return;
+			}
+
 			text = string.Format("{0} : {1}", character.Name, text);
 
 			// The client uses the same packets for displaying chat

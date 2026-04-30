@@ -72,6 +72,27 @@ namespace Sabine.Zone.World.Maps
 		public int VisibleRange { get; set; } = 20;
 
 		/// <summary>
+		/// Per-map gameplay flags, toggled at runtime by GM commands such
+		/// as @pvpon, @gvgon, @mapflag.
+		/// </summary>
+		public MapFlags Flags { get; set; } = MapFlags.None;
+
+		/// <summary>
+		/// Returns true if all of the given flags are set on this map.
+		/// </summary>
+		public bool HasFlag(MapFlags flag) => (this.Flags & flag) == flag;
+
+		/// <summary>
+		/// Sets the given flag(s).
+		/// </summary>
+		public void SetFlag(MapFlags flag) => this.Flags |= flag;
+
+		/// <summary>
+		/// Clears the given flag(s).
+		/// </summary>
+		public void ClearFlag(MapFlags flag) => this.Flags &= ~flag;
+
+		/// <summary>
 		/// Returns the number of players on this number.
 		/// </summary>
 		public int PlayerCount
