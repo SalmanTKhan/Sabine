@@ -1,47 +1,48 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 using Yggdrasil.Util;
 
 namespace Sabine.Zone.Skills.Handlers.Magician
 {
 	[SkillHandler(SkillId.MG_FROSTDIVER)]
-	public class FrostDiverHandler : ISkillHandler
+	public class FrostDiverHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
-				return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var ctx = new AttackContext(caster, targetCharacter)
+			if (target == null)
+				return;
+
+			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Magic,
-				SkillRatio = 1.0f + 0.1f * skill.Level,
+				SkillRatio = 1.0f + 0.1f * level,
 				AttackElement = ElementType.Water,
 			};
 			var result = BattleCalculator.Calc(ctx);
 			var damage = result.IsMiss ? 0 : result.Damage;
 
 			if (!result.IsMiss)
-				targetCharacter.TakeDamage(damage, caster);
+				target.TakeDamage(damage, caster);
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, damage, 0, 0, result.ActionType);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, damage, 0, 0, result.ActionType);
 
 			// eAthena MG_FROSTDIVER: 30 + 3*level freeze chance, 3s + 2s/level duration.
 			var rnd = RandomProvider.Get();
-			var freezeChance = 30 + 3 * skill.Level;
+			var freezeChance = 30 + 3 * level;
 			if (rnd.Next(100) < freezeChance)
 			{
-				var duration = TimeSpan.FromSeconds(3 + 2 * skill.Level);
-				targetCharacter.StatusEffects.Start(StatusId.Freeze, skill.Level, duration, caster);
+				var duration = TimeSpan.FromSeconds(3 + 2 * level);
+				target.StatusEffects.Start(StatusId.Freeze, level, duration, caster);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 }

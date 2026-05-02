@@ -1,23 +1,19 @@
-﻿using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Merchant
 {
 	[SkillHandler(SkillId.MC_IDENTIFY)]
-	public class IdentifyHandler : ISkillHandler
+	public class IdentifyHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		// Item Identification is a special skill. Using it from the skill
+		// bar changes the cursor; the player then clicks an unidentified
+		// item and the client sends CZ_REQ_ITEMIDENTIFY. The dispatch
+		// model here doesn't drive that flow — see PacketHandler.Skills.cs.
+		public void Handle(UseSkillParams parameters)
 		{
-			// Item Identification is a special skill. Using it from the skill bar
-			// changes the cursor, and the player then clicks an unidentified item.
-			// The `HandleAsync` model doesn't fit well.
-			// The client sends CZ_REQ_ITEMIDENTIFY when an item is clicked.
-			if (caster is PlayerCharacter pc)
-			{
+			if (parameters.Character is PlayerCharacter pc)
 				pc.ServerMessage("Please use the skill then click on an unidentified item in your inventory.");
-			}
-			return Task.CompletedTask;
 		}
 	}
 }

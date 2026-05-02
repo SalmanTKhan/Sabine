@@ -1,23 +1,26 @@
 using System.Linq;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Magician
 {
 	[SkillHandler(SkillId.MG_FIREBALL)]
-	public class FireBallHandler : ISkillHandler
+	public class FireBallHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
-				return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var skillRatio = 0.8f + 0.1f * skill.Level;
+			if (target == null)
+				return;
 
-			Send.ZC_NOTIFY_SKILL_POSITION(caster, target.Handle, skill.Id, skill.Level, target.Position, 0, 0, 0, ActionType.Skill);
+			var skillRatio = 0.8f + 0.1f * level;
+
+			Send.ZC_NOTIFY_SKILL_POSITION(caster, target.Handle, skill.Id, level, target.Position, 0, 0, 0, ActionType.Skill);
 
 			var targets = caster.Map.GetCharactersInRange(target.Position, 3)
 				.Where(c => c.IsHostileTo(caster));
@@ -27,7 +30,7 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 				var ctx = new AttackContext(caster, aoeTarget)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = skillRatio,
 					AttackElement = ElementType.Fire,
@@ -36,8 +39,6 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 				if (!result.IsMiss)
 					aoeTarget.TakeDamage(result.Damage, caster);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 }

@@ -1,5 +1,3 @@
-﻿using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
@@ -8,18 +6,20 @@ using Sabine.Zone.World.Actors;
 namespace Sabine.Zone.Skills.Handlers.Acolyte
 {
 	[SkillHandler(SkillId.AL_TELEPORT)]
-	public class TeleportHandler : ISkillHandler
+	public class TeleportHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is not PlayerCharacter pc)
-			{
-				return Task.CompletedTask;
-			}
+				return;
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
-			if (skill.Level == 1)
+			if (level == 1)
 			{
 				// Level 1 teleports to a random walkable cell on the current map.
 				var randomPos = caster.Map.GetRandomWalkablePosition();
@@ -30,8 +30,6 @@ namespace Sabine.Zone.Skills.Handlers.Acolyte
 				// Level 2 teleports to the character's save point.
 				caster.Warp(pc.SaveLocation);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
@@ -8,7 +7,7 @@ using Yggdrasil.Util;
 namespace Sabine.Zone.Skills.Handlers.Magician
 {
 	[SkillHandler(SkillId.MG_STONECURSE)]
-	public class StoneCurseHandler : ISkillHandler
+	public class StoneCurseHandler : ITargetedSkillHandler
 	{
 		// Red Gemstone item id (eAthena db: 716).
 		private const int RedGemstoneId = 716;
@@ -16,10 +15,15 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 		// eAthena classic MG_STONECURSE: chance = 24 + 2*level (%);
 		// duration = 5 + 5*level seconds. Red Gemstone is consumed
 		// regardless of resist (eAthena behavior).
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
-				return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null)
+				return;
 
 			if (caster is PlayerCharacter pc)
 			{
@@ -27,22 +31,20 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 				if (gem == null)
 				{
 					pc.ServerMessage("You need a Red Gemstone.");
-					return Task.CompletedTask;
+					return;
 				}
 				pc.Inventory.DecrementItem(gem, 1);
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
 			var rnd = RandomProvider.Get();
-			var chance = 24 + 2 * skill.Level;
+			var chance = 24 + 2 * level;
 			if (rnd.Next(100) < chance)
 			{
-				var duration = TimeSpan.FromSeconds(5 + 5 * skill.Level);
-				targetCharacter.StatusEffects.Start(StatusId.Stone, skill.Level, duration, caster);
+				var duration = TimeSpan.FromSeconds(5 + 5 * level);
+				target.StatusEffects.Start(StatusId.Stone, level, duration, caster);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 }

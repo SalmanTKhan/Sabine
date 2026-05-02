@@ -1,5 +1,4 @@
 using System.Linq;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
@@ -8,27 +7,31 @@ using Sabine.Zone.World.Actors;
 namespace Sabine.Zone.Skills.Handlers.Merchant
 {
 	[SkillHandler(SkillId.MC_CARTREVOLUTION)]
-	public class CartRevolutionHandler : ISkillHandler
+	public class CartRevolutionHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
-				return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null)
+				return;
 
 			if (caster is not PlayerCharacter pc)
-				return Task.CompletedTask;
+				return;
 
 			if (pc.Parameters.Cart == 0)
-				return Task.CompletedTask;
+				return;
 
 			// Cart Revolution damage: (150% + (CartWeight / 8000) * 100%) ATK.
-			// Empty cart = 1.5x; full cart = 2.5x. Reads the live cart
-			// weight from the player's inventory.
+			// Empty cart = 1.5x; full cart = 2.5x.
 			var cartWeight = pc.Inventory.CartWeight;
 			var weightBonus = cartWeight / 8000f;
 			var skillRatio = 1.5f + weightBonus;
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
 			var targets = caster.Map.GetCharactersInRange(target.Position, 1)
 				.Where(c => c != caster && c.IsHostileTo(caster));
@@ -38,7 +41,7 @@ namespace Sabine.Zone.Skills.Handlers.Merchant
 				var ctx = new AttackContext(caster, aoeTarget)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Physical,
 					SkillRatio = skillRatio,
 				};
@@ -48,8 +51,6 @@ namespace Sabine.Zone.Skills.Handlers.Merchant
 
 				aoeTarget.Controller.Knockback(caster.Position, 2);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 }

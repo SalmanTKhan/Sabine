@@ -1,27 +1,32 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Archer
 {
 	[SkillHandler(SkillId.AC_DOUBLE)]
-	public class DoubleStrafingHandler : ISkillHandler
+	public class DoubleStrafingHandler : ITargetedSkillHandler
 	{
-		public async Task HandleAsync(Character caster, Character target, Skill skill)
+		// TODO: re-introduce ~100ms inter-hit delay via a scheduler now
+		// that Handle is sync void.
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null)
 				return;
 
-			var skillRatio = 0.9f + 0.1f * skill.Level;
+			var skillRatio = 0.9f + 0.1f * level;
 
 			for (var i = 0; i < 2; i++)
 			{
-				var ctx = new AttackContext(caster, targetCharacter)
+				var ctx = new AttackContext(caster, target)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Physical,
 					SkillRatio = skillRatio,
 				};
@@ -29,12 +34,9 @@ namespace Sabine.Zone.Skills.Handlers.Archer
 				var damage = result.IsMiss ? 0 : result.Damage;
 
 				if (!result.IsMiss)
-					targetCharacter.TakeDamage(damage, caster);
+					target.TakeDamage(damage, caster);
 
-				Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, damage, 0, 0, result.ActionType);
-
-				if (i == 0)
-					await Task.Delay(100);
+				Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, damage, 0, 0, result.ActionType);
 			}
 		}
 	}

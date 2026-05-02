@@ -1,6 +1,4 @@
-using System;
 using System.Linq;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
@@ -9,16 +7,20 @@ using Sabine.Zone.World.Actors;
 namespace Sabine.Zone.Skills.Handlers.Acolyte
 {
 	[SkillHandler(SkillId.AL_HOLYWATER)]
-	public class AquaBenedictaHandler : ISkillHandler
+	public class AquaBenedictaHandler : ITargetedSkillHandler
 	{
 		// Holy Water item id (eAthena db: 523).
 		private const int EmptyBottleId = 713;
 		private const int HolyWaterId = 523;
 
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is not PlayerCharacter pc)
-				return Task.CompletedTask;
+				return;
 
 			// eAthena requires the caster to stand on or adjacent to a
 			// water tile. We check the caster cell plus the four
@@ -34,56 +36,63 @@ namespace Sabine.Zone.Skills.Handlers.Acolyte
 			if (!nearWater)
 			{
 				pc.ServerMessage("You must be next to water.");
-				return Task.CompletedTask;
+				return;
 			}
 
 			var bottle = pc.Inventory.GetItems(static i => i.ClassId == EmptyBottleId).FirstOrDefault();
 			if (bottle == null)
 			{
 				pc.ServerMessage("You need an Empty Bottle.");
-				return Task.CompletedTask;
+				return;
 			}
 
 			pc.Inventory.DecrementItem(bottle, 1);
 			pc.Inventory.AddItem(new Item(HolyWaterId, 1));
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.AL_CURE)]
-	public class CureHandler : ISkillHandler
+	public class CureHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
-				return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null)
+				return;
 
 			// eAthena AL_CURE removes Silence, Blind (Darkness), Chaos,
 			// and Confusion. Stone removal is technically different
 			// (Statue Petrify) but kept here as a usability convenience.
-			if (targetCharacter.StatusEffects.Has(StatusId.Silence))
-				targetCharacter.StatusEffects.Stop(StatusId.Silence);
-			if (targetCharacter.StatusEffects.Has(StatusId.Blind))
-				targetCharacter.StatusEffects.Stop(StatusId.Blind);
-			if (targetCharacter.StatusEffects.Has(StatusId.Chaos))
-				targetCharacter.StatusEffects.Stop(StatusId.Chaos);
-			if (targetCharacter.StatusEffects.Has(StatusId.Confusion))
-				targetCharacter.StatusEffects.Stop(StatusId.Confusion);
-			if (targetCharacter.StatusEffects.Has(StatusId.Stone))
-				targetCharacter.StatusEffects.Stop(StatusId.Stone);
+			if (target.StatusEffects.Has(StatusId.Silence))
+				target.StatusEffects.Stop(StatusId.Silence);
+			if (target.StatusEffects.Has(StatusId.Blind))
+				target.StatusEffects.Stop(StatusId.Blind);
+			if (target.StatusEffects.Has(StatusId.Chaos))
+				target.StatusEffects.Stop(StatusId.Chaos);
+			if (target.StatusEffects.Has(StatusId.Confusion))
+				target.StatusEffects.Stop(StatusId.Confusion);
+			if (target.StatusEffects.Has(StatusId.Stone))
+				target.StatusEffects.Stop(StatusId.Stone);
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.AL_RUWACH)]
-	public class RuwachHandler : ISkillHandler
+	public class RuwachHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			Send.ZC_SKILL_ENTRY(caster, skill.Id, caster.Position);
 
 			// AOE radius 5 around caster. Reveals Hiding/Cloaking enemies
@@ -100,9 +109,9 @@ namespace Sabine.Zone.Skills.Handlers.Acolyte
 				var ctx = new AttackContext(caster, other)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
-					SkillRatio = 1.0f + 0.45f * skill.Level,
+					SkillRatio = 1.0f + 0.45f * level,
 					AttackElement = ElementType.Holy,
 					AlwaysHits = true,
 				};
@@ -110,23 +119,23 @@ namespace Sabine.Zone.Skills.Handlers.Acolyte
 				if (!result.IsMiss)
 					other.TakeDamage(result.Damage, caster);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 
 	[SkillHandler(SkillId.AL_PNEUMA)]
-	public class PneumaHandler : ISkillHandler
+	public class PneumaHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var unit = new Sabine.Zone.World.Maps.SkillUnits.PneumaUnit(caster, target.Position, skill.Level);
+			var unit = new Sabine.Zone.World.Maps.SkillUnits.PneumaUnit(caster, pos, level);
 			caster.Map.AddSkillUnit(unit);
 
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, target.Position.X, target.Position.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, pos.X, pos.Y, 0);
 		}
 	}
 }

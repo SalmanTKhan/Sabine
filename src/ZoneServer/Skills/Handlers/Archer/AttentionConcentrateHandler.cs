@@ -1,23 +1,23 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Archer
 {
 	[SkillHandler(SkillId.AC_CONCENTRATION)]
-	public class AttentionConcentrateHandler : ISkillHandler
+	public class AttentionConcentrateHandler : ITargetedSkillHandler
 	{
 		// eAthena classic AC_CONCENTRATION duration: 30s + 10s/level.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var duration = TimeSpan.FromSeconds(30 + 10 * skill.Level);
-			caster.StatusEffects.Start(StatusId.Concentration, skill.Level, duration, caster, skill.Level);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
-			return Task.CompletedTask;
+			var duration = TimeSpan.FromSeconds(30 + 10 * level);
+			caster.StatusEffects.Start(StatusId.Concentration, level, duration, caster, level);
 		}
 	}
 }

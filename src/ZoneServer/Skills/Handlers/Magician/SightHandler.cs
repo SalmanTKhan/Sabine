@@ -1,16 +1,18 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Magician
 {
 	[SkillHandler(SkillId.MG_SIGHT)]
-	public class SightHandler : ISkillHandler
+	public class SightHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			// eAthena classic MG_SIGHT: ~10s buff that reveals hidden
 			// enemies in radius 7. The reveal sweep happens at cast time
 			// (before the status is started) so anyone hiding nearby is
@@ -25,11 +27,9 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 			}
 
 			var duration = TimeSpan.FromSeconds(10);
-			caster.StatusEffects.Start(StatusId.Sight, skill.Level, duration, caster);
+			caster.StatusEffects.Start(StatusId.Sight, level, duration, caster);
 
 			Send.ZC_SKILL_ENTRY(caster, skill.Id, caster.Position);
-
-			return Task.CompletedTask;
 		}
 	}
 }

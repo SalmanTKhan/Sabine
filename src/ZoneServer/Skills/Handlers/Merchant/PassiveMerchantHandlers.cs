@@ -1,46 +1,28 @@
-﻿using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Merchant
 {
 	[SkillHandler(SkillId.MC_INCCARRY)]
-	public class EnlargeWeightLimitHandler : ISkillHandler
+	public class EnlargeWeightLimitHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-		{
-			// This is a passive skill. Its effects are applied during character stat recalculation.
-			return Task.CompletedTask;
-		}
+		public void Handle(UseSkillParams parameters) { }
 	}
 
 	[SkillHandler(SkillId.MC_DISCOUNT)]
-	public class DiscountHandler : ISkillHandler
+	public class DiscountHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-		{
-			// This is a passive skill. Its effects are applied when buying from NPCs.
-			return Task.CompletedTask;
-		}
+		public void Handle(UseSkillParams parameters) { }
 	}
 
 	[SkillHandler(SkillId.MC_OVERCHARGE)]
-	public class OverchargeHandler : ISkillHandler
+	public class OverchargeHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-		{
-			// This is a passive skill. Its effects are applied when selling to NPCs.
-			return Task.CompletedTask;
-		}
+		public void Handle(UseSkillParams parameters) { }
 	}
 
 	[SkillHandler(SkillId.MC_PUSHCART)]
-	public class PushcartHandler : ISkillHandler
+	public class PushcartHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-		{
-			// This is a passive skill that enables cart usage. Logic is handled elsewhere.
-			return Task.CompletedTask;
-		}
+		public void Handle(UseSkillParams parameters) { }
 	}
 }

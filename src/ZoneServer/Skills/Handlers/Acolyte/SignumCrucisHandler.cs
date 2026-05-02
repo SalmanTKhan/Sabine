@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
@@ -8,16 +7,21 @@ using Sabine.Zone.World.Actors;
 namespace Sabine.Zone.Skills.Handlers.Acolyte
 {
 	[SkillHandler(SkillId.AL_CRUCIS)]
-	public class SignumCrucisHandler : ISkillHandler
+	public class SignumCrucisHandler : ITargetedSkillHandler
 	{
 		// eAthena classic AL_CRUCIS: 14% + 4%/level DEF reduction on
 		// every Undead/Demon enemy in screen range. Models the debuff
 		// as a Provoke-flavoured status: piggybacks on the existing
 		// Provoke handler so the DEF reduction reverts cleanly when
 		// the duration expires.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		// TODO: dedicated StatusId.SignumCrucis instead of Provoke.
+		public void Handle(UseSkillParams parameters)
 		{
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
 			var radius = 10;
 			var targets = caster.Map.GetCharactersInRange(caster.Position, radius)
@@ -25,9 +29,7 @@ namespace Sabine.Zone.Skills.Handlers.Acolyte
 
 			var duration = TimeSpan.FromSeconds(35);
 			foreach (var tgt in targets)
-				tgt.StatusEffects.Start(StatusId.Provoke, skill.Level, duration, caster, skill.Level);
-
-			return Task.CompletedTask;
+				tgt.StatusEffects.Start(StatusId.Provoke, level, duration, caster, level);
 		}
 
 		private static bool IsUndeadOrDemon(Character character)

@@ -1,23 +1,23 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Merchant
 {
 	[SkillHandler(SkillId.MC_LOUD)]
-	public class LoudExclamationHandler : ISkillHandler
+	public class LoudExclamationHandler : ITargetedSkillHandler
 	{
 		// eAthena classic MC_LOUD: 300s flat duration, +4 STR.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
 			var duration = TimeSpan.FromSeconds(300);
-			caster.StatusEffects.Start(StatusId.LoudExclamation, skill.Level, duration, caster);
-
-			return Task.CompletedTask;
+			caster.StatusEffects.Start(StatusId.LoudExclamation, level, duration, caster);
 		}
 	}
 }

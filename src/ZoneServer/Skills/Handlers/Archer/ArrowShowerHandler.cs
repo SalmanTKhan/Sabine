@@ -1,23 +1,28 @@
 using System.Linq;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Archer
 {
 	[SkillHandler(SkillId.AC_SHOWER)]
-	public class ArrowShowerHandler : ISkillHandler
+	public class ArrowShowerHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		// Sabine skill data declares AC_SHOWER target=Enemy (not Ground),
+		// so this is an enemy-targeted AOE centered on the target.
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
-				return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var skillRatio = 0.7f + 0.05f * skill.Level;
+			if (target == null)
+				return;
 
-			Send.ZC_NOTIFY_SKILL_POSITION(caster, target.Handle, skill.Id, skill.Level, target.Position, 0, 0, 0, ActionType.Skill);
+			var skillRatio = 0.7f + 0.05f * level;
+
+			Send.ZC_NOTIFY_SKILL_POSITION(caster, target.Handle, skill.Id, level, target.Position, 0, 0, 0, ActionType.Skill);
 
 			var targets = caster.Map.GetCharactersInRange(target.Position, 3)
 				.Where(c => c.IsHostileTo(caster));
@@ -27,7 +32,7 @@ namespace Sabine.Zone.Skills.Handlers.Archer
 				var ctx = new AttackContext(caster, aoeTarget)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Physical,
 					SkillRatio = skillRatio,
 				};
@@ -35,8 +40,6 @@ namespace Sabine.Zone.Skills.Handlers.Archer
 				if (!result.IsMiss)
 					aoeTarget.TakeDamage(result.Damage, caster);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 }
