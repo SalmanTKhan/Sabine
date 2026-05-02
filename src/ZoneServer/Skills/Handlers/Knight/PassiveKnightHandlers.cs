@@ -1,18 +1,16 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Knight
 {
 	[SkillHandler(SkillId.KN_SPEARMASTERY)]
-	public class SpearMasteryHandler : ISkillHandler
+	public class SpearMasteryHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
+		public void Handle(UseSkillParams parameters) { }
 	}
 
 	[SkillHandler(SkillId.KN_CAVALIERMASTERY)]
-	public class CavalierMasteryHandler : ISkillHandler
+	public class CavalierMasteryHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
+		public void Handle(UseSkillParams parameters) { }
 	}
 }

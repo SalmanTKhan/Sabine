@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
@@ -9,68 +8,77 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 {
 	internal static class SageFieldPlacement
 	{
-		public static Task SpawnField(Character caster, Character target, Skill skill, StatusId status)
+		public static void SpawnField(Character caster, Sabine.Shared.World.Position center, Skill skill, int level, StatusId status)
 		{
-			if (target == null) return Task.CompletedTask;
-
-			var center = target.Position;
 			for (var dx = -2; dx <= 2; dx++)
 			{
 				for (var dy = -2; dy <= 2; dy++)
 				{
 					var pos = new Sabine.Shared.World.Position((short)(center.X + dx), (short)(center.Y + dy));
-					caster.Map.AddSkillUnit(new ElementalFieldUnit(caster, pos, skill.Id, skill.Level, status));
+					caster.Map.AddSkillUnit(new ElementalFieldUnit(caster, pos, skill.Id, level, status));
 				}
 			}
 
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, center.X, center.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, center.X, center.Y, 0);
 		}
 	}
 
 	[SkillHandler(SkillId.SA_CASTCANCEL)]
-	public class CastCancelHandler : ISkillHandler
+	public class CastCancelHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is PlayerCharacter pc) pc.StopCasting();
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.SA_MAGICROD)]
-	public class MagicRodHandler : ISkillHandler
+	public class MagicRodHandler : ITargetedSkillHandler
 	{
-		// eAthena SA_MAGICROD: short window in which incoming bolt
-		// magic is absorbed as SP. Window scales with skill level.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			caster.StatusEffects.Start(StatusId.MagicRod, skill.Level, TimeSpan.FromSeconds(2 + skill.Level), caster);
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			caster.StatusEffects.Start(StatusId.MagicRod, level, TimeSpan.FromSeconds(2 + level), caster);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.SA_SPELLBREAKER)]
-	public class SpellBreakerHandler : ISkillHandler
+	public class SpellBreakerHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (target is PlayerCharacter pcTarget) pcTarget.StopCasting();
-			Send.ZC_NOTIFY_SKILL(caster, target?.Handle ?? caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target?.Handle ?? caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.SA_DISPELL)]
-	public class DispelHandler : ISkillHandler
+	public class DispelHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			if (target == null) return;
+
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
 			foreach (var sid in new[]
 			{
@@ -82,39 +90,37 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 				StatusId.EnchantPoison,
 			})
 			{
-				if (targetCharacter.StatusEffects.Has(sid))
-					targetCharacter.StatusEffects.Stop(sid);
+				if (target.StatusEffects.Has(sid))
+					target.StatusEffects.Stop(sid);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 
 	[SkillHandler(SkillId.SA_VOLCANO)]
-	public class VolcanoHandler : ISkillHandler
+	public class VolcanoHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> SageFieldPlacement.SpawnField(caster, target, skill, StatusId.Volcano);
+		public void Handle(UseGroundSkillParams p)
+			=> SageFieldPlacement.SpawnField(p.Character, p.TargetPosition, p.Skill, p.SkillLevel, StatusId.Volcano);
 	}
 
 	[SkillHandler(SkillId.SA_DELUGE)]
-	public class DelugeHandler : ISkillHandler
+	public class DelugeHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> SageFieldPlacement.SpawnField(caster, target, skill, StatusId.Deluge);
+		public void Handle(UseGroundSkillParams p)
+			=> SageFieldPlacement.SpawnField(p.Character, p.TargetPosition, p.Skill, p.SkillLevel, StatusId.Deluge);
 	}
 
 	[SkillHandler(SkillId.SA_VIOLENTGALE)]
-	public class ViolentGaleHandler : ISkillHandler
+	public class ViolentGaleHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> SageFieldPlacement.SpawnField(caster, target, skill, StatusId.Whirlwind);
+		public void Handle(UseGroundSkillParams p)
+			=> SageFieldPlacement.SpawnField(p.Character, p.TargetPosition, p.Skill, p.SkillLevel, StatusId.Whirlwind);
 	}
 
 	[SkillHandler(SkillId.SA_LANDPROTECTOR)]
-	public class LandProtectorHandler : ISkillHandler
+	public class LandProtectorHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> SageFieldPlacement.SpawnField(caster, target, skill, StatusId.MagneticEarth);
+		public void Handle(UseGroundSkillParams p)
+			=> SageFieldPlacement.SpawnField(p.Character, p.TargetPosition, p.Skill, p.SkillLevel, StatusId.MagneticEarth);
 	}
 }

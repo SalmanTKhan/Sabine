@@ -1,34 +1,34 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 using Yggdrasil.Util;
 
 namespace Sabine.Zone.Skills.Handlers.Blacksmith
 {
 	[SkillHandler(SkillId.BS_HAMMERFALL)]
-	public class HammerfallHandler : ISkillHandler
+	public class HammerfallHandler : IGroundSkillHandler
 	{
 		// eAthena BS_HAMMERFALL: AoE no-damage stun in a 3x3 area.
 		// Stun chance = 20% + 10% per level.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var stunChance = 20 + 10 * skill.Level;
+			var stunChance = 20 + 10 * level;
 			var rnd = RandomProvider.Get();
 
-			foreach (var enemy in caster.Map.GetCharactersInRange(target.Position, 1))
+			foreach (var enemy in caster.Map.GetCharactersInRange(pos, 1))
 			{
 				if (!enemy.IsHostileTo(caster)) continue;
 
 				if (rnd.Next(100) < stunChance)
-					enemy.StatusEffects.Start(StatusId.Stun, skill.Level, TimeSpan.FromSeconds(2 + skill.Level), caster);
+					enemy.StatusEffects.Start(StatusId.Stun, level, TimeSpan.FromSeconds(2 + level), caster);
 			}
 
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, target.Position.X, target.Position.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, pos.X, pos.Y, 0);
 		}
 	}
 }

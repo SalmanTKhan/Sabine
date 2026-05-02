@@ -1,77 +1,73 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Blacksmith
 {
-	// Forging / refining handlers. v1 plays the animation and
-	// notifies the player; the per-recipe item-creation pipeline
-	// (success rolls, ingredient consumption, refine deltas) is
-	// deferred to a dedicated forging epic.
-
 	internal static class ForgeStub
 	{
-		public static Task Run(Character caster, Skill skill, string what)
+		public static void Run(UseSkillParams parameters, string what)
 		{
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 			if (caster is PlayerCharacter pc)
 				pc.ServerMessage($"{what} crafting UI is not yet available.");
-			return Task.CompletedTask;
 		}
 	}
 
 	[SkillHandler(SkillId.BS_ORIDEOCON)]
-	public class OrideoconResearchHandler : ISkillHandler
+	public class OrideoconResearchHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Oridecon refinement");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Oridecon refinement");
 	}
 
 	[SkillHandler(SkillId.BS_DAGGER)]
-	public class ForgeDaggerHandler : ISkillHandler
+	public class ForgeDaggerHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Dagger forging");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Dagger forging");
 	}
 
 	[SkillHandler(SkillId.BS_SWORD)]
-	public class ForgeSwordHandler : ISkillHandler
+	public class ForgeSwordHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Sword forging");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Sword forging");
 	}
 
 	[SkillHandler(SkillId.BS_TWOHANDSWORD)]
-	public class ForgeTwoHandSwordHandler : ISkillHandler
+	public class ForgeTwoHandSwordHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Two-Handed Sword forging");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Two-Handed Sword forging");
 	}
 
 	[SkillHandler(SkillId.BS_AXE)]
-	public class ForgeAxeHandler : ISkillHandler
+	public class ForgeAxeHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Axe forging");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Axe forging");
 	}
 
 	[SkillHandler(SkillId.BS_MACE)]
-	public class ForgeMaceHandler : ISkillHandler
+	public class ForgeMaceHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Mace forging");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Mace forging");
 	}
 
 	[SkillHandler(SkillId.BS_KNUCKLE)]
-	public class ForgeKnuckleHandler : ISkillHandler
+	public class ForgeKnuckleHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Knuckle forging");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Knuckle forging");
 	}
 
 	[SkillHandler(SkillId.BS_SPEAR)]
-	public class ForgeSpearHandler : ISkillHandler
+	public class ForgeSpearHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Spear forging");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Spear forging");
 	}
 
 	[SkillHandler(SkillId.BS_REPAIRWEAPON)]
-	public class RepairWeaponHandler : ISkillHandler
+	public class RepairWeaponHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => ForgeStub.Run(caster, skill, "Weapon Repair");
+		public void Handle(UseSkillParams p) => ForgeStub.Run(p, "Weapon Repair");
 	}
 }

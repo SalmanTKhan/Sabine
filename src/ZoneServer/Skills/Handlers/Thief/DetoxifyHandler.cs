@@ -1,23 +1,25 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Thief
 {
 	[SkillHandler(SkillId.TF_DETOXIFY)]
-	public class DetoxifyHandler : ISkillHandler
+	public class DetoxifyHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
-				return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			if (targetCharacter.StatusEffects.Has(StatusId.Poison))
-				targetCharacter.StatusEffects.Stop(StatusId.Poison);
+			if (target == null)
+				return;
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			if (target.StatusEffects.Has(StatusId.Poison))
+				target.StatusEffects.Stop(StatusId.Poison);
+
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 }

@@ -1,57 +1,60 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Skills.Handlers.Crusader
 {
 	[SkillHandler(SkillId.CR_SHIELDCHARGE)]
-	public class ShieldChargeHandler : ISkillHandler
+	public class ShieldChargeHandler : ITargetedSkillHandler
 	{
-		// eAthena CR_SHIELDCHARGE: 100% + 20%*lv physical melee
-		// using shield DEF as bonus damage. 60% chance to Stun.
-		// Renewal unchanged.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null) return;
 
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
-				SkillRatio = 1.0f + 0.20f * skill.Level,
+				SkillRatio = 1.0f + 0.20f * level,
 				WeaponRequired = true,
 			};
 			var result = BattleCalculator.Calc(ctx);
 			if (!result.IsMiss)
 			{
 				target.TakeDamage(result.Damage, caster);
-				if (Yggdrasil.Util.RandomProvider.Get().Next(100) < 60)
-					target.StatusEffects.Start(StatusId.Stun, skill.Level, System.TimeSpan.FromSeconds(2 + skill.Level), caster);
+				if (RandomProvider.Get().Next(100) < 60)
+					target.StatusEffects.Start(StatusId.Stun, level, System.TimeSpan.FromSeconds(2 + level), caster);
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, 1, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 1, result.ActionType);
 		}
 	}
 
 	[SkillHandler(SkillId.CR_SHIELDBOOMERANG)]
-	public class ShieldBoomerangHandler : ISkillHandler
+	public class ShieldBoomerangHandler : ITargetedSkillHandler
 	{
-		// eAthena CR_SHIELDBOOMERANG: 100% + 30%*lv ranged physical,
-		// shield-required. Treated as long-range for cards.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null) return;
 
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
-				SkillRatio = 1.0f + 0.30f * skill.Level,
+				SkillRatio = 1.0f + 0.30f * level,
 				IsLongRange = true,
 				WeaponRequired = true,
 			};
@@ -59,28 +62,30 @@ namespace Sabine.Zone.Skills.Handlers.Crusader
 			if (!result.IsMiss)
 				target.TakeDamage(result.Damage, caster);
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, 1, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 1, result.ActionType);
 		}
 	}
 
 	[SkillHandler(SkillId.CR_HOLYCROSS)]
-	public class HolyCrossHandler : ISkillHandler
+	public class HolyCrossHandler : ITargetedSkillHandler
 	{
-		// eAthena CR_HOLYCROSS: 100% + 35%*lv physical, Holy element,
-		// 2 hits with spear. Pre-renewal: 2 hits when spear, else 1.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null) return;
 
 			var ratio = BattleCalculator.IsRenewal()
-				? 2.0f + 0.50f * skill.Level
-				: 1.0f + 0.35f * skill.Level;
+				? 2.0f + 0.50f * level
+				: 1.0f + 0.35f * level;
 
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
 				SkillRatio = ratio,
 				HitCount = 2,
@@ -91,22 +96,22 @@ namespace Sabine.Zone.Skills.Handlers.Crusader
 			if (!result.IsMiss)
 				target.TakeDamage(result.Damage, caster);
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, 2, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 2, result.ActionType);
 		}
 	}
 
 	[SkillHandler(SkillId.CR_GRANDCROSS)]
-	public class GrandCrossHandler : ISkillHandler
+	public class GrandCrossHandler : ITargetedSkillHandler
 	{
-		// eAthena CR_GRANDCROSS: AoE Holy magic at 140% + 40%*lv MATK
-		// over a 5x5 area, dealing self-damage equal to a fraction
-		// of the casting cost. Renewal tunes the formula slightly.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			var ratio = BattleCalculator.IsRenewal()
-				? 3.0f + 0.50f * skill.Level
-				: 1.4f + 0.40f * skill.Level;
+				? 3.0f + 0.50f * level
+				: 1.4f + 0.40f * level;
 
 			foreach (var enemy in caster.Map.GetCharactersInRange(caster.Position, 2))
 			{
@@ -116,7 +121,7 @@ namespace Sabine.Zone.Skills.Handlers.Crusader
 				var ctx = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = ratio,
 					AttackElement = ElementType.Holy,
@@ -131,8 +136,7 @@ namespace Sabine.Zone.Skills.Handlers.Crusader
 			var selfDamage = caster.Parameters.HpMax / 5;
 			caster.TakeDamage(selfDamage, caster);
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 }

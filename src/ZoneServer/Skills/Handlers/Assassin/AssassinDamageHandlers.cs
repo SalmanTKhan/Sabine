@@ -1,31 +1,32 @@
-using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Assassin
 {
 	[SkillHandler(SkillId.AS_SONICBLOW)]
-	public class SonicBlowHandler : ISkillHandler
+	public class SonicBlowHandler : ITargetedSkillHandler
 	{
 		// rAthena pre-renewal: 8 hits at 50% + 50%*lv each.
-		// rAthena renewal:  8 hits at 100% + 100%*lv each, ignores
-		// 50% DEF, +STR/10 ratio.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		// rAthena renewal: 8 hits at 100% + 100%*lv each, ignores 50% DEF, +STR/10 ratio.
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null) return;
 
 			var renewal = BattleCalculator.IsRenewal();
 			var ratio = renewal
-				? 1.0f + 1.0f * skill.Level + caster.Parameters.Str / 1000.0f
-				: 0.5f + 0.50f * skill.Level;
+				? 1.0f + 1.0f * level + caster.Parameters.Str / 1000.0f
+				: 0.5f + 0.50f * level;
 
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
 				SkillRatio = ratio,
 				HitCount = 8,
@@ -38,26 +39,28 @@ namespace Sabine.Zone.Skills.Handlers.Assassin
 			if (!result.IsMiss)
 				target.TakeDamage(result.Damage, caster);
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, 8, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 8, result.ActionType);
 		}
 	}
 
 	[SkillHandler(SkillId.AS_GRIMTOOTH)]
-	public class GrimtoothHandler : ISkillHandler
+	public class GrimtoothHandler : ITargetedSkillHandler
 	{
-		// eAthena AS_GRIMTOOTH: lunging melee, 100% + 20%*lv.
-		// Hides reveal extends reach by skill level. Renewal same.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null) return;
 
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
-				SkillRatio = 1.0f + 0.20f * skill.Level,
+				SkillRatio = 1.0f + 0.20f * level,
 				WeaponRequired = true,
 			};
 
@@ -65,44 +68,48 @@ namespace Sabine.Zone.Skills.Handlers.Assassin
 			if (!result.IsMiss)
 				target.TakeDamage(result.Damage, caster);
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, result.HitCount, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, result.HitCount, result.ActionType);
 		}
 	}
 
 	[SkillHandler(SkillId.AS_VENOMDUST)]
-	public class VenomDustHandler : ISkillHandler
+	public class VenomDustHandler : IGroundSkillHandler
 	{
 		// eAthena AS_VENOMDUST: ground unit, applies Poison on touch.
-		// Costs 1 Red Gemstone. Stub the ingredient consumption.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var unit = new Sabine.Zone.World.Maps.SkillUnits.VenomDustUnit(caster, target.Position, skill.Level);
+			var unit = new Sabine.Zone.World.Maps.SkillUnits.VenomDustUnit(caster, pos, level);
 			caster.Map.AddSkillUnit(unit);
 
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, target.Position.X, target.Position.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, pos.X, pos.Y, 0);
 		}
 	}
 
 	[SkillHandler(SkillId.AS_SPLASHER)]
-	public class VenomSplasherHandler : ISkillHandler
+	public class VenomSplasherHandler : ITargetedSkillHandler
 	{
-		// eAthena AS_SPLASHER (Venom Splasher): tags the target with
-		// a 5s timer; on expiry it explodes for AoE damage. Damage
-		// depends on the target's missing HP.
+		// eAthena AS_SPLASHER: tags target with 5s timer; on expiry it
+		// explodes for AoE damage. Damage depends on missing HP.
 		// Simplified v1: deals immediate ratio-based Poison damage.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var ratio = 4.0f + 0.50f * skill.Level;
+			if (target == null) return;
+
+			var ratio = 4.0f + 0.50f * level;
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
 				SkillRatio = ratio,
 				AttackElement = ElementType.Poison,
@@ -113,7 +120,6 @@ namespace Sabine.Zone.Skills.Handlers.Assassin
 			if (!result.IsMiss)
 				target.TakeDamage(result.Damage, caster);
 
-			// Splash to neighbours.
 			foreach (var enemy in caster.Map.GetCharactersInRange(target.Position, 2))
 			{
 				if (enemy == target || enemy == caster) continue;
@@ -122,7 +128,7 @@ namespace Sabine.Zone.Skills.Handlers.Assassin
 				var splash = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Physical,
 					SkillRatio = ratio * 0.5f,
 					AttackElement = ElementType.Poison,
@@ -132,8 +138,7 @@ namespace Sabine.Zone.Skills.Handlers.Assassin
 					enemy.TakeDamage(splashResult.Damage, caster);
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, result.HitCount, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, result.HitCount, result.ActionType);
 		}
 	}
 }

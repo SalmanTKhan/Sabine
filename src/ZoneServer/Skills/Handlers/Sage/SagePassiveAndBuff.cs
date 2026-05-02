@@ -1,27 +1,17 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Sage
 {
 	[SkillHandler(SkillId.SA_ADVANCEDBOOK)]
-	public class AdvancedBookHandler : ISkillHandler
-	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
-	}
+	public class AdvancedBookHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
 
 	[SkillHandler(SkillId.SA_DRAGONOLOGY)]
-	public class DragonologyHandler : ISkillHandler
-	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
-	}
+	public class DragonologyHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
 
 	[SkillHandler(SkillId.SA_FREECAST)]
 	public class FreeCastHandler : BuffSkillHandler
 	{
-		// eAthena SA_FREECAST: cast-while-moving toggle. v1 applies
-		// a long-lived flag; movement-system check is a follow-up.
 		protected override StatusId StatusId => StatusId.FreeCast;
 		protected override TimeSpan GetDuration(int level) => TimeSpan.FromHours(24);
 	}
@@ -29,8 +19,6 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 	[SkillHandler(SkillId.SA_AUTOSPELL)]
 	public class AutoSpellHandler : BuffSkillHandler
 	{
-		// eAthena SA_AUTOSPELL: melee hits trigger the chosen spell.
-		// Spell choice UI is a follow-up; v1 stores the level.
 		protected override StatusId StatusId => StatusId.AutoSpell;
 		protected override TimeSpan GetDuration(int level) => TimeSpan.FromMinutes(1);
 	}

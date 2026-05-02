@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
@@ -7,49 +6,48 @@ using Yggdrasil.Util;
 
 namespace Sabine.Zone.Skills.Handlers.Rogue
 {
-	// Strip skills: roll chance, apply a Strip status that disables
-	// the corresponding equipment slot. Actual unequip wiring is a
-	// follow-up tied to the equipment system.
-
 	internal static class StripCommon
 	{
-		public static Task Apply(Character caster, Character target, Skill skill, StatusId status)
+		public static void Apply(UseSkillParams p, StatusId status)
 		{
-			if (target is not Character t) return Task.CompletedTask;
+			var caster = p.Character;
+			var target = p.Target;
+			var skill = p.Skill;
+			var level = p.SkillLevel;
 
-			var chance = 5 * skill.Level + (caster.Parameters.Dex - target.Parameters.Dex) / 2;
+			if (target == null) return;
+
+			var chance = 5 * level + (caster.Parameters.Dex - target.Parameters.Dex) / 2;
 			chance = Math.Clamp(chance, 5, 95);
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
 			if (RandomProvider.Get().Next(100) < chance)
-				t.StatusEffects.Start(status, skill.Level, TimeSpan.FromSeconds(20 + 10 * skill.Level), caster);
-
-			return Task.CompletedTask;
+				target.StatusEffects.Start(status, level, TimeSpan.FromSeconds(20 + 10 * level), caster);
 		}
 	}
 
 	[SkillHandler(SkillId.RG_STRIPWEAPON)]
-	public class StripWeaponHandler : ISkillHandler
+	public class StripWeaponHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => StripCommon.Apply(caster, target, skill, StatusId.StripWeapon);
+		public void Handle(UseSkillParams p) => StripCommon.Apply(p, StatusId.StripWeapon);
 	}
 
 	[SkillHandler(SkillId.RG_STRIPSHIELD)]
-	public class StripShieldHandler : ISkillHandler
+	public class StripShieldHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => StripCommon.Apply(caster, target, skill, StatusId.StripShield);
+		public void Handle(UseSkillParams p) => StripCommon.Apply(p, StatusId.StripShield);
 	}
 
 	[SkillHandler(SkillId.RG_STRIPARMOR)]
-	public class StripArmorHandler : ISkillHandler
+	public class StripArmorHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => StripCommon.Apply(caster, target, skill, StatusId.StripArmor);
+		public void Handle(UseSkillParams p) => StripCommon.Apply(p, StatusId.StripArmor);
 	}
 
 	[SkillHandler(SkillId.RG_STRIPHELM)]
-	public class StripHelmHandler : ISkillHandler
+	public class StripHelmHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => StripCommon.Apply(caster, target, skill, StatusId.StripHelm);
+		public void Handle(UseSkillParams p) => StripCommon.Apply(p, StatusId.StripHelm);
 	}
 }

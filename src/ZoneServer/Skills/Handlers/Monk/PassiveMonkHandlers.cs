@@ -1,24 +1,13 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Monk
 {
 	[SkillHandler(SkillId.MO_IRONHAND)]
-	public class IronHandHandler : ISkillHandler
-	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
-	}
+	public class IronHandHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
 
 	[SkillHandler(SkillId.MO_SPIRITSRECOVERY)]
-	public class SpiritsRecoveryHandler : ISkillHandler
-	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
-	}
+	public class SpiritsRecoveryHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
 
 	[SkillHandler(SkillId.MO_DODGE)]
-	public class DodgeHandler : ISkillHandler
-	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
-	}
+	public class DodgeHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
 }

@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
@@ -7,23 +6,26 @@ using Sabine.Zone.World.Actors;
 namespace Sabine.Zone.Skills.Handlers.Knight
 {
 	[SkillHandler(SkillId.KN_PIERCE)]
-	public class PierceHandler : ISkillHandler
+	public class PierceHandler : ITargetedSkillHandler
 	{
 		// eAthena KN_PIERCE: 100% + 10%/lv per hit. Hit count scales
 		// with target size — 1 hit Small, 2 hits Medium, 3 hits Large.
-		// Renewal does not change the formula meaningfully; same
-		// ratio + hit count.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null) return;
 
 			var hits = ResolveHitCount(target);
-			var ratioPerHit = 1.0f + 0.1f * skill.Level;
+			var ratioPerHit = 1.0f + 0.1f * level;
 
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
 				SkillRatio = ratioPerHit,
 				HitCount = hits,
@@ -34,8 +36,7 @@ namespace Sabine.Zone.Skills.Handlers.Knight
 			if (!result.IsMiss)
 				target.TakeDamage(result.Damage, caster);
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, result.HitCount, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, result.HitCount, result.ActionType);
 		}
 
 		private static int ResolveHitCount(Character target)

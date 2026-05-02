@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
@@ -11,210 +10,217 @@ namespace Sabine.Zone.Skills.Handlers.HomunculusSkills
 	// Lif --------------------------------------------------------------
 
 	[SkillHandler(SkillId.HLIF_AVOID)]
-	public class UrgentEscapeHandler : ISkillHandler
+	public class UrgentEscapeHandler : ITargetedSkillHandler
 	{
-		// eAthena HLIF_AVOID: Lif and owner gain a brief move-speed
-		// burst (modeled here as IncreaseAgi for simplicity).
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is Homunculus homun)
 			{
-				var dur = TimeSpan.FromSeconds(10 + 5 * skill.Level);
-				homun.StatusEffects.Start(StatusId.IncreaseAgi, skill.Level, dur, caster);
-				homun.Owner?.StatusEffects.Start(StatusId.IncreaseAgi, skill.Level, dur, caster);
+				var dur = TimeSpan.FromSeconds(10 + 5 * level);
+				homun.StatusEffects.Start(StatusId.IncreaseAgi, level, dur, caster);
+				homun.Owner?.StatusEffects.Start(StatusId.IncreaseAgi, level, dur, caster);
 			}
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.HLIF_BRAIN)]
-	public class BrainSurgeryHandler : ISkillHandler
-	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
-	}
+	public class BrainSurgeryHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
 
 	[SkillHandler(SkillId.HLIF_CHANGE)]
-	public class MentalChargeHandler : ISkillHandler
+	public class MentalChargeHandler : ITargetedSkillHandler
 	{
-		// eAthena HLIF_CHANGE: temporary INT/MATK boost for the
-		// homun. v1 applies Concentration as a placeholder buff.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is Homunculus homun)
-				homun.StatusEffects.Start(StatusId.Concentration, skill.Level, TimeSpan.FromSeconds(60 + 30 * skill.Level), caster);
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+				homun.StatusEffects.Start(StatusId.Concentration, level, TimeSpan.FromSeconds(60 + 30 * level), caster);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	// Amistr ----------------------------------------------------------
 
 	[SkillHandler(SkillId.HAMI_DEFENCE)]
-	public class AmistrAdamantiumHandler : ISkillHandler
+	public class AmistrAdamantiumHandler : ITargetedSkillHandler
 	{
-		// eAthena HAMI_DEFENCE: large DEF boost, halves move-speed.
-		// Modeled as Defender status (ranged-physical reduction +
-		// move-speed cost) for v1.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is Homunculus homun)
-				homun.StatusEffects.Start(StatusId.Defender, skill.Level, TimeSpan.FromSeconds(30 * skill.Level), caster);
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+				homun.StatusEffects.Start(StatusId.Defender, level, TimeSpan.FromSeconds(30 * level), caster);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.HAMI_SKIN)]
-	public class AmistrTuffSkinHandler : ISkillHandler
-	{
-		// Passive: bonus DEF / damage reduction. Stat-recalc hook.
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
-	}
+	public class AmistrTuffSkinHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
 
 	[SkillHandler(SkillId.HAMI_BLOODLUST)]
-	public class AmistrBloodlustHandler : ISkillHandler
+	public class AmistrBloodlustHandler : ITargetedSkillHandler
 	{
-		// eAthena HAMI_BLOODLUST: ATK/ASPD buff, lifesteal on hit.
-		// v1 applies Two-Hand Quicken as ASPD placeholder.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is Homunculus homun)
-				homun.StatusEffects.Start(StatusId.TwoHandQuicken, skill.Level, TimeSpan.FromSeconds(30 + 30 * skill.Level), caster);
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+				homun.StatusEffects.Start(StatusId.TwoHandQuicken, level, TimeSpan.FromSeconds(30 + 30 * level), caster);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	// Filir ----------------------------------------------------------
 
 	[SkillHandler(SkillId.HFLI_MOON)]
-	public class FilirMoonlightHandler : ISkillHandler
+	public class FilirMoonlightHandler : ITargetedSkillHandler
 	{
-		// eAthena HFLI_MOON: 3-hit physical, 100%+50%*lv per hit.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null) return;
 
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
-				SkillRatio = 1.0f + 0.50f * skill.Level,
+				SkillRatio = 1.0f + 0.50f * level,
 				HitCount = 3,
 			};
 			var result = BattleCalculator.Calc(ctx);
 			if (!result.IsMiss) target.TakeDamage(result.Damage, caster);
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, 3, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 3, result.ActionType);
 		}
 	}
 
 	[SkillHandler(SkillId.HFLI_FLEET)]
-	public class FilirFleetingMoveHandler : ISkillHandler
+	public class FilirFleetingMoveHandler : ITargetedSkillHandler
 	{
-		// eAthena HFLI_FLEET: ASPD buff for Filir.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is Homunculus homun)
-				homun.StatusEffects.Start(StatusId.TwoHandQuicken, skill.Level, TimeSpan.FromSeconds(30 * skill.Level), caster);
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+				homun.StatusEffects.Start(StatusId.TwoHandQuicken, level, TimeSpan.FromSeconds(30 * level), caster);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.HFLI_SPEED)]
-	public class FilirOverSpeedHandler : ISkillHandler
+	public class FilirOverSpeedHandler : ITargetedSkillHandler
 	{
-		// eAthena HFLI_SPEED: move-speed buff.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is Homunculus homun)
-				homun.StatusEffects.Start(StatusId.IncreaseAgi, skill.Level, TimeSpan.FromSeconds(30 * skill.Level), caster);
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+				homun.StatusEffects.Start(StatusId.IncreaseAgi, level, TimeSpan.FromSeconds(30 * level), caster);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.HFLI_SBR44)]
-	public class FilirSBR44Handler : ISkillHandler
+	public class FilirSBR44Handler : ITargetedSkillHandler
 	{
-		// eAthena HFLI_SBR44 (S.B.R.44): Filir self-destructs,
-		// dealing intimacy*10000 damage to the target. Resets
-		// intimacy to 0 (homun runs away). Ratio adjusted for v1
-		// since intimacy max is 1000 internally.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (caster is not Homunculus homun) return Task.CompletedTask;
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (caster is not Homunculus homun) return;
+			if (target == null) return;
 
 			var damage = homun.State.Intimacy * 10;
 			target.TakeDamage(damage, caster);
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, damage, 0, 1, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, damage, 0, 1, ActionType.Skill);
 
-			// Self-destruct: bond breaks, entity removed.
 			homun.Map?.RemoveNpc(homun);
 			homun.State.Entity = null;
-			return Task.CompletedTask;
 		}
 	}
 
 	// Vanilmirth -----------------------------------------------------
 
 	[SkillHandler(SkillId.HVAN_CHAOTIC)]
-	public class ChaoticBlessingsHandler : ISkillHandler
+	public class ChaoticBlessingsHandler : ITargetedSkillHandler
 	{
-		// eAthena HVAN_CHAOTIC: heals one of {homun, owner, random
-		// enemy} chosen at random, with skill-level-scaled chances.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (caster is not Homunculus homun) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (caster is not Homunculus homun) return;
 
 			var roll = RandomProvider.Get().Next(100);
 			Character recipient = roll < 30 ? homun
 				: roll < 80 ? (Character)homun.Owner
 				: target ?? homun;
 
-			var heal = 50 + 100 * skill.Level;
+			var heal = 50 + 100 * level;
 			recipient.HealHp(heal);
 			if (recipient is PlayerCharacter pc) Send.ZC_RECOVERY(pc, ParameterType.Hp, heal);
-			Send.ZC_NOTIFY_SKILL(caster, recipient.Handle, skill.Id, skill.Level, heal, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, recipient.Handle, skill.Id, level, heal, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.HVAN_INSTRUCT)]
-	public class InstructionChangeHandler : ISkillHandler
+	public class InstructionChangeHandler : ITargetedSkillHandler
 	{
-		// eAthena HVAN_INSTRUCT: stat-bonus buff for homun (STR/INT
-		// up). Modeled as Blessing for v1.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster is Homunculus homun)
-				homun.StatusEffects.Start(StatusId.Blessing, skill.Level, TimeSpan.FromSeconds(60 + 30 * skill.Level), caster);
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+				homun.StatusEffects.Start(StatusId.Blessing, level, TimeSpan.FromSeconds(60 + 30 * level), caster);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.HVAN_EXPLOSION)]
-	public class BioExplosionHandler : ISkillHandler
+	public class BioExplosionHandler : ITargetedSkillHandler
 	{
-		// eAthena HVAN_EXPLOSION: AoE Neutral magic blast around
-		// Vanilmirth, then it self-destructs.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (caster is not Homunculus homun) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var ratio = 5.0f + 1.0f * skill.Level;
+			if (caster is not Homunculus homun) return;
+
+			var ratio = 5.0f + 1.0f * level;
 			foreach (var enemy in homun.Map.GetCharactersInRange(homun.Position, 3))
 			{
 				if (!enemy.IsHostileTo(homun)) continue;
 				var ctx = new AttackContext(homun, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = ratio,
 					AttackElement = ElementType.Neutral,
@@ -224,10 +230,9 @@ namespace Sabine.Zone.Skills.Handlers.HomunculusSkills
 				if (!result.IsMiss) enemy.TakeDamage(result.Damage, homun);
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 			homun.Map?.RemoveNpc(homun);
 			homun.State.Entity = null;
-			return Task.CompletedTask;
 		}
 	}
 }

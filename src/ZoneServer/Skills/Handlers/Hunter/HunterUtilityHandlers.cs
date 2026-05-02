@@ -1,51 +1,50 @@
-using System.Threading.Tasks;
+using System;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Maps.SkillUnits;
 
 namespace Sabine.Zone.Skills.Handlers.Hunter
 {
 	[SkillHandler(SkillId.HT_BEASTBANE)]
-	public class BeastBaneHandler : ISkillHandler
+	public class BeastBaneHandler : ITargetedSkillHandler
 	{
-		// Passive: +ATK vs Brute / Insect race. Applied via stat
-		// recalculation hook.
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
+		public void Handle(UseSkillParams parameters) { }
 	}
 
 	[SkillHandler(SkillId.HT_STEELCROW)]
-	public class SteelCrowHandler : ISkillHandler
+	public class SteelCrowHandler : ITargetedSkillHandler
 	{
-		// Passive: +ATK to Falcon damage.
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
+		public void Handle(UseSkillParams parameters) { }
 	}
 
 	[SkillHandler(SkillId.HT_FALCON)]
-	public class FalconryHandler : ISkillHandler
+	public class FalconryHandler : ITargetedSkillHandler
 	{
-		// Toggle falcon companion. v1: just animation; the falcon
-		// proc on basic attacks ties into the auto-attack hook.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (caster.StatusEffects.Has(StatusId.FalconFly))
 				caster.StatusEffects.Stop(StatusId.FalconFly);
 			else
-				caster.StatusEffects.Start(StatusId.FalconFly, skill.Level, System.TimeSpan.FromHours(24), caster);
+				caster.StatusEffects.Start(StatusId.FalconFly, level, TimeSpan.FromHours(24), caster);
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.HT_DETECTING)]
-	public class DetectingHandler : ISkillHandler
+	public class DetectingHandler : ITargetedSkillHandler
 	{
-		// eAthena HT_DETECTING (Sight, Hunter): exposes hidden
-		// enemies and traps in a small area around the caster.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
 			foreach (var other in caster.Map.GetCharactersInRange(caster.Position, 7))
 			{
@@ -53,44 +52,40 @@ namespace Sabine.Zone.Skills.Handlers.Hunter
 				if (other.IsHidden && other.IsHostileTo(caster))
 					other.StatusEffects.Stop(StatusId.Hiding);
 			}
-
-			return Task.CompletedTask;
 		}
 	}
 
 	[SkillHandler(SkillId.HT_REMOVETRAP)]
-	public class RemoveTrapHandler : ISkillHandler
+	public class RemoveTrapHandler : IGroundSkillHandler
 	{
-		// eAthena HT_REMOVETRAP: caster removes their own trap from
-		// the targeted cell and recovers the trap item. v1 just
-		// flags the unit as expired.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			foreach (var unit in caster.Map.GetSkillUnitsAt(target.Position))
+			foreach (var unit in caster.Map.GetSkillUnitsAt(pos))
 			{
 				if (unit is TrapUnit trap && trap.Owner == caster)
 					caster.Map.RemoveSkillUnit(unit);
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.HT_SPRINGTRAP)]
-	public class SpringTrapHandler : ISkillHandler
+	public class SpringTrapHandler : IGroundSkillHandler
 	{
-		// eAthena HT_SPRINGTRAP: forces a Hunter trap on the targeted
-		// cell to immediately trigger. v1: best-effort scan and
-		// re-fire onTouch with the caster as the entrant proxy.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		// TODO: actually re-fire the trap onTouch with caster as proxy.
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 }

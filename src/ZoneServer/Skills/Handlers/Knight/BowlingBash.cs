@@ -1,13 +1,11 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Knight
 {
 	[SkillHandler(SkillId.KN_BOWLINGBASH)]
-	public class BowlingBashHandler : ISkillHandler
+	public class BowlingBashHandler : ITargetedSkillHandler
 	{
 		// rAthena pre-renewal: 100% + 40%*lv per hit, single hit on
 		// the primary plus a splash hit on neighbors (the "gutter
@@ -15,19 +13,24 @@ namespace Sabine.Zone.Skills.Handlers.Knight
 		// rAthena renewal: 200% + 100%*lv per hit, twice on the
 		// primary target (no gutter splash; affects line cells with
 		// knockback).
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null) return;
 
 			var renewal = BattleCalculator.IsRenewal();
 			var ratio = renewal
-				? 2.0f + 1.0f * skill.Level
-				: 1.0f + 0.40f * skill.Level;
+				? 2.0f + 1.0f * level
+				: 1.0f + 0.40f * level;
 
 			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
-				SkillLevel = skill.Level,
+				SkillLevel = level,
 				Kind = AttackKind.Physical,
 				SkillRatio = ratio,
 				HitCount = renewal ? 2 : 1,
@@ -52,7 +55,7 @@ namespace Sabine.Zone.Skills.Handlers.Knight
 					var splash = new AttackContext(caster, other)
 					{
 						SkillId = skill.Id,
-						SkillLevel = skill.Level,
+						SkillLevel = level,
 						Kind = AttackKind.Physical,
 						SkillRatio = ratio,
 						WeaponRequired = true,
@@ -66,8 +69,7 @@ namespace Sabine.Zone.Skills.Handlers.Knight
 				}
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, result.Damage, 0, result.HitCount, result.ActionType);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, result.HitCount, result.ActionType);
 		}
 	}
 }

@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
@@ -6,89 +5,82 @@ using Sabine.Zone.World.Maps.SkillUnits;
 
 namespace Sabine.Zone.Skills.Handlers.Hunter
 {
-	// Trap-deployment handlers all share the same shape: spawn a
-	// TrapUnit subclass on the target cell and play the animation.
-	// Trap-item consumption (item id 1065) is a follow-up; v1
-	// allows free placement.
-
 	internal static class TrapPlacement
 	{
-		public static Task Spawn(Character caster, Character target, TrapUnit unit, Skill skill)
+		public static void Spawn(Character caster, Sabine.Shared.World.Position pos, TrapUnit unit, Skill skill, int level)
 		{
-			if (target == null) return Task.CompletedTask;
 			caster.Map.AddSkillUnit(unit);
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, target.Position.X, target.Position.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, pos.X, pos.Y, 0);
 		}
 	}
 
 	[SkillHandler(SkillId.HT_SKIDTRAP)]
-	public class SkidTrapHandler : ISkillHandler
+	public class SkidTrapHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new SkidTrapUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new SkidTrapUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_LANDMINE)]
-	public class LandMineHandler : ISkillHandler
+	public class LandMineHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new LandMineUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new LandMineUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_ANKLESNARE)]
-	public class AnkleSnareHandler : ISkillHandler
+	public class AnkleSnareHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new AnkleSnareUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new AnkleSnareUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_SHOCKWAVE)]
-	public class ShockwaveTrapHandler : ISkillHandler
+	public class ShockwaveTrapHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new ShockwaveTrapUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new ShockwaveTrapUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_SANDMAN)]
-	public class SandmanHandler : ISkillHandler
+	public class SandmanHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new SandmanUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new SandmanUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_FLASHER)]
-	public class FlasherHandler : ISkillHandler
+	public class FlasherHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new FlasherUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new FlasherUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_FREEZINGTRAP)]
-	public class FreezingTrapHandler : ISkillHandler
+	public class FreezingTrapHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new FreezingTrapUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new FreezingTrapUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_BLASTMINE)]
-	public class BlastMineHandler : ISkillHandler
+	public class BlastMineHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new BlastMineUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new BlastMineUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_CLAYMORETRAP)]
-	public class ClaymoreTrapHandler : ISkillHandler
+	public class ClaymoreTrapHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new ClaymoreTrapUnit(caster, target.Position, skill.Level), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new ClaymoreTrapUnit(p.Character, p.TargetPosition, p.SkillLevel), p.Skill, p.SkillLevel);
 	}
 
 	[SkillHandler(SkillId.HT_TALKIEBOX)]
-	public class TalkieBoxHandler : ISkillHandler
+	public class TalkieBoxHandler : IGroundSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
-			=> TrapPlacement.Spawn(caster, target, new TalkieBoxUnit(caster, target.Position, skill.Level, "Hello!"), skill);
+		public void Handle(UseGroundSkillParams p)
+			=> TrapPlacement.Spawn(p.Character, p.TargetPosition, new TalkieBoxUnit(p.Character, p.TargetPosition, p.SkillLevel, "Hello"), p.Skill, p.SkillLevel);
 	}
 }

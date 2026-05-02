@@ -1,35 +1,39 @@
-using System.Threading.Tasks;
+using System;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Skills.Handlers.Wizard
 {
 	[SkillHandler(SkillId.WZ_VERMILION)]
-	public class LordOfVermilionHandler : ISkillHandler
+	public class LordOfVermilionHandler : IGroundSkillHandler
 	{
 		// rAthena pre-renewal: 100% + 80%*lv MATK per hit, 4-7 hits
 		// in a 9x9 area, 5% chance to Blind.
 		// rAthena renewal: 400% + 60%*lv per hit, 20 hits over 4s.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
 			var renewal = BattleCalculator.IsRenewal();
 			var ratio = renewal
-				? 4.0f + 0.60f * skill.Level
-				: 1.0f + 0.80f * skill.Level;
-			var hits = renewal ? 20 : (4 + skill.Level / 2);
+				? 4.0f + 0.60f * level
+				: 1.0f + 0.80f * level;
+			var hits = renewal ? 20 : (4 + level / 2);
 
-			foreach (var enemy in caster.Map.GetCharactersInRange(target.Position, 4))
+			foreach (var enemy in caster.Map.GetCharactersInRange(pos, 4))
 			{
 				if (!enemy.IsHostileTo(caster)) continue;
 
 				var ctx = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = ratio,
 					HitCount = hits,
@@ -41,31 +45,32 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 					enemy.TakeDamage(result.Damage, caster);
 			}
 
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, target.Position.X, target.Position.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, pos.X, pos.Y, 0);
 		}
 	}
 
 	[SkillHandler(SkillId.WZ_HEAVENDRIVE)]
-	public class HeavenDriveHandler : ISkillHandler
+	public class HeavenDriveHandler : IGroundSkillHandler
 	{
 		// eAthena WZ_HEAVENDRIVE: 100% + 25%*lv Earth magic over a
-		// 5x5 area. Removes ground-effect units in the AoE. Renewal
-		// unchanged. v1 omits the ground-removal since it'd require a
-		// general unit-clear API on the map.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		// 5x5 area. Removes ground-effect units in the AoE.
+		// TODO: implement ground-unit clearing in the AoE.
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			var ratio = 1.0f + 0.25f * skill.Level;
-			foreach (var enemy in caster.Map.GetCharactersInRange(target.Position, 2))
+			var ratio = 1.0f + 0.25f * level;
+			foreach (var enemy in caster.Map.GetCharactersInRange(pos, 2))
 			{
 				if (!enemy.IsHostileTo(caster)) continue;
 
 				var ctx = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = ratio,
 					AttackElement = ElementType.Earth,
@@ -76,33 +81,34 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 					enemy.TakeDamage(result.Damage, caster);
 			}
 
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, target.Position.X, target.Position.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, pos.X, pos.Y, 0);
 		}
 	}
 
 	[SkillHandler(SkillId.WZ_METEOR)]
-	public class MeteorStormHandler : ISkillHandler
+	public class MeteorStormHandler : IGroundSkillHandler
 	{
-		// eAthena WZ_METEOR (Meteor Storm): random meteors over a
-		// 7x7 area for ~2-3 seconds. Each meteor is a 100%+10%*lv
-		// Fire MATK splash. Renewal: same shape, slightly tuned ratio.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		// eAthena WZ_METEOR: random meteors over a 7x7 area for ~2-3s.
+		// Each meteor is a 100%+10%*lv Fire MATK splash.
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
 			var ratio = BattleCalculator.IsRenewal()
-				? 2.0f + 0.20f * skill.Level
-				: 1.0f + 0.10f * skill.Level;
+				? 2.0f + 0.20f * level
+				: 1.0f + 0.10f * level;
 
-			foreach (var enemy in caster.Map.GetCharactersInRange(target.Position, 3))
+			foreach (var enemy in caster.Map.GetCharactersInRange(pos, 3))
 			{
 				if (!enemy.IsHostileTo(caster)) continue;
 
 				var ctx = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = ratio,
 					HitCount = 2,
@@ -114,21 +120,24 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 					enemy.TakeDamage(result.Damage, caster);
 			}
 
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, target.Position.X, target.Position.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, pos.X, pos.Y, 0);
 		}
 	}
 
 	[SkillHandler(SkillId.WZ_FROSTNOVA)]
-	public class FrostNovaHandler : ISkillHandler
+	public class FrostNovaHandler : ITargetedSkillHandler
 	{
 		// eAthena WZ_FROSTNOVA: AoE around caster, 100% Water MATK,
-		// chance to Freeze. Range = 5 cells in pre-renewal.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		// chance to Freeze. Range = 5 cells.
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			var radius = 5;
-			var ratio = 1.0f + 0.20f * skill.Level;
-			var freezeChance = 20 + 5 * skill.Level;
+			var ratio = 1.0f + 0.20f * level;
+			var freezeChance = 20 + 5 * level;
 
 			foreach (var enemy in caster.Map.GetCharactersInRange(caster.Position, radius))
 			{
@@ -138,7 +147,7 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 				var ctx = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = ratio,
 					AttackElement = ElementType.Water,
@@ -148,32 +157,35 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 				if (!result.IsMiss)
 				{
 					enemy.TakeDamage(result.Damage, caster);
-					if (Yggdrasil.Util.RandomProvider.Get().Next(100) < freezeChance)
-						enemy.StatusEffects.Start(StatusId.Freeze, skill.Level, System.TimeSpan.FromSeconds(15), caster);
+					if (RandomProvider.Get().Next(100) < freezeChance)
+						enemy.StatusEffects.Start(StatusId.Freeze, level, TimeSpan.FromSeconds(15), caster);
 				}
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.WZ_SIGHTRASHER)]
-	public class SightRasherHandler : ISkillHandler
+	public class SightRasherHandler : ITargetedSkillHandler
 	{
-		// eAthena WZ_SIGHTRASHER: consumes the Sight buff to deal
+		// eAthena WZ_SIGHTRASHER: consumes Sight buff, deals
 		// 100%+20%*lv Wind magic + knockback in a 5-cell radius.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
 			if (!caster.StatusEffects.Has(StatusId.Sight))
 			{
 				if (caster is PlayerCharacter pc)
 					pc.ServerMessage("You need to have Sight active.");
-				return Task.CompletedTask;
+				return;
 			}
 
 			caster.StatusEffects.Stop(StatusId.Sight);
-			var ratio = 1.0f + 0.20f * skill.Level;
+			var ratio = 1.0f + 0.20f * level;
 
 			foreach (var enemy in caster.Map.GetCharactersInRange(caster.Position, 5))
 			{
@@ -183,7 +195,7 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 				var ctx = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = ratio,
 					AttackElement = ElementType.Wind,
@@ -197,36 +209,38 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 				}
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}
 	}
 
 	[SkillHandler(SkillId.WZ_STORMGUST)]
-	public class StormGustHandler : ISkillHandler
+	public class StormGustHandler : IGroundSkillHandler
 	{
 		// rAthena pre-renewal: 100% + 40%*lv MATK Water, 3-hit; the
 		// 3rd hit on a victim freezes (counter-based). 9x9 area.
 		// rAthena renewal: -30 + 50%*lv per hit, freeze chance
 		// 65 - 5%*lv flat per hit.
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseGroundSkillParams parameters)
 		{
-			if (target == null) return Task.CompletedTask;
+			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
 			var renewal = BattleCalculator.IsRenewal();
 			var ratio = renewal
-				? -0.30f + 0.50f * skill.Level
-				: 1.0f + 0.40f * skill.Level;
-			var freezeChance = renewal ? (65 - 5 * skill.Level) : 0;
+				? -0.30f + 0.50f * level
+				: 1.0f + 0.40f * level;
+			var freezeChance = renewal ? (65 - 5 * level) : 0;
 
-			foreach (var enemy in caster.Map.GetCharactersInRange(target.Position, 4))
+			foreach (var enemy in caster.Map.GetCharactersInRange(pos, 4))
 			{
 				if (!enemy.IsHostileTo(caster)) continue;
 
 				var ctx = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
-					SkillLevel = skill.Level,
+					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = ratio,
 					HitCount = 3,
@@ -240,21 +254,17 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 
 					if (renewal)
 					{
-						if (Yggdrasil.Util.RandomProvider.Get().Next(100) < freezeChance)
-							enemy.StatusEffects.Start(StatusId.Freeze, skill.Level, System.TimeSpan.FromSeconds(20), caster);
+						if (RandomProvider.Get().Next(100) < freezeChance)
+							enemy.StatusEffects.Start(StatusId.Freeze, level, TimeSpan.FromSeconds(20), caster);
 					}
 					else
 					{
-						// Pre-renewal counter: every 3rd hit freezes.
-						// Approximated by guaranteed freeze on the
-						// triple-hit batch.
-						enemy.StatusEffects.Start(StatusId.Freeze, skill.Level, System.TimeSpan.FromSeconds(15), caster);
+						enemy.StatusEffects.Start(StatusId.Freeze, level, TimeSpan.FromSeconds(15), caster);
 					}
 				}
 			}
 
-			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, skill.Level, target.Position.X, target.Position.Y, 0);
-			return Task.CompletedTask;
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, pos.X, pos.Y, 0);
 		}
 	}
 }
