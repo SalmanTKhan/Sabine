@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
@@ -17,9 +18,10 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 		/// </summary>
 		protected virtual void OnHit(Character caster, Character target, Skill skill, int level, AttackResult result) { }
 
-		// TODO: re-introduce ~100ms inter-hit delay via a scheduler now
-		// that Handle is sync void. Current implementation fires all bolts
-		// in the same tick; client multi-hit visual still plays.
+		// Bolts fire ~100ms apart so each hit lands as its own visual
+		// event. Handle is sync void, so we fire-and-forget the
+		// timing loop on the thread pool. The first bolt fires
+		// synchronously to keep the cast feel responsive.
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
@@ -35,22 +37,38 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 
 			Send.ZC_USE_SKILL(caster as PlayerCharacter, skill.Id, level, target.Handle, true);
 
-			for (var i = 0; i < hitCount; i++)
+			// Fire the first bolt immediately, schedule the rest.
+			this.FireBolt(caster, target, skill, level);
+			if (hitCount > 1)
+				_ = this.FireRemainingAsync(caster, target, skill, level, hitCount - 1);
+		}
+
+		private async Task FireRemainingAsync(Character caster, Character target, Skill skill, int level, int remaining)
+		{
+			for (var i = 0; i < remaining; i++)
 			{
-				var ctx = new AttackContext(caster, target)
-				{
-					SkillId = skill.Id,
-					SkillLevel = level,
-					Kind = AttackKind.Magic,
-					SkillRatio = 1.0f,
-					AttackElement = this.Element,
-				};
-				var result = BattleCalculator.Calc(ctx);
-				if (!result.IsMiss)
-				{
-					target.TakeDamage(result.Damage, caster);
-					this.OnHit(caster, target, skill, level, result);
-				}
+				await Task.Delay(100);
+				if (target == null || target.IsDead) return;
+				if (caster == null || caster.IsDead) return;
+				this.FireBolt(caster, target, skill, level);
+			}
+		}
+
+		private void FireBolt(Character caster, Character target, Skill skill, int level)
+		{
+			var ctx = new AttackContext(caster, target)
+			{
+				SkillId = skill.Id,
+				SkillLevel = level,
+				Kind = AttackKind.Magic,
+				SkillRatio = 1.0f,
+				AttackElement = this.Element,
+			};
+			var result = BattleCalculator.Calc(ctx);
+			if (!result.IsMiss)
+			{
+				target.TakeDamage(result.Damage, caster);
+				this.OnHit(caster, target, skill, level, result);
 			}
 		}
 	}

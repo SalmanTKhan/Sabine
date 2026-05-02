@@ -78,6 +78,10 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 			character.StopAttacking();
 
+			// NV_TRICKDEAD ends the moment the player moves.
+			if (character.StatusEffects?.Has(Sabine.Shared.Const.StatusId.TrickDead) == true)
+				character.StatusEffects.Stop(Sabine.Shared.Const.StatusId.TrickDead);
+
 			// Cancel casting if this is a player character
 			if (_playerCharacter != null)
 				_playerCharacter.StopCasting();

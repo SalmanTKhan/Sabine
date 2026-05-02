@@ -53,14 +53,24 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 	public class HeavenDriveHandler : IGroundSkillHandler
 	{
 		// eAthena WZ_HEAVENDRIVE: 100% + 25%*lv Earth magic over a
-		// 5x5 area. Removes ground-effect units in the AoE.
-		// TODO: implement ground-unit clearing in the AoE.
+		// 5x5 area. Removes non-trap ground-effect units (FireWall,
+		// SafetyWall, Pneuma, Sage element fields, etc.) in the AOE.
+		// Hunter traps are exempt from the sweep — clearing them would
+		// break the Hunter playstyle.
 		public void Handle(UseGroundSkillParams parameters)
 		{
 			var caster = parameters.Character;
 			var pos = parameters.TargetPosition;
 			var skill = parameters.Skill;
 			var level = parameters.SkillLevel;
+
+			// Clear ground units before damage so any units the AOE would
+			// otherwise tick during the sweep are gone.
+			foreach (var unit in caster.Map.GetSkillUnitsInRange(pos, 2))
+			{
+				if (unit is Sabine.Zone.World.Maps.SkillUnits.TrapUnit) continue;
+				caster.Map.RemoveSkillUnit(unit);
+			}
 
 			var ratio = 1.0f + 0.25f * level;
 			foreach (var enemy in caster.Map.GetCharactersInRange(pos, 2))

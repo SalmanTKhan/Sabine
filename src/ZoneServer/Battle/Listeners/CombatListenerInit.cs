@@ -13,6 +13,9 @@ namespace Sabine.Zone.Battle.Listeners
 			DevotionListener.Subscribe();
 			ReflectShieldListener.Subscribe();
 			AutoSpellListener.Subscribe();
+			PlagiarismListener.Subscribe();
+			TrickDeadListener.Subscribe();
+			BladeStopListener.Subscribe();
 		}
 	}
 }

@@ -10,11 +10,9 @@ namespace Sabine.Zone.Skills.Handlers.Acolyte
 	public class SignumCrucisHandler : ITargetedSkillHandler
 	{
 		// eAthena classic AL_CRUCIS: 14% + 4%/level DEF reduction on
-		// every Undead/Demon enemy in screen range. Models the debuff
-		// as a Provoke-flavoured status: piggybacks on the existing
-		// Provoke handler so the DEF reduction reverts cleanly when
-		// the duration expires.
-		// TODO: dedicated StatusId.SignumCrucis instead of Provoke.
+		// every Undead/Demon enemy in screen range. Uses the dedicated
+		// SignumCrucis status so the debuff reverts cleanly without
+		// stomping on Provoke's ATK delta.
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
@@ -29,7 +27,7 @@ namespace Sabine.Zone.Skills.Handlers.Acolyte
 
 			var duration = TimeSpan.FromSeconds(35);
 			foreach (var tgt in targets)
-				tgt.StatusEffects.Start(StatusId.Provoke, level, duration, caster, level);
+				tgt.StatusEffects.Start(StatusId.SignumCrucis, level, duration, caster, level);
 		}
 
 		private static bool IsUndeadOrDemon(Character character)

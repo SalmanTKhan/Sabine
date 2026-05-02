@@ -154,4 +154,28 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 		public void OnStart(Character target, StatusEffect effect) { }
 		public void OnEnd(Character target, StatusEffect effect) { }
 	}
+
+	/// <summary>
+	/// SC_SIGNUMCRUCIS — Acolyte AL_CRUCIS. eAthena: 14% + 4%*level DEF
+	/// reduction on Undead/Demon enemies. No ATK component (unlike
+	/// Provoke). Snapshots the delta on the effect for clean revert.
+	/// </summary>
+	[StatusEffectHandler(StatusId.SignumCrucis)]
+	public class SignumCrucisStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			var defPct = 14 + 4 * effect.Level;
+			var defDelta = target.Parameters.MeleeDefenseBonus * defPct / 100;
+			effect.Val3 = defDelta;
+			if (defDelta != 0)
+				target.Parameters.Modify(ParameterType.MeleeDefenseBonus, -defDelta);
+		}
+
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+			if (effect.Val3 != 0)
+				target.Parameters.Modify(ParameterType.MeleeDefenseBonus, effect.Val3);
+		}
+	}
 }

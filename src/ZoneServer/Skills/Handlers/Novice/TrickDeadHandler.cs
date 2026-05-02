@@ -10,9 +10,11 @@ namespace Sabine.Zone.Skills.Handlers.Novice
 		// eAthena NV_TRICKDEAD: toggles a play-dead state. Mob aggro
 		// drops, the caster cannot act until the status is removed,
 		// and HP/SP regen pauses. Single-level skill in classic.
-		// TODO: break-on-move/attack/damage hooks per eAthena
-		// skill.c:4025, 8174 — needs StatusEffects plumbing changes
-		// outside this file.
+		// Break-on-move is wired in MovementController.MoveTo,
+		// break-on-damage in Character.TakeDamage, and
+		// break-on-attack/skill in TrickDeadListener.
+		// TODO: monster aggro suppression while status is active
+		// (separate AI hook).
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;

@@ -199,6 +199,26 @@ namespace Sabine.Zone.World.Maps
 		}
 
 		/// <summary>
+		/// Returns all skill units within <paramref name="radius"/> cells
+		/// (inclusive, Chebyshev distance) of the center position.
+		/// </summary>
+		public List<SkillUnits.SkillUnit> GetSkillUnitsInRange(Position center, int radius)
+		{
+			var result = new List<SkillUnits.SkillUnit>();
+			using (SlimLock.Read(_skillUnitsLock))
+			{
+				foreach (var unit in _skillUnits.Values)
+				{
+					var dx = Math.Abs(unit.Position.X - center.X);
+					var dy = Math.Abs(unit.Position.Y - center.Y);
+					if (dx <= radius && dy <= radius)
+						result.Add(unit);
+				}
+			}
+			return result;
+		}
+
+		/// <summary>
 		/// Ticks all skill units, removing any that expired.
 		/// </summary>
 		private void UpdateSkillUnits(TimeSpan elapsed)

@@ -212,7 +212,11 @@ namespace Sabine.Zone.Skills.Handlers.Monk
 	[SkillHandler(SkillId.MO_BLADESTOP)]
 	public class BladeStopHandler : ITargetedSkillHandler
 	{
-		// TODO: Blade Stop trigger pipeline.
+		// eAthena MO_BLADESTOP: opens a brief catch window. The next
+		// incoming melee physical hit is intercepted by
+		// BladeStopListener (Battle/Listeners/BladeStopListener.cs):
+		// the hit is cancelled, both attacker and caster are stunned
+		// for a couple of seconds. Window length scales with level.
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
@@ -220,8 +224,12 @@ namespace Sabine.Zone.Skills.Handlers.Monk
 			var level = parameters.SkillLevel;
 
 			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
-			if (caster is PlayerCharacter pc)
-				pc.ServerMessage("Blade Stop trigger pipeline is not yet wired.");
+
+			// 2s + 1s/level catch window; consumed by the listener on
+			// first incoming melee hit.
+			var window = System.TimeSpan.FromSeconds(2 + level);
+			caster.StatusEffects.Stop(StatusId.BladeStop);
+			caster.StatusEffects.Start(StatusId.BladeStop, level, window, caster);
 		}
 	}
 }

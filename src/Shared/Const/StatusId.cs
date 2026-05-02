@@ -33,6 +33,7 @@ namespace Sabine.Shared.Const
 		Freeze = 22,
 		Stun = 23,
 		Sleep = 24,
+		SignumCrucis = 25,
 
 		// DOT
 		Poison = 30,
@@ -101,6 +102,7 @@ namespace Sabine.Shared.Const
 		MentalStrength = 182,
 		ChainCombo = 183,
 		ComboFinish = 184,
+		BladeStop = 185,
 
 		// Sage (2-2)
 		FreeCast = 190,

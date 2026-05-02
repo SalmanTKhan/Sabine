@@ -31,6 +31,38 @@ namespace Sabine.Zone.World.Maps.SkillUnits
 			this.OnTrigger(entrant);
 		}
 
+		/// <summary>
+		/// Force-triggers the trap as if an enemy had stepped on it.
+		/// Used by HT_SPRINGTRAP. Picks the nearest hostile (to the
+		/// trap's owner) within the trap cell or one cell out as the
+		/// victim. If no hostile is in range, the trap is consumed
+		/// without an effect (still single-use).
+		/// </summary>
+		public void Spring()
+		{
+			if (this.HitsRemaining == 0) return;
+			this.HitsRemaining = 0;
+
+			Character victim = null;
+			if (this.Map != null)
+			{
+				foreach (var c in this.Map.GetCharactersInRange(this.Position, 1))
+				{
+					if (c == this.Owner) continue;
+					if (!this.IsEnemy(c)) continue;
+					victim = c;
+					break;
+				}
+			}
+
+			// AOE traps ignore the victim arg; single-target traps will
+			// no-op gracefully on null since most checks guard for it,
+			// but to keep semantics aligned with OnTouch we only fire
+			// when a real victim exists.
+			if (victim != null)
+				this.OnTrigger(victim);
+		}
+
 		protected abstract void OnTrigger(Character victim);
 	}
 

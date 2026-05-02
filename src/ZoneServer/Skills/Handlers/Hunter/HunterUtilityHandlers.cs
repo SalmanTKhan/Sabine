@@ -78,14 +78,27 @@ namespace Sabine.Zone.Skills.Handlers.Hunter
 	[SkillHandler(SkillId.HT_SPRINGTRAP)]
 	public class SpringTrapHandler : IGroundSkillHandler
 	{
-		// TODO: actually re-fire the trap onTouch with caster as proxy.
+		// eAthena HT_SPRINGTRAP: forces a Hunter trap on the targeted
+		// cell to immediately trigger. The trap picks the nearest
+		// hostile in range as its victim; the trap is consumed
+		// regardless. Friendly fire and dud cells are no-ops.
 		public void Handle(UseGroundSkillParams parameters)
 		{
 			var caster = parameters.Character;
+			var pos = parameters.TargetPosition;
 			var skill = parameters.Skill;
 			var level = parameters.SkillLevel;
 
 			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			foreach (var unit in caster.Map.GetSkillUnitsAt(pos))
+			{
+				if (unit is TrapUnit trap)
+				{
+					trap.Spring();
+					caster.Map.RemoveSkillUnit(unit);
+				}
+			}
 		}
 	}
 }

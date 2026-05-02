@@ -369,6 +369,10 @@ namespace Sabine.Zone.World.Actors
 			if (amount > 0 && this.StatusEffects?.Has(StatusId.Sleep) == true)
 				this.StatusEffects.Stop(StatusId.Sleep);
 
+			// NV_TRICKDEAD breaks on any damage taken.
+			if (amount > 0 && this.StatusEffects?.Has(StatusId.TrickDead) == true)
+				this.StatusEffects.Stop(StatusId.TrickDead);
+
 			if (remainingHp == 0)
 				this.Kill(attacker);
 
