@@ -91,7 +91,6 @@ namespace Sabine.Zone
 			this.InitialSpawn();
 			this.CreateDebugInfo();
 
-			SkillHandlerManager.Initialize();
 			StatusEffectHandlerManager.Initialize();
 			CardHandlerManager.Initialize();
 			CombatListenerInit.Initialize();

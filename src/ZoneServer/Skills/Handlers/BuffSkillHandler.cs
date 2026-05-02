@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.Skills.StatusEffects;
@@ -13,7 +12,7 @@ namespace Sabine.Zone.Skills.Handlers
 	/// and any val arguments. Per-level durations follow the eAthena
 	/// classic skill_cast_db.txt arrays.
 	/// </summary>
-	public abstract class BuffSkillHandler : ISkillHandler
+	public abstract class BuffSkillHandler : ITargetedSkillHandler
 	{
 		protected abstract StatusId StatusId { get; }
 
@@ -22,19 +21,22 @@ namespace Sabine.Zone.Skills.Handlers
 		protected virtual (int v1, int v2, int v3, int v4) GetVals(int level)
 			=> (level, 0, 0, 0);
 
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			if (target is not Character targetCharacter)
-				return Task.CompletedTask;
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, skill.Level, 0, 0, 0, ActionType.Skill);
+			if (target == null)
+				return;
 
-			var duration = this.GetDuration(skill.Level);
-			var (v1, v2, v3, v4) = this.GetVals(skill.Level);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
-			targetCharacter.StatusEffects.Start(this.StatusId, skill.Level, duration, caster, v1, v2, v3, v4);
+			var duration = this.GetDuration(level);
+			var (v1, v2, v3, v4) = this.GetVals(level);
 
-			return Task.CompletedTask;
+			target.StatusEffects.Start(this.StatusId, level, duration, caster, v1, v2, v3, v4);
 		}
 	}
 }

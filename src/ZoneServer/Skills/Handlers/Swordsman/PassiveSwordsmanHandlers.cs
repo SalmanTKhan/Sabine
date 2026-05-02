@@ -1,6 +1,4 @@
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Swordsman
 {
@@ -10,20 +8,20 @@ namespace Sabine.Zone.Skills.Handlers.Swordsman
 	// SM_AUTOBERSERK through the HP-watch hook.
 
 	[SkillHandler(SkillId.SM_MOVINGRECOVERY)]
-	public class MovingRecoveryHandler : ISkillHandler
+	public class MovingRecoveryHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
+		public void Handle(UseSkillParams parameters) { }
 	}
 
 	[SkillHandler(SkillId.SM_FATALBLOW)]
-	public class FatalBlowHandler : ISkillHandler
+	public class FatalBlowHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
+		public void Handle(UseSkillParams parameters) { }
 	}
 
 	[SkillHandler(SkillId.SM_AUTOBERSERK)]
-	public class AutoBerserkHandler : ISkillHandler
+	public class AutoBerserkHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill) => Task.CompletedTask;
+		public void Handle(UseSkillParams parameters) { }
 	}
 }

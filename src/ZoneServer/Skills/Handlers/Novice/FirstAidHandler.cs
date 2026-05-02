@@ -1,22 +1,20 @@
-﻿using System.Threading.Tasks;
 using Sabine.Shared.Const;
-using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Novice
 {
 	[SkillHandler(SkillId.NV_FIRSTAID)]
-	public class FirstAidHandler : ISkillHandler
+	public class FirstAidHandler : ITargetedSkillHandler
 	{
-		public Task HandleAsync(Character caster, Character target, Skill skill)
+		public void Handle(UseSkillParams parameters)
 		{
-			// The base 'UseSkill' method already deducted the SP cost.
-			// This skill heals 5 HP per level.
-			var healAmount = 5 * skill.Level;
+			var caster = parameters.Character;
+			var level = parameters.SkillLevel;
+
+			// Sabine: 5 HP per level. eAthena classic is flat 5 (skill.c
+			// status_heal(bl,5,0,0)); Sabine intentionally diverges here.
+			var healAmount = 5 * level;
 
 			caster.HealHp(healAmount);
-			// In a more complex system, you might show a skill animation or effect here.
-
-			return Task.CompletedTask;
 		}
 	}
 }

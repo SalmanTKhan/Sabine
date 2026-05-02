@@ -161,11 +161,12 @@ namespace Sabine.Zone.World.Actors
 
 			var castLevel = level > 0 ? System.Math.Min(level, known) : known;
 
-			var handler = Sabine.Zone.Skills.SkillHandlerManager.GetHandler(skillId);
-			if (handler == null) return System.Threading.Tasks.Task.CompletedTask;
+			if (!ZoneServer.Instance.SkillHandlers.TryGetHandler<Sabine.Zone.Skills.Handlers.ITargetedSkillHandler>(skillId, out var handler))
+				return System.Threading.Tasks.Task.CompletedTask;
 
 			var skill = new Sabine.Zone.Skills.Skill(this, skillId, castLevel);
-			return handler.HandleAsync(this, target ?? this, skill);
+			handler.Handle(new Sabine.Zone.Skills.Handlers.UseSkillParams(this, target ?? this, skill, castLevel));
+			return System.Threading.Tasks.Task.CompletedTask;
 		}
 	}
 }
