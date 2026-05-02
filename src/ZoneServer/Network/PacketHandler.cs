@@ -1,15 +1,9 @@
 ﻿using System;
-using System.Buffers;
-using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Sabine.Shared;
 using Sabine.Shared.Const;
-using Sabine.Shared.Data.Databases;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Shared.Util;
@@ -18,6 +12,7 @@ using Sabine.Zone.Events.Args;
 using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
+using Sabine.Zone.Skills.Handlers;
 using Sabine.Zone.Skills.Handlers.Novice;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Chats;
@@ -51,7 +46,7 @@ namespace Sabine.Zone.Network
 				characterId = packet.GetInt();
 				sessionId = packet.GetInt();
 			}
-			else if (Game.Version < Versions.S2000)
+			else if (Game.Version < Versions.S2000 || packet.Length == 19)
 			{
 				accountId = packet.GetInt();
 				characterId = packet.GetInt();
@@ -60,7 +55,7 @@ namespace Sabine.Zone.Network
 				// This isn't sessionId2. Looks like it might be a tick?
 				tick = packet.GetInt();
 			}
-			else
+			else // essentially S2000
 			{
 				// It seems like this structure changed wildly over the
 				// years, going by eA's packet db, though they always only
@@ -143,11 +138,8 @@ namespace Sabine.Zone.Network
 
 			ZoneServer.Instance.ServerEvents.PlayerLoggedIn.Raise(new PlayerEventArgs(character));
 
-			// Starting some time after beta 1, the client expects the raw
-			// account id to be sent upon connection, or it won't react to
-			// any packets...?
 			if (Game.Version >= Versions.Beta2)
-				Send.InitConnection(conn);
+				Send.ZC_AID(conn);
 
 			Send.ZC_ACCEPT_ENTER(conn, character);
 
@@ -366,6 +358,9 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_REQNAME)]
 		public void CZ_REQNAME(ZoneConnection conn, Packet packet)
 		{
+			if (Game.Version >= Versions.S2000)
+				packet.Skip(5);
+
 			var handle = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
@@ -713,7 +708,7 @@ namespace Sabine.Zone.Network
 			int targetHandle;
 			ActionType action;
 
-			if (Game.Version < Versions.S2000)
+			if (Game.Version < Versions.S2000 || packet.Length <= 8)
 			{
 				targetHandle = packet.GetInt();
 				action = (ActionType)packet.GetByte();
@@ -1339,43 +1334,16 @@ namespace Sabine.Zone.Network
 			// Clamp level, but don't warn about invalid values, since the
 			// requested level may be too high if the skill changed after
 			// it was hotkeyed.
-			level = Math2.Clamp(1, skill.Level, level);
+			level = Math.Clamp(level, 1, skill.Level);
 
-			Send.ZC_NOTIFY_PLAYERCHAT(character, skill.Data.StringId + "!!!");
-
-			switch (skillId)
+			if (!ZoneServer.Instance.SkillHandlers.TryGetHandler<ITargetedSkillHandler>(skill.Id, out var handler))
 			{
-				case SkillId.SM_BASH:
-				{
-					if (!character.TrySpendSp(skill.SpCost))
-					{
-						character.ServerMessage(Localization.Get("Not enough SP."));
-						return;
-					}
-
-					character.Controller.StopMove();
-
-					var attacker = character;
-
-					var ctx = new Sabine.Zone.Battle.AttackContext(attacker, target)
-					{
-						SkillId = SkillId.SM_BASH,
-						SkillLevel = level,
-						SkillRatio = 1.3f + 0.2f * level,
-					};
-					var result = Sabine.Zone.Battle.BattleCalculator.Calc(ctx);
-					var damage = result.IsMiss ? 0 : result.Damage;
-
-					var attackMotionDelay = attacker.Parameters.AttackMotionDelay;
-					var damageMotionDelay = target.Parameters.DamageMotionDelay;
-
-					if (!result.IsMiss)
-						target.TakeDamage(damage, character);
-
-					Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), result.ActionType, damage, attackMotionDelay, damageMotionDelay);
-					break;
-				}
+				character.ServerMessage(Localization.Get("This skill has not been implemented yet."));
+				Log.Debug("CZ_USE_SKILL: No handler found for skill '{0}'.", skill.Id);
+				return;
 			}
+
+			handler.Handle(new UseSkillParams(character, target, skill, level));
 		}
 
 		/// <summary>
@@ -1413,35 +1381,16 @@ namespace Sabine.Zone.Network
 			// Clamp level, but don't warn about invalid values, since the
 			// requested level may be too high if the skill changed after
 			// it was hotkeyed.
-			level = Math2.Clamp(1, skill.Level, level);
+			level = Math.Clamp(level, 1, skill.Level);
 
-			Send.ZC_NOTIFY_PLAYERCHAT(character, skill.Data.StringId + "!!!");
-
-			switch (skillId)
+			if (!ZoneServer.Instance.SkillHandlers.TryGetHandler<IGroundSkillHandler>(skill.Id, out var handler))
 			{
-				case SkillId.MG_FIREWALL:
-				{
-					if (!character.InUseRange(skill, targetPos))
-					{
-						character.ServerMessage(Localization.Get("Too far away."));
-						return;
-					}
-
-					if (!character.TrySpendSp(skill.SpCost))
-					{
-						character.ServerMessage(Localization.Get("Not enough SP."));
-						return;
-					}
-
-					character.Controller.StopMove();
-
-					var npc = new Npc(IdentityId.JT_1_F_01);
-					npc.Warp(character.Map.Id, targetPos);
-
-					Task.Delay(3000).ContinueWith(__ => character.Map.RemoveNpc(npc));
-					break;
-				}
+				character.ServerMessage(Localization.Get("This skill has not been implemented yet."));
+				Log.Debug("CZ_USE_SKILL: No handler found for skill '{0}'.", skill.Id);
+				return;
 			}
+
+			handler.Handle(new UseGroundSkillParams(character, targetPos, skill, level));
 		}
 
 		/// <summary>

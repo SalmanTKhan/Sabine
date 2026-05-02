@@ -46,16 +46,30 @@ namespace Sabine.Zone.Network
 	public static partial class Send
 	{
 		/// <summary>
-		/// Sends data necessary to initialize the connection on newer
-		/// clients.
+		/// Sends account id to client.
 		/// </summary>
 		/// <param name="conn"></param>
-		public static void InitConnection(ZoneConnection conn)
+		public static void ZC_AID(ZoneConnection conn)
 		{
-			var buffer = ArrayPool<byte>.Shared.Rent(sizeof(int));
-			BinaryPrimitives.WriteInt32LittleEndian(buffer, conn.Account.Id);
+			// Starting some time after beta 1, the client expected the
+			// account id to be sent upon connection, or it won't react to
+			// any packets...? Any only several years later they upgraded
+			// to an actual packet :+1:
 
-			conn.Send(buffer, sizeof(int), static (data, len, type) => ArrayPool<byte>.Shared.Return(data));
+			if (Game.Version < Versions.S2500)
+			{
+				var buffer = ArrayPool<byte>.Shared.Rent(sizeof(int));
+				BinaryPrimitives.WriteInt32LittleEndian(buffer, conn.Account.Id);
+
+				conn.Send(buffer, sizeof(int), static (data, len, type) => ArrayPool<byte>.Shared.Return(data));
+			}
+			else
+			{
+				using var packet = Packet.Rent(Op.ZC_AID);
+				packet.PutInt(conn.Account.Id);
+
+				conn.Send(packet);
+			}
 		}
 
 		/// <summary>
@@ -70,6 +84,9 @@ namespace Sabine.Zone.Network
 			packet.PutInt(character.Id);
 			packet.AddPackedPosition(character.Position, character.Direction);
 			packet.PutShort(0);
+
+			if (Game.Version >= Versions.S2500)
+				packet.PutShort(0);
 
 			conn.Send(packet);
 		}
@@ -1470,7 +1487,7 @@ namespace Sabine.Zone.Network
 		/// <param name="result"></param>
 		/// <param name="failType"></param>
 		/// <param name="failReason"></param>
-		public static void ZC_ACK_TOUSESKILL(PlayerCharacter character, SkillId skillId, SkillUseResult result, SkillFailType failType, SkillFailReason failReason)
+		public static void ZC_ACK_TOUSESKILL(Character character, SkillId skillId, SkillUseResult result, SkillFailType failType, SkillFailReason failReason)
 		{
 			using var packet = Packet.Rent(Op.ZC_ACK_TOUSESKILL);
 
@@ -1495,7 +1512,39 @@ namespace Sabine.Zone.Network
 				packet.PutByte((byte)failType);
 			}
 
-			character.Connection.Send(packet);
+			character.Map.Broadcast(packet, character, BroadcastTargets.OnlySource);
+		}
+
+		/// <summary>
+		/// Notifies players around the character about them using a skill,
+		/// displaying the skill animation and hit effects.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="target"></param>
+		/// <param name="skill"></param>
+		/// <param name="skillLevel"></param>
+		/// <param name="tick"></param>
+		/// <param name="damage"></param>
+		/// <param name="attackMotionDelay"></param>
+		/// <param name="damageMotionDelay"></param>
+		/// <param name="hitCount"></param>
+		/// <param name="hitEffect"></param>
+		public static void ZC_NOTIFY_SKILL(Character character, Character target, Skill skill, int skillLevel, int damage, int tick, int attackMotionDelay, int damageMotionDelay, int hitCount, SkillHitEffect hitEffect)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_SKILL);
+
+			packet.PutShort((short)skill.Id);
+			packet.PutInt(character.Handle);
+			packet.PutInt(target.Handle);
+			packet.PutInt(tick);
+			packet.PutInt(attackMotionDelay);
+			packet.PutInt(damageMotionDelay);
+			packet.PutShort((short)damage);
+			packet.PutShort((short)skillLevel);
+			packet.PutShort((short)hitCount);
+			packet.PutByte((byte)hitEffect);
+
+			target.Map.Broadcast(packet, character, BroadcastTargets.All);
 		}
 
 		/// <summary>

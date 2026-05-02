@@ -29,6 +29,7 @@ namespace Sabine.Shared.Network
 			[Versions.S800] = LoadVersion800,
 			[Versions.S900] = LoadVersion900,
 			[Versions.S2000] = LoadVersion2000,
+			[Versions.S2500] = LoadVersion2500,
 		};
 
 		/// <summary>
@@ -106,6 +107,30 @@ namespace Sabine.Shared.Network
 
 			for (var i = startIndex + 1; i < Entries.Count; i++)
 				Entries[i].OpNetwork += 1;
+		}
+
+		/// <summary>
+		/// Redefines an existing packet's opcode and size without making
+		/// any other changes to the table.
+		/// </summary>
+		/// <remarks>
+		/// Intended for moving ops to different values while potentially
+		/// overwriting existing entries. For example, if Op.FOO was
+		/// replaced by Op.FOO2, and Op.BAR took Op.FOO's old opcode,
+		/// Op.BAR would be redefined with Op.FOO's old opcode.
+		/// </remarks>
+		/// <param name="op"></param>
+		/// <param name="opNetwork"></param>
+		/// <param name="size"></param>
+		/// <exception cref="ArgumentException"></exception>
+		private static void Redefine(Op op, int opNetwork, int size)
+		{
+			var existing = Entries.FirstOrDefault(a => a.Op == op);
+			if (existing == null)
+				throw new ArgumentException($"Op {op} doesn't exist yet.");
+
+			existing.OpNetwork = opNetwork;
+			existing.Size = size;
 		}
 
 		/// <summary>

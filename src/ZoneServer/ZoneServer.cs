@@ -12,6 +12,7 @@ using Sabine.Zone.Database;
 using Sabine.Zone.Events;
 using Sabine.Zone.Network;
 using Sabine.Zone.Skills;
+using Sabine.Zone.Skills.Handlers;
 using Sabine.Zone.Skills.StatusEffects;
 using Sabine.Zone.World;
 using Yggdrasil.Logging;
@@ -64,6 +65,11 @@ namespace Sabine.Zone
 		public ServerEvents ServerEvents { get; } = new();
 
 		/// <summary>
+		/// Returns the skill handler manager.
+		/// </summary>
+		public SkillHandlers SkillHandlers { get; } = new SkillHandlers();
+
+		/// <summary>
 		/// Runs the server.
 		/// </summary>
 		/// <param name="args"></param>
@@ -78,6 +84,7 @@ namespace Sabine.Zone
 			this.LoadData();
 			this.InitDatabase(this.Database, this.Conf);
 			this.LoadCommands();
+			this.InitSkills();
 			this.LoadWorld();
 			this.LoadAis();
 			this.LoadScripts("zone", this.Conf);
@@ -138,8 +145,16 @@ namespace Sabine.Zone
 		private void LoadCommands()
 		{
 			Log.Info("Loading commands...");
-
 			this.ChatCommands.Load();
+		}
+
+		/// <summary>
+		/// Loads skill handlers.
+		/// </summary>
+		private void InitSkills()
+		{
+			Log.Info("Initializing skills...");
+			this.SkillHandlers.Init();
 		}
 
 		/// <summary>
