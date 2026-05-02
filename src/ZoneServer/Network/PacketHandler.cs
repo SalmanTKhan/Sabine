@@ -1301,6 +1301,31 @@ namespace Sabine.Zone.Network
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
+		/// <summary>
+		/// Resolves a skill the character is asking to use. Falls back
+		/// to RG_PLAGIARISM's captured skill (Plagiarism.Val1) when the
+		/// skill isn't in the character's own Skills component, so the
+		/// Rogue can cast plagiarized skills directly. The returned
+		/// skill's level is the captured Plagiarism status's level.
+		/// </summary>
+		private static bool TryResolveSkill(Sabine.Zone.World.Actors.Character character, SkillId skillId, out Sabine.Zone.Skills.Skill skill)
+		{
+			if (character.Skills.TryGet(skillId, out skill))
+				return true;
+
+			if (character.StatusEffects != null
+				&& character.StatusEffects.TryGet(StatusId.Plagiarism, out var plag)
+				&& plag.Val1 != 0
+				&& (SkillId)plag.Val1 == skillId)
+			{
+				skill = new Sabine.Zone.Skills.Skill(character, skillId, plag.Level);
+				return true;
+			}
+
+			skill = null;
+			return false;
+		}
+
 		[PacketHandler(Op.CZ_USE_SKILL)]
 		public void CZ_USE_SKILL(ZoneConnection conn, Packet packet)
 		{
@@ -1313,7 +1338,7 @@ namespace Sabine.Zone.Network
 			if (character.IsImmobilized || character.IsSilenced || character.SkillBlocked)
 				return;
 
-			if (!character.Skills.TryGet(skillId, out var skill))
+			if (!TryResolveSkill(character, skillId, out var skill))
 			{
 				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
 				return;
@@ -1364,7 +1389,7 @@ namespace Sabine.Zone.Network
 			if (character.IsImmobilized || character.IsSilenced || character.SkillBlocked)
 				return;
 
-			if (!character.Skills.TryGet(skillId, out var skill))
+			if (!TryResolveSkill(character, skillId, out var skill))
 			{
 				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
 				return;

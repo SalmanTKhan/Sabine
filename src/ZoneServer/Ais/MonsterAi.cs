@@ -392,6 +392,10 @@ namespace Sabine.Zone.Ais
 				if (!attacker.Map.TryGetCharacter(handle, out var target) || target.IsDead)
 					yield break;
 
+				// NV_TRICKDEAD: drop aggro if the target plays dead mid-chase.
+				if (target.StatusEffects?.Has(Sabine.Shared.Const.StatusId.TrickDead) == true)
+					yield break;
+
 				foreach (var _ in this.Wait(attackDelay))
 					yield return true;
 

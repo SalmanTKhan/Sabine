@@ -295,6 +295,9 @@ namespace Sabine.Zone.Network
 
 		/// <summary>
 		/// Notifies a merchant that an item was sold from their store.
+		/// On Beta1 this is the period-correct sale notification; the
+		/// later ZC_VENDING_REPORT (0x0137) seen in renewal clients is
+		/// not applicable here.
 		/// </summary>
 		public static void ZC_DELETEITEM_FROM_MCSTORE(PlayerCharacter merchant, int index, int amount)
 		{

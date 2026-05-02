@@ -37,6 +37,10 @@ namespace Sabine.Zone.Ais.Base
 					if (p.IsDead || p.IsHidden)
 						return false;
 
+					// NV_TRICKDEAD suppresses aggro acquisition.
+					if (p.StatusEffects?.Has(Sabine.Shared.Const.StatusId.TrickDead) == true)
+						return false;
+
 					if (!p.Position.InRange(state.origin, state.range))
 						return false;
 
