@@ -228,6 +228,18 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Sends a single recipient the vending sign for an existing shop,
+		/// used when the recipient enters the shop owner's visible range.
+		/// </summary>
+		public static void ZC_STORE_ENTRY(PlayerCharacter recipient, Character vendor, string storeName)
+		{
+			using var packet = Packet.Rent(Op.ZC_STORE_ENTRY);
+			packet.PutInt(vendor.Handle);
+			packet.PutString(storeName, 80);
+			recipient.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Notifies clients that a player's store has disappeared.
 		/// </summary>
 		public static void ZC_DISAPPEAR_ENTRY(Character character)

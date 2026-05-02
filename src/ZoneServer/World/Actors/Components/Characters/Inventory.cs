@@ -108,6 +108,30 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Adds an item to the cart at character-load time. Assigns a fresh
+		/// cart-side inventory id and skips client packets. Use during
+		/// database hydration only.
+		/// </summary>
+		internal void AddCartItemInit(Item item)
+		{
+			lock (_syncLock)
+			{
+				item.InventoryId = this.GetNewCartInventoryIdLocked();
+				_cartItems.Add(item);
+			}
+		}
+
+		private int GetNewCartInventoryIdLocked()
+		{
+			for (var i = 1; i < short.MaxValue; ++i)
+			{
+				if (!_cartItems.Any(a => a.InventoryId == i))
+					return i;
+			}
+			return -1;
+		}
+
+		/// <summary>
 		/// Moves up to <paramref name="amount"/> of <paramref name="item"/>
 		/// from the body inventory into the cart. Returns the amount that
 		/// was actually moved (may be 0 if the cart is full or the
@@ -202,6 +226,50 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		{
 			lock (_syncLock)
 				return _cartItems.FirstOrDefault(a => a.InventoryId == invId);
+		}
+
+		/// <summary>
+		/// Removes up to <paramref name="amount"/> of the cart item with the
+		/// given inventory id and returns it as a detached <see cref="Item"/>
+		/// suitable for passing to another player's <see cref="AddItem"/>.
+		/// Returns null if no such cart entry exists or the amount is invalid.
+		/// </summary>
+		/// <remarks>
+		/// Used by the vending purchase flow, where items leave the seller's
+		/// cart and end up in the buyer's body inventory. The returned item
+		/// has its <see cref="Item.InventoryId"/> reset to 0 so that the
+		/// receiving inventory assigns a fresh one.
+		/// </remarks>
+		public Item RemoveFromCartByInventoryId(int invId, int amount)
+		{
+			if (amount <= 0)
+				return null;
+
+			lock (_syncLock)
+			{
+				var item = _cartItems.FirstOrDefault(a => a.InventoryId == invId);
+				if (item == null)
+					return null;
+
+				var moveAmount = Math.Min(amount, item.Amount);
+				if (moveAmount <= 0)
+					return null;
+
+				if (moveAmount == item.Amount)
+				{
+					_cartItems.Remove(item);
+					item.InventoryId = 0;
+					return item;
+				}
+
+				item.Amount -= moveAmount;
+
+				var split = new Item(item.ClassId, moveAmount);
+				split.RefineLevel = item.RefineLevel;
+				split.IsIdentified = item.IsIdentified;
+				split.IsDamaged = item.IsDamaged;
+				return split;
+			}
 		}
 
 		/// <summary>

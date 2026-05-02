@@ -186,6 +186,10 @@ namespace Sabine.Zone.Network
 			Send.ZC_PAR_CHANGE(character, ParameterType.Sp);
 			Send.ZC_LONGPAR_CHANGE(character, ParameterType.BaseExpNeeded);
 			Send.ZC_LONGPAR_CHANGE(character, ParameterType.JobExpNeeded);
+			Send.ZC_PAR_CHANGE(character, ParameterType.BaseLevel);
+			Send.ZC_PAR_CHANGE(character, ParameterType.JobLevel);
+			Send.ZC_LONGPAR_CHANGE(character, ParameterType.BaseExp);
+			Send.ZC_LONGPAR_CHANGE(character, ParameterType.JobExp);
 
 			var items = character.Inventory.GetItems();
 			Send.ZC_NORMAL_ITEMLIST(character, items);
@@ -1238,7 +1242,7 @@ namespace Sabine.Zone.Network
 		{
 			var character = conn.GetCurrentCharacter();
 			character.Vars.Temp.Remove("Sabine.CurrentShop");
-			Send.ZC_CLOSE_STORE(character);
+			character.CloseStorage();
 		}
 
 		/// <summary>

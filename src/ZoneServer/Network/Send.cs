@@ -1442,14 +1442,21 @@ namespace Sabine.Zone.Network
 
 			using var packet = Packet.Rent(Op.ZC_ADD_SKILL);
 
+			// ZC_ADD_SKILL is a fixed-size packet (33 in Alpha, 39 in Beta1+),
+			// so the payload here must match AddSkillData's layout exactly.
 			packet.PutShort((short)skillId);
+			packet.PutInt((int)skillData.TypeFlags);
 			packet.PutShort((short)level);
 			packet.PutShort((short)skillData.GetSpCost(level));
+			packet.PutShort((short)skillData.GetRange(level));
 
-			if (Game.Version >= Versions.Beta2)
-				packet.PutShort((short)skillData.GetRange(level));
+			var nameLength = (Game.Version < Versions.Beta1) ? 16 : 24;
+			packet.PutString(skillData.StringId, nameLength);
 
 			packet.PutByte(canUpgrade);
+
+			if (Game.Version < Versions.Beta1)
+				packet.PutEmpty(2);
 
 			character.Connection.Send(packet);
 		}

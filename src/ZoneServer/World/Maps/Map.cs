@@ -441,6 +441,38 @@ namespace Sabine.Zone.World.Maps
 
 			this.AddVisibleActor(character);
 			Send.ZC_NOTIFY_NEWENTRY(character);
+
+			// NEWENTRY alone has proven unreliable on alpha/beta clients for
+			// players entering a populated map: existing observers already
+			// have the new entrant injected into their visible-set tracker,
+			// so the periodic UpdateVisibility tick won't fire a STANDENTRY
+			// for them either. Send STANDENTRY directly so existing players
+			// reliably render the new arrival.
+			using (SlimLock.Read(_playersLock))
+			{
+				foreach (var other in _players.Values)
+				{
+					if (other == character)
+						continue;
+
+					if (!other.Position.InRange(character.Position, this.VisibleRange))
+						continue;
+
+					Send.ZC_NOTIFY_STANDENTRY(other, character);
+				}
+			}
+
+			// Show vending signs of any merchants already vending on this
+			// map to the entrant, since their open broadcast already fired
+			// before this player arrived.
+			var openShops = ZoneServer.Instance.World.Vendings.GetOpenOnMap(this);
+			foreach (var shop in openShops)
+			{
+				if (shop.Owner == character)
+					continue;
+
+				Send.ZC_STORE_ENTRY(character, shop.Owner, shop.Title);
+			}
 		}
 
 		/// <summary>
@@ -462,6 +494,19 @@ namespace Sabine.Zone.World.Maps
 			// disconnect, warp, etc.
 			if (ZoneServer.Instance.World.Trades.TryGetTrade(character, out var trade))
 				trade.Cancel();
+
+			// Close any open vending shop, broadcasting the disappear so
+			// other players stop seeing the sign on warp/disconnect.
+			if (character.VendingShop != null)
+			{
+				if (character.VendingShop.IsOpen)
+					Send.ZC_DISAPPEAR_ENTRY(character);
+
+				character.VendingShop.Close();
+				ZoneServer.Instance.World.Vendings.Unregister(character);
+				character.VendingShop = null;
+				character.SetMovementBlock(false);
+			}
 
 			// Remove the character from any chat room they might be in,
 			// so they get removed on disconnect, warp, etc.

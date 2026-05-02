@@ -41,6 +41,12 @@ namespace Sabine.Zone.World.Actors
 		public Inventory Inventory { get; }
 
 		/// <summary>
+		/// Returns the player's account-bound storage. Loaded at character
+		/// load and persisted by account id.
+		/// </summary>
+		public Storage Storage { get; }
+
+		/// <summary>
 		/// Returns a reference to the character's quest list.
 		/// </summary>
 		public QuestList Quests { get; }
@@ -206,6 +212,11 @@ namespace Sabine.Zone.World.Actors
 		public int ChatRoomId { get; set; }
 
 		/// <summary>
+		/// Gets or sets the player's currently open vending shop, if any.
+		/// </summary>
+		public Sabine.Zone.World.Shops.VendingShop VendingShop { get; set; }
+
+		/// <summary>
 		/// Gets or sets the item class id currently designated as ammo
 		/// for the character.
 		/// </summary>
@@ -224,6 +235,7 @@ namespace Sabine.Zone.World.Actors
 		{
 			this.JobId = jobId;
 			this.Inventory = new Inventory(this);
+			this.Storage = new Storage(this);
 			this.Quests = new QuestList(this);
 
 			this.Parameters = new PlayerCharacterParameters(this);
@@ -650,6 +662,10 @@ namespace Sabine.Zone.World.Actors
 				this.Parameters.Set(ParameterType.BaseExpNeeded, expNeeded);
 				this.Parameters.Modify(ParameterType.StatPoints, statPointsGained);
 				this.Parameters.Modify(ParameterType.SkillPoints, levelsGained);
+
+				// SkillPoints changed; resend skill list so the client
+				// recomputes each skill's "upgradable" flag.
+				this.Skills.RefreshClient();
 			}
 
 			this.Parameters.Set(ParameterType.BaseExp, exp);
@@ -719,6 +735,10 @@ namespace Sabine.Zone.World.Actors
 
 				// 3. Recalculate derived stats (Job Bonuses)
 				this.Parameters.RecalculateAll();
+
+				// SkillPoints changed; resend skill list so the client
+				// recomputes each skill's "upgradable" flag.
+				this.Skills.RefreshClient();
 			}
 
 			this.Parameters.Set(ParameterType.JobExp, exp);

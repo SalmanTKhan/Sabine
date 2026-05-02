@@ -19,6 +19,7 @@ namespace Sabine.Zone.Commands
 			this.Add("debugpath", "", Localization.Get("Toggles path debugging on and off."), this.DebugPath);
 			this.Add("debugmode", "", Localization.Get("Toggles debug mode."), this.DebugMode);
 			this.Add("mapflag", "<flag> [on|off]", Localization.Get("Reads or toggles a map flag."), this.MapFlag);
+			this.Add("persistencetest", "", Localization.Get("Saves the target, reloads them, and reports diffs in body/cart/storage."), this.PersistenceTest);
 		}
 
 		/// <summary>
@@ -114,6 +115,81 @@ namespace Sabine.Zone.Commands
 			var on = args.Count >= 2 ? args.Get(1) == "on" || args.Get(1) == "1" : !target.Map.HasFlag(flag);
 			if (on) target.Map.SetFlag(flag); else target.Map.ClearFlag(flag);
 			sender.ServerMessage("{0} {1} on {2}.", flag, on ? "set" : "cleared", target.Map.StringId);
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// Saves the target's current state, reloads it from the database
+		/// into a throwaway character, and diffs body/cart/storage to verify
+		/// persistence end-to-end. The reloaded character is discarded; the
+		/// live target is unaffected.
+		/// </summary>
+		private CommandResult PersistenceTest(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			static System.Collections.Generic.Dictionary<int, int> Aggregate(System.Collections.Generic.IEnumerable<Item> items)
+			{
+				var dict = new System.Collections.Generic.Dictionary<int, int>();
+				foreach (var item in items)
+				{
+					if (!dict.TryGetValue(item.ClassId, out var amount))
+						amount = 0;
+					dict[item.ClassId] = amount + item.Amount;
+				}
+				return dict;
+			}
+
+			static string Diff(System.Collections.Generic.Dictionary<int, int> before, System.Collections.Generic.Dictionary<int, int> after)
+			{
+				var sb = new System.Text.StringBuilder();
+				foreach (var (cls, amt) in before)
+				{
+					if (!after.TryGetValue(cls, out var got) || got != amt)
+						sb.Append($" missing {cls}x{amt}(got{got});");
+				}
+				foreach (var (cls, amt) in after)
+				{
+					if (!before.ContainsKey(cls))
+						sb.Append($" extra {cls}x{amt};");
+				}
+				return sb.Length == 0 ? "OK" : sb.ToString().Trim();
+			}
+
+			var account = target.Connection.Account;
+
+			var bodyBefore = Aggregate(target.Inventory.GetItems());
+			var cartBefore = Aggregate(target.Inventory.GetCartItems());
+			var storageBefore = Aggregate(target.Storage.GetItems());
+
+			try
+			{
+				ZoneServer.Instance.Database.SaveCharacter(account, target);
+			}
+			catch (Exception ex)
+			{
+				sender.ServerMessage("PersistenceTest: SaveCharacter threw: {0}", ex.Message);
+				return CommandResult.Okay;
+			}
+
+			PlayerCharacter reloaded;
+			try
+			{
+				reloaded = ZoneServer.Instance.Database.GetCharacter(account, target.Id);
+			}
+			catch (Exception ex)
+			{
+				sender.ServerMessage("PersistenceTest: GetCharacter threw: {0}", ex.Message);
+				return CommandResult.Okay;
+			}
+
+			var bodyAfter = Aggregate(reloaded.Inventory.GetItems());
+			var cartAfter = Aggregate(reloaded.Inventory.GetCartItems());
+			var storageAfter = Aggregate(reloaded.Storage.GetItems());
+
+			sender.ServerMessage("PersistenceTest for {0}:", target.Name);
+			sender.ServerMessage("- body  ({0} -> {1} stacks): {2}", bodyBefore.Count, bodyAfter.Count, Diff(bodyBefore, bodyAfter));
+			sender.ServerMessage("- cart  ({0} -> {1} stacks): {2}", cartBefore.Count, cartAfter.Count, Diff(cartBefore, cartAfter));
+			sender.ServerMessage("- store ({0} -> {1} stacks): {2}", storageBefore.Count, storageAfter.Count, Diff(storageBefore, storageAfter));
+
 			return CommandResult.Okay;
 		}
 	}

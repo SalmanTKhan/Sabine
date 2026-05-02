@@ -116,6 +116,15 @@ namespace Sabine.Zone.Scripting
 		}
 
 		/// <summary>
+		/// Opens the player's account storage window, sending the current
+		/// item list. Equivalent to rAthena's <c>openstorage</c>.
+		/// </summary>
+		public static void OpenStorage(PlayerCharacter player)
+		{
+			player.OpenStorage();
+		}
+
+		/// <summary>
 		/// Checks if the player has learned all basic skills required for a job change.
 		/// Assumes 'basicskillcheck()' corresponds to a server configuration.
 		/// </summary>

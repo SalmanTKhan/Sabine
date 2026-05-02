@@ -242,5 +242,34 @@ namespace Sabine.Zone.World.Actors
 
 			Send.ZC_NOTIFY_ACT.Simple(this, this.Handle, ActionType.StandUp);
 		}
+
+		/// <summary>
+		/// Sends the storage item list and count info to the client, marking
+		/// it open for subsequent move requests. Idempotent.
+		/// </summary>
+		public void OpenStorage()
+		{
+			if (this.Storage.IsOpen)
+				return;
+
+			var items = this.Storage.GetItems();
+			Send.ZC_STORE_NORMAL_ITEMLIST(this, items);
+			Send.ZC_STORE_EQUIPMENT_ITEMLIST(this, items);
+			Send.ZC_NOTIFY_STOREITEM_COUNTINFO(this, this.Storage.ItemCount, Sabine.Zone.World.Actors.Components.Characters.Storage.MaxSlots);
+
+			this.Storage.IsOpen = true;
+		}
+
+		/// <summary>
+		/// Closes the storage window on the client and clears the open flag.
+		/// </summary>
+		public void CloseStorage()
+		{
+			if (!this.Storage.IsOpen)
+				return;
+
+			this.Storage.IsOpen = false;
+			Send.ZC_CLOSE_STORE(this);
+		}
 	}
 }

@@ -43,6 +43,11 @@ namespace Sabine.Zone.World
 		public Trades Trades { get; } = new();
 
 		/// <summary>
+		/// Returns the vending registry, tracking open player shops.
+		/// </summary>
+		public Vendings Vendings { get; } = new();
+
+		/// <summary>
 		/// Returns the chat room manager, handling chat rooms created by
 		/// players.
 		/// </summary>

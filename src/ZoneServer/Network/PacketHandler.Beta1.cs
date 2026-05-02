@@ -4,6 +4,7 @@ using Sabine.Shared.Data;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
 using Sabine.Zone.World.Actors;
+using Sabine.Zone.World.Maps;
 using Sabine.Zone.World.Shops;
 using Yggdrasil.Logging;
 
@@ -85,8 +86,31 @@ namespace Sabine.Zone.Network
 			var count = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
-			// TODO: Add storage/cart and item moving logic
-			Log.Debug("CZ_MOVE_ITEM_FROM_STORE_TO_CART: Char '{0}' wants to move item at index {1} ({2} amount) from store to cart.", character.Name, index, count);
+			if (!character.Storage.IsOpen || character.Parameters.Cart == 0 || count <= 0)
+				return;
+
+			var entry = character.Storage.GetItem(index);
+			if (entry == null)
+				return;
+
+			var addedWeight = entry.Data.Weight * count;
+			if (character.Inventory.CartWeight + addedWeight > Sabine.Zone.World.Actors.Components.Characters.Inventory.CartMaxWeight)
+				return;
+
+			var detached = character.Storage.RemoveByIndex(index, count);
+			if (detached == null)
+				return;
+
+			// MoveToCart consumes a body-side item; route through inventory
+			// to take advantage of stacking + cart weight bookkeeping.
+			character.Inventory.AddItem(detached);
+			var moved = character.Inventory.MoveToCart(detached, count);
+			if (moved <= 0)
+				return;
+
+			Send.ZC_DELETE_ITEM_FROM_STORE(character, index, count);
+			Send.ZC_NOTIFY_STOREITEM_COUNTINFO(character, character.Storage.ItemCount, Sabine.Zone.World.Actors.Components.Characters.Storage.MaxSlots);
+			SendCartCount(character);
 		}
 
 		/// <summary>
@@ -99,20 +123,39 @@ namespace Sabine.Zone.Network
 			var count = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
-			// TODO: Add storage/cart and item moving logic
-			Log.Debug("CZ_MOVE_ITEM_FROM_CART_TO_STORE: Char '{0}' wants to move item at index {1} ({2} amount) from cart to store.", character.Name, index, count);
+			if (!character.Storage.IsOpen || character.Parameters.Cart == 0 || count <= 0)
+				return;
+
+			var cartItem = character.Inventory.GetCartItem(index);
+			if (cartItem == null || count > cartItem.Amount)
+				return;
+
+			var added = character.Storage.AddFrom(cartItem, count);
+			if (added == null)
+				return;
+
+			var removed = character.Inventory.RemoveFromCartByInventoryId(index, count);
+			if (removed == null)
+				return;
+
+			Send.ZC_ADD_ITEM_TO_STORE(character, added);
+			Send.ZC_NOTIFY_STOREITEM_COUNTINFO(character, character.Storage.ItemCount, Sabine.Zone.World.Actors.Components.Characters.Storage.MaxSlots);
+			SendCartCount(character);
 		}
 
 		/// <summary>
-		/// Request to remove the cart.
+		/// Request to remove the cart. Honored only when the player is not
+		/// currently vending; cart contents are preserved across toggles.
 		/// </summary>
 		[PacketHandler(Op.CZ_REQ_CARTOFF)]
 		public void CZ_REQ_CARTOFF(ZoneConnection conn, Packet packet)
 		{
 			var character = conn.GetCurrentCharacter();
-			// TODO: Add logic to remove cart
-			Log.Debug("CZ_REQ_CARTOFF: Char '{0}' requested to remove cart.", character.Name);
 
+			if (character.VendingShop?.IsOpen == true)
+				return;
+
+			character.Parameters.Set(ParameterType.Cart, 0);
 			Send.ZC_CARTOFF(character);
 		}
 
@@ -123,8 +166,7 @@ namespace Sabine.Zone.Network
 		public void CZ_REQ_CLOSESTORE(ZoneConnection conn, Packet packet)
 		{
 			var character = conn.GetCurrentCharacter();
-			// TODO: Add vending logic to close store
-			Log.Debug("CZ_REQ_CLOSESTORE: Char '{0}' requested to close their store.", character.Name);
+			CloseVendingShop(character);
 		}
 
 		/// <summary>
@@ -138,17 +180,64 @@ namespace Sabine.Zone.Network
 			var storeName = packet.GetString(80);
 			var count = (len - 84) / 8; // 8 bytes per item
 
-			Log.Debug("CZ_REQ_OPENSTORE: Char '{0}' wants to open store '{1}' with {2} items.", character.Name, storeName, count);
+			// Pre-validate state.
+			if (character.VendingShop?.IsOpen == true)
+				return;
 
+			if (ZoneServer.Instance.World.Trades.TryGetTrade(character, out _))
+				return;
+
+			if (character.Parameters.Cart == 0)
+				return;
+
+			if (character.Map?.HasFlag(MapFlags.NoVending) == true)
+				return;
+
+			var skillLvl = character.Skills.GetLevel(SkillId.MC_VENDING);
+			if (skillLvl < 1)
+				return;
+
+			var maxItems = 2 + skillLvl;
+			if (count < 1 || count > maxItems)
+				return;
+
+			// Parse and filter the requested entries against the cart.
+			// Indices in the cart inventory are 1-based for the client; on
+			// Sabine the cart's InventoryId is what GetCartItem expects.
+			var items = new List<VendingItem>(count);
 			for (var i = 0; i < count; i++)
 			{
 				var index = packet.GetShort();
 				var amount = packet.GetShort();
 				var price = packet.GetInt();
-				// TODO: Add vending logic
+
+				if (amount <= 0 || price <= 0)
+					continue;
+
+				var cartItem = character.Inventory.GetCartItem(index);
+				if (cartItem == null)
+					continue;
+
+				if (amount > cartItem.Amount)
+					continue;
+
+				if (!cartItem.IsIdentified || cartItem.IsDamaged)
+					continue;
+
+				items.Add(new VendingItem(cartItem, price, amount) { Index = index });
 			}
 
-			// For now, just send a success response and display the store
+			if (items.Count == 0)
+				return;
+
+			var shop = new VendingShop(character, storeName, items);
+			character.VendingShop = shop;
+			ZoneServer.Instance.World.Vendings.Register(shop);
+
+			character.Controller.StopMove();
+			character.SetMovementBlock(true);
+
+			Send.ZC_OPENSTORE(character, items.Count);
 			Send.ZC_STORE_ENTRY(character, storeName);
 		}
 
@@ -160,17 +249,18 @@ namespace Sabine.Zone.Network
 		{
 			var merchantId = packet.GetInt();
 			var character = conn.GetCurrentCharacter();
-			var merchant = character.Map.GetCharacter(merchantId) as PlayerCharacter;
 
-			if (merchant == null)
-			{
-				Log.Debug("CZ_REQ_BUY_FROMMC: Char '{0}' tried to buy from non-existent merchant {1}.", character.Name, merchantId);
+			if (!ZoneServer.Instance.World.Vendings.TryGet(merchantId, out var shop) || !shop.IsOpen)
 				return;
-			}
 
-			// TODO: Get merchant's actual vending items
-			var placeholderItems = new List<VendingItem>();
-			Send.ZC_PC_PURCHASE_ITEMLIST_FROMMC(character, merchant, placeholderItems);
+			var merchant = shop.Owner;
+			if (merchant.Map != character.Map)
+				return;
+
+			if (!character.Position.InRange(merchant.Position, character.Map.VisibleRange))
+				return;
+
+			Send.ZC_PC_PURCHASE_ITEMLIST_FROMMC(character, merchant, shop.GetItemsSnapshot());
 		}
 
 		/// <summary>
@@ -182,24 +272,130 @@ namespace Sabine.Zone.Network
 			var len = packet.GetShort();
 			var merchantId = packet.GetInt();
 			var character = conn.GetCurrentCharacter();
-			var merchant = character.Map.GetCharacter(merchantId) as PlayerCharacter;
-
-			if (merchant == null)
-			{
-				Log.Debug("CZ_PC_PURCHASE_ITEMLIST_FROMMC: Char '{0}' tried to buy from non-existent merchant {1}.", character.Name, merchantId);
-				return;
-			}
 
 			var count = (len - 8) / 4; // 4 bytes per item
+			var requested = new List<(int Amount, int Index)>(count);
 			for (var i = 0; i < count; i++)
 			{
 				var amount = packet.GetShort();
 				var index = packet.GetShort();
-				// TODO: Vending purchase logic
+				requested.Add((amount, index));
 			}
 
-			// For now, just send a success response
-			Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.Success);
+			if (count < 1)
+				return;
+
+			if (!ZoneServer.Instance.World.Vendings.TryGet(merchantId, out var shop) || !shop.IsOpen)
+			{
+				Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.Unknown);
+				return;
+			}
+
+			var merchant = shop.Owner;
+			if (merchant == character || merchant.Map != character.Map ||
+				!character.Position.InRange(merchant.Position, character.Map.VisibleRange))
+			{
+				Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.Unknown);
+				return;
+			}
+
+			lock (shop.SyncLock)
+			{
+				if (!shop.IsOpen)
+				{
+					Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.Unknown);
+					return;
+				}
+
+				// Validate every line up front.
+				var resolved = new List<(VendingItem Entry, int Amount)>(requested.Count);
+				long totalCost = 0;
+				int totalWeight = 0;
+
+				foreach (var (reqAmount, reqIndex) in requested)
+				{
+					if (reqAmount <= 0)
+					{
+						Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, reqIndex, reqAmount, PurchaseResult.Unknown);
+						return;
+					}
+
+					if (!shop.TryFindByIndex(reqIndex, out var entry))
+					{
+						Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, reqIndex, reqAmount, PurchaseResult.Unknown);
+						return;
+					}
+
+					if (reqAmount > entry.Amount)
+					{
+						Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, reqIndex, reqAmount, PurchaseResult.ItemCountOver);
+						return;
+					}
+
+					totalCost += (long)entry.Price * reqAmount;
+					totalWeight += entry.Item.Data.Weight * reqAmount;
+					resolved.Add((entry, reqAmount));
+				}
+
+				if (totalCost > int.MaxValue || character.Parameters.Zeny < totalCost)
+				{
+					Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.NotEnoughZeny);
+					return;
+				}
+
+				if (character.Parameters.Weight + totalWeight > character.Parameters.WeightMax)
+				{
+					Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.Overweight);
+					return;
+				}
+
+				if ((long)merchant.Parameters.Zeny + totalCost > int.MaxValue)
+				{
+					Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.Unknown);
+					return;
+				}
+
+				// Commit transaction.
+				character.Parameters.Modify(ParameterType.Zeny, -(int)totalCost);
+				merchant.Parameters.Modify(ParameterType.Zeny, (int)totalCost);
+
+				foreach (var (entry, amount) in resolved)
+				{
+					var detached = merchant.Inventory.RemoveFromCartByInventoryId(entry.Item.InventoryId, amount);
+					if (detached == null)
+						continue;
+
+					character.Inventory.AddItem(detached);
+					Send.ZC_DELETEITEM_FROM_MCSTORE(merchant, entry.Index, amount);
+					shop.RemoveSold(entry, amount);
+				}
+
+				Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.Success);
+
+				if (shop.ItemCount == 0)
+					CloseVendingShop(merchant);
+			}
+		}
+
+		/// <summary>
+		/// Closes the player's vending shop, broadcasting the disappearance
+		/// to nearby players and clearing related state. Safe to call when
+		/// no shop is open.
+		/// </summary>
+		private static void CloseVendingShop(PlayerCharacter character)
+		{
+			var shop = character.VendingShop;
+			if (shop == null)
+				return;
+
+			var wasOpen = shop.IsOpen;
+			shop.Close();
+			ZoneServer.Instance.World.Vendings.Unregister(character);
+			character.VendingShop = null;
+			character.SetMovementBlock(false);
+
+			if (wasOpen)
+				Send.ZC_DISAPPEAR_ENTRY(character);
 		}
 
 		/// <summary>

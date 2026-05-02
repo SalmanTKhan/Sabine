@@ -33,6 +33,7 @@ namespace Sabine.Zone.Commands
 
 			this.Add("dropall", "", Localization.Get("Drops the target's entire inventory."), this.DropAll);
 			this.Add("storeall", "", Localization.Get("Sends all of the target's items to storage."), this.StoreAll);
+			this.Add("storage", "", Localization.Get("Opens the target's storage."), this.Storage);
 			this.Add("itemreset", "", Localization.Get("Removes all items from the target's inventory."), this.ItemReset);
 			this.Add("identify", "", Localization.Get("Identifies all unidentified items in the target's inventory."), this.Identify);
 			this.Add("refine", "<slot> <amount>", Localization.Get("Refines an equipped item."), this.Refine);
@@ -98,7 +99,30 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult StoreAll(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Storage transfer is not implemented."));
+			var moved = 0;
+			foreach (var item in target.Inventory.GetItems())
+			{
+				if (item.IsEquipped)
+					continue;
+
+				var amount = item.Amount;
+				var added = target.Storage.AddFrom(item, amount);
+				if (added == null)
+					break;
+
+				Send.ZC_ADD_ITEM_TO_STORE(target, added);
+				target.Inventory.DecrementItem(item, amount);
+				moved++;
+			}
+
+			Send.ZC_NOTIFY_STOREITEM_COUNTINFO(target, target.Storage.ItemCount, Sabine.Zone.World.Actors.Components.Characters.Storage.MaxSlots);
+			sender.ServerMessage(Localization.Get("Moved {0} item stack(s) to storage."), moved);
+			return CommandResult.Okay;
+		}
+
+		private CommandResult Storage(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			target.OpenStorage();
 			return CommandResult.Okay;
 		}
 

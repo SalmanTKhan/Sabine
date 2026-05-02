@@ -93,7 +93,15 @@ namespace Sabine.Zone.Database
 							item.Amount = reader.GetInt32("amount");
 							item.EquippedOn = (EquipSlots)reader.GetInt32("equipped");
 
-							character.Inventory.AddItemInit(item);
+							// 1 = cart, 0 = body. New column may be missing
+							// on older databases, so default to body.
+							var location = 0;
+							try { location = reader.GetInt32("location"); } catch { }
+
+							if (location == 1)
+								character.Inventory.AddCartItemInit(item);
+							else
+								character.Inventory.AddItemInit(item);
 						}
 					}
 				}
@@ -110,6 +118,25 @@ namespace Sabine.Zone.Database
 							var level = reader.GetInt32("level");
 
 							character.Skills.AddSilent(new Skill(character, skillId, level));
+						}
+					}
+				}
+
+				using (var mc = new MySqlCommand("SELECT * FROM `storage_items` WHERE `accountId` = @accountId", conn))
+				{
+					mc.AddParameter("@accountId", account.Id);
+
+					using (var reader = mc.ExecuteReader())
+					{
+						while (reader.Read())
+						{
+							var item = new Item(reader.GetInt32("classId"));
+							item.Amount = reader.GetInt32("amount");
+							item.RefineLevel = (byte)reader.GetInt32("refine");
+							item.IsIdentified = reader.GetInt32("identified") != 0;
+							item.IsDamaged = reader.GetInt32("damaged") != 0;
+
+							character.Storage.AddItemInit(item);
 						}
 					}
 				}
@@ -204,6 +231,47 @@ namespace Sabine.Zone.Database
 						cmd.Set("classId", item.ClassId);
 						cmd.Set("amount", item.Amount);
 						cmd.Set("equipped", (int)item.EquippedOn);
+						cmd.Set("location", 0);
+
+						cmd.AddRow();
+						cmd.ExecuteOn(200);
+					}
+
+					var cartItems = character.Inventory.GetCartItems();
+
+					foreach (var item in cartItems)
+					{
+						cmd.Set("characterId", character.Id);
+						cmd.Set("classId", item.ClassId);
+						cmd.Set("amount", item.Amount);
+						cmd.Set("equipped", 0);
+						cmd.Set("location", 1);
+
+						cmd.AddRow();
+						cmd.ExecuteOn(200);
+					}
+
+					cmd.Execute();
+				}
+
+				using (var cmd = new MySqlCommand("DELETE FROM `storage_items` WHERE `accountId` = @accountId", conn, trans))
+				{
+					cmd.AddParameter("@accountId", account.Id);
+					cmd.ExecuteNonQuery();
+				}
+
+				using (var cmd = new BatchedInsertCommand("storage_items", conn, trans))
+				{
+					var storage = character.Storage.GetItems();
+
+					foreach (var item in storage)
+					{
+						cmd.Set("accountId", account.Id);
+						cmd.Set("classId", item.ClassId);
+						cmd.Set("amount", item.Amount);
+						cmd.Set("refine", (int)item.RefineLevel);
+						cmd.Set("identified", item.IsIdentified ? 1 : 0);
+						cmd.Set("damaged", item.IsDamaged ? 1 : 0);
 
 						cmd.AddRow();
 						cmd.ExecuteOn(200);

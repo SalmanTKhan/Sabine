@@ -244,13 +244,46 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult StorageList(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Storage listing is not implemented."));
+			var items = target.Storage.GetItems();
+			sender.ServerMessage(Localization.Get("{0}'s storage ({1}/{2}):"), target.Name, items.Length, Sabine.Zone.World.Actors.Components.Characters.Storage.MaxSlots);
+
+			if (items.Length == 0)
+			{
+				sender.ServerMessage(Localization.Get("(empty)"));
+				return CommandResult.Okay;
+			}
+
+			foreach (var item in items)
+				sender.ServerMessage("- [{0}] {1} x{2}", item.InventoryId, item.Data.Name, item.Amount);
+
 			return CommandResult.Okay;
 		}
 
 		private CommandResult CartList(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Cart listing is not implemented."));
+			if (target.Parameters.Cart == 0)
+			{
+				sender.ServerMessage(Localization.Get("{0} has no cart."), target.Name);
+				return CommandResult.Okay;
+			}
+
+			var items = target.Inventory.GetCartItems();
+			sender.ServerMessage(Localization.Get("{0}'s cart ({1}/{2} stacks, {3}/{4} weight):"),
+				target.Name,
+				items.Length,
+				Sabine.Zone.World.Actors.Components.Characters.Inventory.CartMaxSlots,
+				target.Inventory.CartWeight,
+				Sabine.Zone.World.Actors.Components.Characters.Inventory.CartMaxWeight);
+
+			if (items.Length == 0)
+			{
+				sender.ServerMessage(Localization.Get("(empty)"));
+				return CommandResult.Okay;
+			}
+
+			foreach (var item in items)
+				sender.ServerMessage("- [{0}] {1} x{2}", item.InventoryId, item.Data.Name, item.Amount);
+
 			return CommandResult.Okay;
 		}
 

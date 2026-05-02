@@ -59,10 +59,8 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Request to open storage.
+		/// Request to move an item from inventory into account storage.
 		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
 		[PacketHandler(Op.CZ_MOVE_ITEM_FROM_BODY_TO_STORE)]
 		public void CZ_MOVE_ITEM_FROM_BODY_TO_STORE(ZoneConnection conn, Packet packet)
 		{
@@ -70,30 +68,32 @@ namespace Sabine.Zone.Network
 			var amount = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
-			var item = character.Inventory.GetItem(itemIndex);
-
-			if (item == null)
-			{
-				Log.Debug("CZ_MOVE_ITEM_FROM_BODY_TO_STORE: Character '{0}' tried to move non-existent item.", character.Name);
+			if (!character.Storage.IsOpen)
 				return;
-			}
+
+			var item = character.Inventory.GetItem(itemIndex);
+			if (item == null)
+				return;
 
 			if (amount <= 0 || amount > item.Amount)
-			{
-				Log.Debug("CZ_MOVE_ITEM_FROM_BODY_TO_STORE: Character '{0}' tried to move invalid amount.", character.Name);
 				return;
-			}
 
-			// Move item to storage (placeholder - needs storage system implementation)
-			Log.Debug("CZ_MOVE_ITEM_FROM_BODY_TO_STORE: Character '{0}' moving {1}x {2} to storage",
-				character.Name, amount, item.ClassId);
+			if (item.IsEquipped)
+				return;
+
+			var added = character.Storage.AddFrom(item, amount);
+			if (added == null)
+				return;
+
+			Send.ZC_ADD_ITEM_TO_STORE(character, added);
+			Send.ZC_NOTIFY_STOREITEM_COUNTINFO(character, character.Storage.ItemCount, Sabine.Zone.World.Actors.Components.Characters.Storage.MaxSlots);
+
+			character.Inventory.DecrementItem(item, amount);
 		}
 
 		/// <summary>
-		/// Request to move item from storage to inventory.
+		/// Request to move an item from account storage back to inventory.
 		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
 		[PacketHandler(Op.CZ_MOVE_ITEM_FROM_STORE_TO_BODY)]
 		public void CZ_MOVE_ITEM_FROM_STORE_TO_BODY(ZoneConnection conn, Packet packet)
 		{
@@ -101,9 +101,26 @@ namespace Sabine.Zone.Network
 			var amount = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
+			if (!character.Storage.IsOpen)
+				return;
 
-			// Move item from storage (placeholder - needs storage system implementation)
-			Log.Debug("CZ_MOVE_ITEM_FROM_STORE_TO_BODY: Character '{0}' moving item from storage", character.Name);
+			if (amount <= 0)
+				return;
+
+			var entry = character.Storage.GetItem(itemIndex);
+			if (entry == null)
+				return;
+
+			var weightAdd = entry.Data.Weight * amount;
+			if (character.Parameters.Weight + weightAdd > character.Parameters.WeightMax)
+				return;
+
+			var detached = character.Storage.RemoveByIndex(itemIndex, amount);
+			if (detached == null)
+				return;
+
+			Send.ZC_DELETE_ITEM_FROM_STORE(character, itemIndex, amount);
+			character.Inventory.AddItem(detached);
 		}
 
 		/// <summary>
