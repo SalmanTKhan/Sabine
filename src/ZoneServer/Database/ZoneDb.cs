@@ -1,4 +1,5 @@
-﻿using MySqlConnector;
+﻿using System.Collections.Generic;
+using MySqlConnector;
 using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Database;
@@ -305,6 +306,146 @@ namespace Sabine.Zone.Database
 
 			character.Homunculus?.SaveTo(character.Vars.Perm);
 			this.SaveVars("vars_character", character.Id, character.Vars.Perm.GetList());
+		}
+
+		// ----- Guild persistence (Phase 6) ------------------------------
+		// `LoadAllGuilds` is called once at startup; mutations
+		// (`Insert/Update/Delete...`) are called by `GuildManager` as
+		// state changes. Allies / antagonists / custom rank names are
+		// kept in-memory for now — the schema covers the load-bearing
+		// fields (id, name, master, level, exp, emblem, notice) and
+		// the membership roster.
+
+		/// <summary>
+		/// Returns every guild row in the database, paired with its
+		/// member rows. Used by <see cref="World.Groups.GuildManager"/>
+		/// at startup.
+		/// </summary>
+		public List<World.Groups.GuildDbRow> LoadAllGuilds()
+		{
+			var guilds = new Dictionary<int, World.Groups.GuildDbRow>();
+			using var conn = this.GetConnection();
+
+			using (var cmd = new MySqlCommand("SELECT * FROM `guilds`", conn))
+			using (var reader = cmd.ExecuteReader())
+			{
+				while (reader.Read())
+				{
+					var row = new World.Groups.GuildDbRow
+					{
+						GuildId = reader.GetInt32("guildId"),
+						Name = reader.GetStringSafe("name"),
+						MasterCharId = reader.GetInt32("masterCharId"),
+						Level = reader.GetInt32("level"),
+						ExpCurrent = reader.GetInt32("expCurrent"),
+						EmblemId = reader.GetInt32("emblemId"),
+						Notice = reader.GetStringSafe("notice") ?? string.Empty,
+					};
+					guilds[row.GuildId] = row;
+				}
+			}
+
+			using (var cmd = new MySqlCommand("SELECT * FROM `guild_members`", conn))
+			using (var reader = cmd.ExecuteReader())
+			{
+				while (reader.Read())
+				{
+					var gid = reader.GetInt32("guildId");
+					if (!guilds.TryGetValue(gid, out var guild))
+						continue;
+					guild.Members.Add(new World.Groups.GuildMemberDbRow
+					{
+						CharacterId = reader.GetInt32("characterId"),
+						IsMaster = reader.GetInt32("isMaster") != 0,
+						Position = reader.GetStringSafe("position") ?? string.Empty,
+					});
+				}
+			}
+
+			return guilds.Values.ToList();
+		}
+
+		/// <summary>
+		/// Inserts a new guild row, returning the auto-generated
+		/// <c>guildId</c>. The master member row is added in a
+		/// separate <see cref="InsertGuildMember"/> call so the
+		/// caller can sequence both inside one transaction if needed.
+		/// </summary>
+		public int InsertGuild(string name, int masterCharId, int level, int expCurrent, int emblemId, string notice)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"INSERT INTO `guilds` (`name`, `masterCharId`, `level`, `expCurrent`, `emblemId`, `notice`) "
+				+ "VALUES (@name, @masterCharId, @level, @expCurrent, @emblemId, @notice); SELECT LAST_INSERT_ID();",
+				conn);
+			cmd.AddParameter("@name", name);
+			cmd.AddParameter("@masterCharId", masterCharId);
+			cmd.AddParameter("@level", level);
+			cmd.AddParameter("@expCurrent", expCurrent);
+			cmd.AddParameter("@emblemId", emblemId);
+			cmd.AddParameter("@notice", notice ?? string.Empty);
+			return Convert.ToInt32(cmd.ExecuteScalar());
+		}
+
+		/// <summary>
+		/// Updates the load-bearing scalar fields on an existing guild
+		/// row. Member roster mutations are handled separately via
+		/// <see cref="InsertGuildMember"/> / <see cref="DeleteGuildMember"/>.
+		/// </summary>
+		public void UpdateGuild(int guildId, string name, int masterCharId, int level, int expCurrent, int emblemId, string notice)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"UPDATE `guilds` SET `name` = @name, `masterCharId` = @masterCharId, "
+				+ "`level` = @level, `expCurrent` = @expCurrent, `emblemId` = @emblemId, "
+				+ "`notice` = @notice WHERE `guildId` = @guildId",
+				conn);
+			cmd.AddParameter("@guildId", guildId);
+			cmd.AddParameter("@name", name);
+			cmd.AddParameter("@masterCharId", masterCharId);
+			cmd.AddParameter("@level", level);
+			cmd.AddParameter("@expCurrent", expCurrent);
+			cmd.AddParameter("@emblemId", emblemId);
+			cmd.AddParameter("@notice", notice ?? string.Empty);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Deletes a guild row; cascades to its member rows
+		/// via the FK.</summary>
+		public void DeleteGuild(int guildId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand("DELETE FROM `guilds` WHERE `guildId` = @id", conn);
+			cmd.AddParameter("@id", guildId);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Inserts a member into a guild's roster. PK on
+		/// `characterId` enforces "one guild per character" at the DB
+		/// layer.</summary>
+		public void InsertGuildMember(int guildId, int characterId, bool isMaster, string position)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"INSERT INTO `guild_members` (`guildId`, `characterId`, `isMaster`, `position`) "
+				+ "VALUES (@guildId, @characterId, @isMaster, @position) "
+				+ "ON DUPLICATE KEY UPDATE `guildId` = @guildId, `isMaster` = @isMaster, `position` = @position",
+				conn);
+			cmd.AddParameter("@guildId", guildId);
+			cmd.AddParameter("@characterId", characterId);
+			cmd.AddParameter("@isMaster", isMaster ? 1 : 0);
+			cmd.AddParameter("@position", position ?? string.Empty);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Removes a member from any guild they belong to.
+		/// The PK on `characterId` makes this implicitly idempotent.</summary>
+		public void DeleteGuildMember(int characterId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand("DELETE FROM `guild_members` WHERE `characterId` = @id", conn);
+			cmd.AddParameter("@id", characterId);
+			cmd.ExecuteNonQuery();
 		}
 	}
 }

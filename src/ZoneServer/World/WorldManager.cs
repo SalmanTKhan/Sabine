@@ -63,6 +63,15 @@ namespace Sabine.Zone.World
 		public InstanceManager Instances { get; } = new();
 
 		/// <summary>
+		/// Active guild registry. State is DB-backed (see
+		/// <c>sql/updates/2026-05-03_002.sql</c>); call <c>LoadAll</c>
+		/// once at startup to populate from the database. Mutations
+		/// (create, add/remove member, disband, scalar save) push
+		/// through to disk transparently.
+		/// </summary>
+		public Groups.GuildManager Guilds => Groups.GuildManager.Instance;
+
+		/// <summary>
 		/// Returns the world's monster spawner collection.
 		/// </summary>
 		public Spawners Spawners { get; } = new Spawners();
@@ -90,7 +99,26 @@ namespace Sabine.Zone.World
 		{
 			this.LoadMaps();
 			this.LoadVars();
+			this.LoadGuilds();
 			this.SetupUpdates();
+		}
+
+		/// <summary>
+		/// Hydrates <see cref="Guilds"/> from the `guilds` /
+		/// `guild_members` tables. Player-side guild back-pointers
+		/// are wired up later, on each character's first login,
+		/// via <see cref="Groups.GuildManager.OnPlayerLogin"/>.
+		/// </summary>
+		private void LoadGuilds()
+		{
+			try
+			{
+				this.Guilds.LoadAll();
+			}
+			catch (Exception ex)
+			{
+				Log.Error("WorldManager.LoadGuilds: failed to load guilds: {0}", ex);
+			}
 		}
 
 		/// <summary>
