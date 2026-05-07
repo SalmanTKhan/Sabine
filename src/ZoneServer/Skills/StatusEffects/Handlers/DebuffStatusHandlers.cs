@@ -147,6 +147,39 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			=> target.SetHealthStateFlag(HealthState.Confusion, false);
 	}
 
+	/// <summary>
+	/// SC_CURSE — eAthena classic: -1 STR, -1 DEX, half LUK while active.
+	/// Sets opt2 = Curse so the client renders the icon. Snapshots the
+	/// applied LUK delta (Val3) so partial / overlapping de-buffs revert
+	/// cleanly even if base LUK changed during the effect.
+	/// </summary>
+	[StatusEffectHandler(StatusId.Curse)]
+	public class CurseStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			var lukLost = target.Parameters.Luk / 2;
+			effect.Val3 = lukLost;
+
+			target.Parameters.Modify(ParameterType.Str, -1);
+			target.Parameters.Modify(ParameterType.Dex, -1);
+			if (lukLost != 0)
+				target.Parameters.Modify(ParameterType.Luk, -lukLost);
+
+			target.SetHealthStateFlag(HealthState.Curse, true);
+		}
+
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+			target.Parameters.Modify(ParameterType.Str, 1);
+			target.Parameters.Modify(ParameterType.Dex, 1);
+			if (effect.Val3 != 0)
+				target.Parameters.Modify(ParameterType.Luk, effect.Val3);
+
+			target.SetHealthStateFlag(HealthState.Curse, false);
+		}
+	}
+
 	/// <summary>SC_CHAOS — Sage / etc. No opt2 bit in Sabine's enum yet; flag-only.</summary>
 	[StatusEffectHandler(StatusId.Chaos)]
 	public class ChaosStatusHandler : IStatusEffectHandler

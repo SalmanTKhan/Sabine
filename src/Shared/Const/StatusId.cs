@@ -46,6 +46,7 @@ namespace Sabine.Shared.Const
 		Blind = 41,
 		Confusion = 42,
 		Chaos = 43,
+		Curse = 44,
 
 		// Knight (2-1)
 		TwoHandQuicken = 100,

@@ -51,12 +51,22 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// Applies a status effect to the character. If an effect with the
 		/// same id is already active, the existing effect is ended (its
 		/// stat changes are reverted) and the new one is started fresh.
+		/// Debuff durations are reduced by the target's resistances; pass
+		/// <paramref name="applyResistance"/> = false for buffs and self-cast
+		/// statuses that should land at full duration.
 		/// </summary>
-		public void Start(StatusId id, int level, TimeSpan duration, Character caster, int val1 = 0, int val2 = 0, int val3 = 0, int val4 = 0)
+		public void Start(StatusId id, int level, TimeSpan duration, Character caster, int val1 = 0, int val2 = 0, int val3 = 0, int val4 = 0, bool applyResistance = true)
 		{
 			var handler = StatusEffectHandlerManager.GetHandler(id);
 			if (handler == null)
 				return;
+
+			if (applyResistance)
+			{
+				duration = StatusResistance.ReduceDuration(this.Character, id, duration);
+				if (duration <= TimeSpan.Zero)
+					return;
+			}
 
 			StatusEffect previous;
 			lock (_syncLock)
