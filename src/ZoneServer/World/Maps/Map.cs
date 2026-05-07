@@ -651,6 +651,28 @@ namespace Sabine.Zone.World.Maps
 		}
 
 		/// <summary>
+		/// Returns the player character with the given account id via
+		/// out. Returns false if no character on this map matches.
+		/// </summary>
+		public bool TryGetPlayerByAccountId(int accountId, out PlayerCharacter player)
+		{
+			using (SlimLock.Read(_playersLock))
+			{
+				foreach (var character in _players.Values)
+				{
+					if (character.Connection.Account?.Id == accountId)
+					{
+						player = character;
+						return true;
+					}
+				}
+			}
+
+			player = null;
+			return false;
+		}
+
+		/// <summary>
 		/// Returns the player character with the given name via out.
 		/// Returns false if the character wasn't found or isn't a
 		/// player character.

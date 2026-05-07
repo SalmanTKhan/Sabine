@@ -1,4 +1,5 @@
 using Sabine.Shared.Util;
+using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Groups;
 using Yggdrasil.Util.Commands;
@@ -70,7 +71,29 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult PartyOption(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Party option editing not implemented."));
+			if (target.Party == null) { sender.ServerMessage(Localization.Get("Not in a party.")); return CommandResult.Okay; }
+			if (!target.Party.IsLeader(target)) { sender.ServerMessage(Localization.Get("Only the leader may change party options.")); return CommandResult.Okay; }
+			if (args.Count < 1) return CommandResult.InvalidArgument;
+
+			if (int.TryParse(args.Get(0), out var exp))
+			{
+				target.Party.ExpShareOption = exp == 0
+					? PartyExpShareOption.Individual
+					: PartyExpShareOption.EvenShare;
+			}
+			if (args.Count >= 2 && int.TryParse(args.Get(1), out var item))
+			{
+				target.Party.ItemShareOption = item == 0
+					? PartyItemShareOption.Individual
+					: PartyItemShareOption.EvenShare;
+			}
+
+			ZoneServer.Instance.Database.UpdatePartyOptions(target.Party.Id,
+				target.Party.ExpShareOption == PartyExpShareOption.EvenShare,
+				target.Party.ItemShareOption == PartyItemShareOption.EvenShare);
+
+			target.Party.UpdateAllClients();
+			sender.ServerMessage(Localization.Get("Party options updated."));
 			return CommandResult.Okay;
 		}
 
@@ -82,7 +105,32 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult Invite(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Invite via command is not implemented; use the party UI."));
+			if (args.Count < 1) return CommandResult.InvalidArgument;
+			if (target.Party == null) { sender.ServerMessage(Localization.Get("Not in a party.")); return CommandResult.Okay; }
+			if (!target.Party.IsLeader(target)) { sender.ServerMessage(Localization.Get("Only the leader may invite.")); return CommandResult.Okay; }
+
+			var name = args.Get(0);
+			if (!ZoneServer.Instance.World.Maps.TryGetPlayerByName(name, out var invitee))
+			{
+				sender.ServerMessage(Localization.Get("Player '{0}' is not online."), name);
+				return CommandResult.Okay;
+			}
+
+			if (invitee.Party != null)
+			{
+				sender.ServerMessage(Localization.Get("'{0}' is already in a party."), name);
+				return CommandResult.Okay;
+			}
+
+			if (target.Party.IsFull())
+			{
+				sender.ServerMessage(Localization.Get("Party is full."));
+				return CommandResult.Okay;
+			}
+
+			PartyManager.Instance.RegisterInvite(target, invitee);
+			Send.ZC_REQ_JOIN_GROUP(invitee, target.Connection.Account.Id, target.Party.Name);
+			sender.ServerMessage(Localization.Get("Invited '{0}'."), invitee.Name);
 			return CommandResult.Okay;
 		}
 
@@ -96,19 +144,63 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult Accept(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Accept via command is not implemented."));
+			if (!PartyManager.Instance.ConsumePendingInvite(target.Id, out var invite))
+			{
+				sender.ServerMessage(Localization.Get("No pending invite."));
+				return CommandResult.Okay;
+			}
+
+			var party = PartyManager.Instance.GetParty(invite.PartyId);
+			if (party == null || target.Party != null || party.IsFull())
+			{
+				sender.ServerMessage(Localization.Get("Could not join party."));
+				return CommandResult.Okay;
+			}
+
+			if (!party.AddMember(target))
+			{
+				sender.ServerMessage(Localization.Get("Could not join party."));
+				return CommandResult.Okay;
+			}
+
+			if (ZoneServer.Instance.World.Maps.TryGetPlayerById(invite.InviterCharacterId, out var inviter))
+				Send.ZC_ACK_REQ_JOIN_GROUP(inviter, target.Name, 2);
+
+			sender.ServerMessage(Localization.Get("Joined party '{0}'."), party.Name);
 			return CommandResult.Okay;
 		}
 
 		private CommandResult Reject(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Reject via command is not implemented."));
+			if (!PartyManager.Instance.ConsumePendingInvite(target.Id, out var invite))
+			{
+				sender.ServerMessage(Localization.Get("No pending invite."));
+				return CommandResult.Okay;
+			}
+
+			if (ZoneServer.Instance.World.Maps.TryGetPlayerById(invite.InviterCharacterId, out var inviter))
+				Send.ZC_ACK_REQ_JOIN_GROUP(inviter, target.Name, 1);
+
+			sender.ServerMessage(Localization.Get("Invite rejected."));
 			return CommandResult.Okay;
 		}
 
 		private CommandResult ChangeLeader(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Leader change via command is not implemented."));
+			if (args.Count < 1) return CommandResult.InvalidArgument;
+			if (target.Party == null) { sender.ServerMessage(Localization.Get("Not in a party.")); return CommandResult.Okay; }
+			if (!target.Party.IsLeader(target)) { sender.ServerMessage(Localization.Get("Only the leader may transfer leadership.")); return CommandResult.Okay; }
+
+			var name = args.Get(0);
+			var newLeader = target.Party.GetMemberByName(name);
+			if (newLeader == null)
+			{
+				sender.ServerMessage(Localization.Get("'{0}' is not in the party."), name);
+				return CommandResult.Okay;
+			}
+
+			target.Party.ChangeLeader(newLeader.CharacterId);
+			sender.ServerMessage(Localization.Get("Leadership transferred to '{0}'."), name);
 			return CommandResult.Okay;
 		}
 	}

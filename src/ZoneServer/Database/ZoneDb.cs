@@ -531,6 +531,172 @@ namespace Sabine.Zone.Database
 			cmd.ExecuteNonQuery();
 		}
 
+		// ----- Party persistence ---------------------------------------
+		// Parties survive across restarts. The schema is in
+		// `sql/updates/2026-05-07_001.sql`. `InsertParty` mutates the
+		// in-memory `Party.Id` to the auto-generated DB id; everything
+		// else just writes through.
+
+		/// <summary>
+		/// Returns every party row joined with its members. Member
+		/// names are joined in from `characters` so the roster has
+		/// usable display names even before the players log in.
+		/// </summary>
+		public List<World.Groups.PartyDbRow> LoadAllParties()
+		{
+			var parties = new Dictionary<int, World.Groups.PartyDbRow>();
+			using var conn = this.GetConnection();
+
+			using (var cmd = new MySqlCommand("SELECT * FROM `parties`", conn))
+			using (var reader = cmd.ExecuteReader())
+			{
+				while (reader.Read())
+				{
+					var row = new World.Groups.PartyDbRow
+					{
+						PartyId = reader.GetInt32("partyId"),
+						Name = reader.GetStringSafe("name"),
+						ExpShare = reader.GetInt32("expShare") != 0,
+						ItemShare = reader.GetInt32("itemShare") != 0,
+						LeaderCharId = reader.GetInt32("leaderCharId"),
+					};
+					parties[row.PartyId] = row;
+				}
+			}
+
+			using (var cmd = new MySqlCommand(
+				"SELECT pm.`partyId`, pm.`characterId`, pm.`isLeader`, c.`name` "
+				+ "FROM `party_members` pm "
+				+ "LEFT JOIN `characters` c ON c.`characterId` = pm.`characterId`",
+				conn))
+			using (var reader = cmd.ExecuteReader())
+			{
+				while (reader.Read())
+				{
+					var pid = reader.GetInt32("partyId");
+					if (!parties.TryGetValue(pid, out var party))
+						continue;
+					party.Members.Add(new World.Groups.PartyMemberDbRow
+					{
+						CharacterId = reader.GetInt32("characterId"),
+						IsLeader = reader.GetInt32("isLeader") != 0,
+						Name = reader.GetStringSafe("name") ?? string.Empty,
+					});
+				}
+			}
+
+			return parties.Values.ToList();
+		}
+
+		/// <summary>
+		/// Inserts a new party row, assigns the auto-generated id back
+		/// to <see cref="World.Groups.Party.Id"/>, then writes the
+		/// initial member rows.
+		/// </summary>
+		public void InsertParty(World.Groups.Party party)
+		{
+			using var conn = this.GetConnection();
+
+			int id;
+			using (var cmd = new MySqlCommand(
+				"INSERT INTO `parties` (`name`, `expShare`, `itemShare`, `leaderCharId`) "
+				+ "VALUES (@name, @expShare, @itemShare, @leaderCharId); "
+				+ "SELECT LAST_INSERT_ID();",
+				conn))
+			{
+				cmd.AddParameter("@name", party.Name);
+				cmd.AddParameter("@expShare", party.ExpShareOption == World.Groups.PartyExpShareOption.EvenShare ? 1 : 0);
+				cmd.AddParameter("@itemShare", party.ItemShareOption == World.Groups.PartyItemShareOption.EvenShare ? 1 : 0);
+				cmd.AddParameter("@leaderCharId", party.GetLeader()?.CharacterId ?? 0);
+				id = Convert.ToInt32(cmd.ExecuteScalar());
+			}
+
+			party.Id = id;
+
+			foreach (var m in party.Members)
+			{
+				using var cmd = new MySqlCommand(
+					"INSERT INTO `party_members` (`partyId`, `characterId`, `isLeader`) "
+					+ "VALUES (@partyId, @characterId, @isLeader) "
+					+ "ON DUPLICATE KEY UPDATE `partyId` = @partyId, `isLeader` = @isLeader",
+					conn);
+				cmd.AddParameter("@partyId", id);
+				cmd.AddParameter("@characterId", m.CharacterId);
+				cmd.AddParameter("@isLeader", m.IsLeader ? 1 : 0);
+				cmd.ExecuteNonQuery();
+			}
+		}
+
+		/// <summary>Persists a party's options + leader.</summary>
+		public void UpdatePartyOptions(int partyId, bool expShare, bool itemShare)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"UPDATE `parties` SET `expShare` = @expShare, `itemShare` = @itemShare WHERE `partyId` = @id",
+				conn);
+			cmd.AddParameter("@id", partyId);
+			cmd.AddParameter("@expShare", expShare ? 1 : 0);
+			cmd.AddParameter("@itemShare", itemShare ? 1 : 0);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Updates the leader pointer + flips the
+		/// <c>isLeader</c> flag on the member rows.</summary>
+		public void UpdatePartyLeader(int partyId, int leaderCharId)
+		{
+			using var conn = this.GetConnection();
+			using (var cmd = new MySqlCommand(
+				"UPDATE `parties` SET `leaderCharId` = @leaderCharId WHERE `partyId` = @id",
+				conn))
+			{
+				cmd.AddParameter("@id", partyId);
+				cmd.AddParameter("@leaderCharId", leaderCharId);
+				cmd.ExecuteNonQuery();
+			}
+			using (var cmd = new MySqlCommand(
+				"UPDATE `party_members` SET `isLeader` = (`characterId` = @leaderCharId) WHERE `partyId` = @id",
+				conn))
+			{
+				cmd.AddParameter("@id", partyId);
+				cmd.AddParameter("@leaderCharId", leaderCharId);
+				cmd.ExecuteNonQuery();
+			}
+		}
+
+		/// <summary>Deletes a party row; cascades to its member rows
+		/// via the FK.</summary>
+		public void DeleteParty(int partyId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand("DELETE FROM `parties` WHERE `partyId` = @id", conn);
+			cmd.AddParameter("@id", partyId);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Inserts (or updates) a party-member row.</summary>
+		public void InsertPartyMember(int partyId, int characterId, bool isLeader)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"INSERT INTO `party_members` (`partyId`, `characterId`, `isLeader`) "
+				+ "VALUES (@partyId, @characterId, @isLeader) "
+				+ "ON DUPLICATE KEY UPDATE `partyId` = @partyId, `isLeader` = @isLeader",
+				conn);
+			cmd.AddParameter("@partyId", partyId);
+			cmd.AddParameter("@characterId", characterId);
+			cmd.AddParameter("@isLeader", isLeader ? 1 : 0);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Removes a character from any party they belong to.</summary>
+		public void DeletePartyMember(int characterId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand("DELETE FROM `party_members` WHERE `characterId` = @id", conn);
+			cmd.AddParameter("@id", characterId);
+			cmd.ExecuteNonQuery();
+		}
+
 		// ----- Castle persistence (Phase 8) -----------------------------
 		// `LoadAllCastles` runs once at startup; `UpsertCastle` is
 		// called by `CastleManager` whenever a script mutates state

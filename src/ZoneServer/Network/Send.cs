@@ -307,6 +307,10 @@ namespace Sabine.Zone.Network
 			packet.AddPackedMove(from, to, 8, 8);
 
 			character.Connection.Send(packet);
+
+			// Update party minimap arrows on every move start. Throttling
+			// is left to the client; eAthena does the same.
+			character.Party?.BroadcastPosition(character);
 		}
 
 		/// <summary>

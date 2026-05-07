@@ -66,6 +66,7 @@ namespace Sabine.Zone.Network
 				// in-memory Guild record so the GC can reclaim the
 				// session; the member row stays put.
 				ZoneServer.Instance.World.Guilds.OnPlayerLogout(character);
+				ZoneServer.Instance.World.Parties.OnPlayerLogout(character);
 
 				character?.Map.RemovePlayer(character);
 			}

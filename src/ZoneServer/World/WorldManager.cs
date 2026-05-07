@@ -75,6 +75,15 @@ namespace Sabine.Zone.World
 		public Groups.GuildManager Guilds => Groups.GuildManager.Instance;
 
 		/// <summary>
+		/// Active party registry. State is DB-backed (see
+		/// <c>sql/updates/2026-05-07_001.sql</c>); call <c>LoadAll</c>
+		/// once at startup to populate from the database. Mutations
+		/// (create, add/remove member, disband, leader change) push
+		/// through to disk transparently.
+		/// </summary>
+		public Groups.PartyManager Parties => Groups.PartyManager.Instance;
+
+		/// <summary>
 		/// WoE castle ownership registry. Static templates live in
 		/// <c>system/data/castles.txt</c>; runtime state (owner,
 		/// economy/defense, triggers) is DB-backed via
@@ -125,8 +134,27 @@ namespace Sabine.Zone.World
 			this.LoadMaps();
 			this.LoadVars();
 			this.LoadGuilds();
+			this.LoadParties();
 			this.LoadCastles();
 			this.SetupUpdates();
+		}
+
+		/// <summary>
+		/// Hydrates <see cref="Parties"/> from the `parties` /
+		/// `party_members` tables. Player back-pointers are wired up
+		/// later, on each character's first login, via
+		/// <see cref="Groups.PartyManager.OnPlayerLogin"/>.
+		/// </summary>
+		private void LoadParties()
+		{
+			try
+			{
+				this.Parties.LoadAll();
+			}
+			catch (Exception ex)
+			{
+				Log.Error("WorldManager.LoadParties: failed to load parties: {0}", ex);
+			}
 		}
 
 		/// <summary>

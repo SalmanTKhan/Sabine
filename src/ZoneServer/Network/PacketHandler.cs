@@ -171,6 +171,10 @@ namespace Sabine.Zone.Network
 			}
 			character.StartObserving();
 
+			// First login on this connection — re-attach to a
+			// persisted party (if any) and broadcast the roster.
+			ZoneServer.Instance.World.Parties.OnPlayerLogin(character);
+
 			// Send all stats/parameters to the client that it didn't
 			// get from the char server yet. Also send a few that
 			// might've changed during character loading.
@@ -899,7 +903,12 @@ namespace Sabine.Zone.Network
 			}
 
 			item.Map.RemoveItem(item);
-			character.Inventory.AddItem(item);
+
+			// Round-robin loot to a party member when the picker's
+			// party has even item-share enabled. Falls back to the
+			// picker when no other eligible target is on the map.
+			var recipient = World.Groups.PartyDistribution.PickLootRecipient(character);
+			recipient.Inventory.AddItem(item);
 		}
 
 		/// <summary>

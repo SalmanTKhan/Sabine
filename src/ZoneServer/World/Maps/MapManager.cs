@@ -192,5 +192,25 @@ namespace Sabine.Zone.World.Maps
 			player = null;
 			return false;
 		}
+
+		/// <summary>
+		/// Returns the player character with the given account id via
+		/// out, scanning all maps. Returns false when no match is found
+		/// or the account is currently offline.
+		/// </summary>
+		public bool TryGetPlayerByAccountId(int accountId, out PlayerCharacter player)
+		{
+			lock (_syncLock)
+			{
+				foreach (var map in _mapsList)
+				{
+					if (map.TryGetPlayerByAccountId(accountId, out player))
+						return true;
+				}
+			}
+
+			player = null;
+			return false;
+		}
 	}
 }

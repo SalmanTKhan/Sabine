@@ -133,10 +133,10 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Request party chat.
+		/// Request party chat. Broadcasts the message to every online
+		/// member, including the sender (so the client sees the
+		/// echo).
 		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
 		[PacketHandler(Op.CZ_REQUEST_CHAT_PARTY)]
 		public void CZ_REQUEST_CHAT_PARTY(ZoneConnection conn, Packet packet)
 		{
@@ -144,11 +144,15 @@ namespace Sabine.Zone.Network
 			var message = packet.GetString(len - 4);
 
 			var character = conn.GetCurrentCharacter();
+			if (character.Party == null)
+				return;
 
-			// Check if character is in a party
-			// (Full implementation would check party membership and broadcast)
-
-			Log.Debug("CZ_REQUEST_CHAT_PARTY: Character '{0}' party message: {1}", character.Name, message);
+			var senderId = conn.Account.Id;
+			foreach (var member in character.Party.Members)
+			{
+				if (member.IsOnline)
+					Send.ZC_NOTIFY_CHAT_PARTY(member.Player, senderId, message);
+			}
 		}
 
 		/// <summary>
@@ -202,21 +206,34 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Request to change group EXP sharing option.
+		/// Request to change party EXP / item sharing options. Sent
+		/// by Beta1+ clients only; the alpha client has no UI for
+		/// this.
 		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
 		[PacketHandler(Op.CZ_CHANGE_GROUPEXPOPTION)]
 		public void CZ_CHANGE_GROUPEXPOPTION(ZoneConnection conn, Packet packet)
 		{
 			var expOption = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
+			var party = character.Party;
+			if (party == null)
+				return;
 
-			// Change party EXP sharing settings
-			// (Full implementation needs party system)
+			// Only the leader may change party options. Silently drop
+			// otherwise; eAthena does the same.
+			if (!party.IsLeader(character))
+				return;
 
-			Log.Debug("CZ_CHANGE_GROUPEXPOPTION: Character '{0}' changed exp option to {1}", character.Name, expOption);
+			party.ExpShareOption = expOption == 0
+				? PartyExpShareOption.Individual
+				: PartyExpShareOption.EvenShare;
+
+			ZoneServer.Instance.Database.UpdatePartyOptions(party.Id,
+				party.ExpShareOption == PartyExpShareOption.EvenShare,
+				party.ItemShareOption == PartyItemShareOption.EvenShare);
+
+			party.UpdateAllClients();
 		}
 
 		/// <summary>
@@ -269,21 +286,217 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Request to expel member from party.
+		/// Request to expel a member from the party. Leader-only.
 		/// </summary>
-		/// <param name="conn"></param>
-		/// <param name="packet"></param>
 		[PacketHandler(Op.CZ_REQ_EXPEL_GROUP_MEMBER)]
 		public void CZ_REQ_EXPEL_GROUP_MEMBER(ZoneConnection conn, Packet packet)
 		{
 			var accountId = packet.GetInt();
-			var characterName = packet.GetString(24);
+			var characterName = packet.GetString(24).TrimEnd('\0');
+
+			var character = conn.GetCurrentCharacter();
+			var party = character.Party;
+			if (party == null || !party.IsLeader(character))
+				return;
+
+			var target = party.GetMemberByAccountId(accountId)
+				?? party.GetMemberByName(characterName);
+			if (target == null || target.CharacterId == character.Id)
+				return;
+
+			party.RemoveMember(target.CharacterId, expelled: true);
+		}
+
+		/// <summary>
+		/// Invite request from a party leader. Carries the invitee's
+		/// account id; the leader's client picked it from the local
+		/// actor list. Validates leader-only / not-full / target-not
+		/// -in-party rules, then pops the invite dialog on the
+		/// invitee's screen.
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_JOIN_GROUP)]
+		public void CZ_REQ_JOIN_GROUP(ZoneConnection conn, Packet packet)
+		{
+			var targetAccountId = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var party = character.Party;
+
+			// Not in a party — eAthena ignores; we do too. Players
+			// can't invite without a party first.
+			if (party == null || !party.IsLeader(character))
+				return;
+
+			if (!ZoneServer.Instance.World.Maps.TryGetPlayerByAccountId(targetAccountId, out var target))
+				return;
+
+			if (target.Party != null)
+			{
+				Send.ZC_ACK_REQ_JOIN_GROUP(character, target.Name, 0); // already in party
+				return;
+			}
+
+			if (party.IsFull())
+			{
+				Send.ZC_ACK_REQ_JOIN_GROUP(character, target.Name, 3); // full
+				return;
+			}
+
+			PartyManager.Instance.RegisterInvite(character, target);
+			Send.ZC_REQ_JOIN_GROUP(target, conn.Account.Id, party.Name);
+		}
+
+		/// <summary>
+		/// Reply to a pending invite. Flag is 1 = accept, 0 = reject.
+		/// </summary>
+		[PacketHandler(Op.CZ_JOIN_GROUP)]
+		public void CZ_JOIN_GROUP(ZoneConnection conn, Packet packet)
+		{
+			var inviterAccountId = packet.GetInt();
+			var flag = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
 
-			// Expel member (placeholder - needs party system)
-			Log.Debug("CZ_REQ_EXPEL_GROUP_MEMBER: Character '{0}' expelling '{1}' from party",
-				character.Name, characterName);
+			if (!PartyManager.Instance.ConsumePendingInvite(character.Id, out var invite))
+				return;
+
+			var party = PartyManager.Instance.GetParty(invite.PartyId);
+			if (party == null)
+				return;
+
+			ZoneServer.Instance.World.Maps.TryGetPlayerByAccountId(inviterAccountId, out var inviter);
+
+			if (flag != 1)
+			{
+				if (inviter != null)
+					Send.ZC_ACK_REQ_JOIN_GROUP(inviter, character.Name, 1); // rejected
+				return;
+			}
+
+			// Re-validate before binding: the invitee may have joined
+			// another party while the popup was open.
+			if (character.Party != null || party.IsFull())
+			{
+				if (inviter != null)
+					Send.ZC_ACK_REQ_JOIN_GROUP(inviter, character.Name, 0);
+				return;
+			}
+
+			if (!party.AddMember(character))
+				return;
+
+			if (inviter != null)
+				Send.ZC_ACK_REQ_JOIN_GROUP(inviter, character.Name, 2); // accepted
+		}
+
+		/// <summary>
+		/// sakEP12+ invite request. Carries the invitee's character
+		/// name (newer clients dropped the account-id flow). Same
+		/// validation rules as the legacy <see cref="CZ_REQ_JOIN_GROUP"/>.
+		/// </summary>
+		[PacketHandler(Op.CZ_PARTY_JOIN_REQ)]
+		public void CZ_PARTY_JOIN_REQ(ZoneConnection conn, Packet packet)
+		{
+			var targetName = packet.GetString(24).TrimEnd('\0');
+
+			var character = conn.GetCurrentCharacter();
+			var party = character.Party;
+			if (party == null || !party.IsLeader(character))
+				return;
+
+			if (!ZoneServer.Instance.World.Maps.TryGetPlayerByName(targetName, out var target))
+				return;
+
+			if (target.Party != null)
+			{
+				Send.ZC_PARTY_JOIN_REQ_ACK(character, targetName, 0);
+				return;
+			}
+
+			if (party.IsFull())
+			{
+				Send.ZC_PARTY_JOIN_REQ_ACK(character, targetName, 3);
+				return;
+			}
+
+			PartyManager.Instance.RegisterInvite(character, target);
+			Send.ZC_PARTY_JOIN_REQ(target, party.Id, party.Name);
+		}
+
+		/// <summary>
+		/// sakEP12+ reply to a pending invite. Carries the party id
+		/// the popup was offering and a single-byte accept/reject
+		/// flag (1 = accept, 0 = reject).
+		/// </summary>
+		[PacketHandler(Op.CZ_PARTY_JOIN_REQ_ACK)]
+		public void CZ_PARTY_JOIN_REQ_ACK(ZoneConnection conn, Packet packet)
+		{
+			var partyId = packet.GetInt();
+			var flag = packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+
+			if (!PartyManager.Instance.ConsumePendingInvite(character.Id, out var invite))
+				return;
+
+			// The popup carries a party id, but a stale popup might
+			// reference a long-gone party. Fall back to the invite's
+			// recorded party id and validate the popup matches.
+			if (invite.PartyId != partyId)
+				return;
+
+			var party = PartyManager.Instance.GetParty(invite.PartyId);
+			if (party == null)
+				return;
+
+			ZoneServer.Instance.World.Maps.TryGetPlayerById(invite.InviterCharacterId, out var inviter);
+
+			if (flag != 1)
+			{
+				if (inviter != null)
+					Send.ZC_PARTY_JOIN_REQ_ACK(inviter, character.Name, 1);
+				return;
+			}
+
+			if (character.Party != null || party.IsFull())
+			{
+				if (inviter != null)
+					Send.ZC_PARTY_JOIN_REQ_ACK(inviter, character.Name, 0);
+				return;
+			}
+
+			if (!party.AddMember(character))
+				return;
+
+			if (inviter != null)
+				Send.ZC_PARTY_JOIN_REQ_ACK(inviter, character.Name, 2);
+		}
+
+		/// <summary>
+		/// sakEP12+ party-config toggle. Replaces the older
+		/// <see cref="CZ_CHANGE_GROUPEXPOPTION"/> with a single
+		/// byte payload (0 = individual, 1 = even share).
+		/// </summary>
+		[PacketHandler(Op.CZ_PARTY_CONFIG)]
+		public void CZ_PARTY_CONFIG(ZoneConnection conn, Packet packet)
+		{
+			var expFlag = packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+			var party = character.Party;
+			if (party == null || !party.IsLeader(character))
+				return;
+
+			party.ExpShareOption = expFlag == 0
+				? PartyExpShareOption.Individual
+				: PartyExpShareOption.EvenShare;
+
+			ZoneServer.Instance.Database.UpdatePartyOptions(party.Id,
+				party.ExpShareOption == PartyExpShareOption.EvenShare,
+				party.ItemShareOption == PartyItemShareOption.EvenShare);
+
+			Send.ZC_PARTY_CONFIG(character, expFlag);
+			party.UpdateAllClients();
 		}
 	}
 }

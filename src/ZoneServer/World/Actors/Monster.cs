@@ -143,8 +143,14 @@ namespace Sabine.Zone.World.Actors
 			var baseExp = this.Data.BaseExp;
 			var jobExp = this.Data.BaseExp;
 
-			playerCharacter.GainBaseExp(baseExp);
-			playerCharacter.GainJobExp(jobExp);
+			// Even-share among same-map party members when the
+			// killer's party has the option enabled. Falls back to
+			// individual when the party isn't eligible.
+			if (!Sabine.Zone.World.Groups.PartyDistribution.TryShareExp(playerCharacter, baseExp, jobExp))
+			{
+				playerCharacter.GainBaseExp(baseExp);
+				playerCharacter.GainJobExp(jobExp);
+			}
 
 			// Homunculus EXP share — 10% of the owner's base EXP.
 			// Mirrors eAthena: pet/homun share with no kill-credit

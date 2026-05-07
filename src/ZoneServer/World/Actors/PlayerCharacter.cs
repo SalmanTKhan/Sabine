@@ -795,6 +795,7 @@ namespace Sabine.Zone.World.Actors
 		public void HealHp(int amount)
 		{
 			this.Parameters.Modify(ParameterType.Hp, amount);
+			this.Party?.BroadcastHp(this);
 		}
 
 		/// <summary>

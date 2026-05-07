@@ -15,7 +15,8 @@ namespace Sabine.Zone.Network
 	public static partial class Send
 	{
 		/// <summary>
-		/// Sends the full party list to a member.
+		/// Sends the full party roster to a member. Mirrors eAthena's
+		/// <c>clif_party_info</c> (op 0x00FB / 0x0096 alpha).
 		/// </summary>
 		public static void ZC_GROUP_LIST(PlayerCharacter character, Party party)
 		{
@@ -23,27 +24,103 @@ namespace Sabine.Zone.Network
 
 			packet.PutString(party.Name, 24);
 
-			var memberCount = party.Members.Count;
-			packet.PutByte((byte)memberCount);
-
-			// This structure is based on older clients. It might need adjustment.
 			foreach (var member in party.Members)
 			{
 				packet.PutInt(member.AccountId);
 				packet.PutString(member.Name, 24);
-				packet.PutString("mapname", 16); // Placeholder, need to resolve map name
-				packet.PutByte((byte)(member.IsLeader ? 1 : 0)); // Role or isLeader
+				packet.PutString(member.MapName ?? "", 16);
+				// 0 = leader, 1 = member; matches eAthena's flipped sense.
+				packet.PutByte((byte)(member.IsLeader ? 0 : 1));
+				packet.PutByte((byte)(member.IsOnline ? 0 : 1));
 			}
 
 			character.Connection.Send(packet);
 		}
 
-		public static void ZC_DELETE_MEMBER_FROM_GROUP(PlayerCharacter character, PartyMember member)
+		/// <summary>
+		/// Notifies a member that another member left or was kicked.
+		/// </summary>
+		/// <param name="flag">0 = withdrew, 1 = expelled.</param>
+		public static void ZC_DELETE_MEMBER_FROM_GROUP(PlayerCharacter character, PartyMember member, byte flag)
 		{
 			using var packet = Packet.Rent(Op.ZC_DELETE_MEMBER_FROM_GROUP);
 
 			packet.PutInt(member.AccountId);
 			packet.PutString(member.Name, 24);
+			packet.PutByte(flag);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Pops the invite dialog on the invitee's screen, telling
+		/// them which party invited them.
+		/// </summary>
+		public static void ZC_REQ_JOIN_GROUP(PlayerCharacter character, int inviterAccountId, string partyName)
+		{
+			using var packet = Packet.Rent(Op.ZC_REQ_JOIN_GROUP);
+
+			packet.PutInt(inviterAccountId);
+			packet.PutString(partyName, 24);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Reports the result of an invite back to the inviter.
+		/// </summary>
+		/// <param name="result">
+		/// 0 = already in a party, 1 = rejected, 2 = accepted,
+		/// 3 = party full, 4 = same name (leader-only / not allowed).
+		/// </param>
+		public static void ZC_ACK_REQ_JOIN_GROUP(PlayerCharacter character, string targetName, byte result)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_REQ_JOIN_GROUP);
+
+			packet.PutString(targetName, 24);
+			packet.PutByte(result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// sakEP12+ invite popup. Carries the party id (used by the
+		/// matching <c>CZ_PARTY_JOIN_REQ_ACK</c>) and the party name.
+		/// </summary>
+		public static void ZC_PARTY_JOIN_REQ(PlayerCharacter character, int partyId, string partyName)
+		{
+			using var packet = Packet.Rent(Op.ZC_PARTY_JOIN_REQ);
+
+			packet.PutInt(partyId);
+			packet.PutString(partyName, 24);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// sakEP12+ invite reply back to the inviter. The result
+		/// codes mirror the older <c>ZC_ACK_REQ_JOIN_GROUP</c> but
+		/// the field is widened to an int to match the wire size.
+		/// </summary>
+		public static void ZC_PARTY_JOIN_REQ_ACK(PlayerCharacter character, string targetName, int result)
+		{
+			using var packet = Packet.Rent(Op.ZC_PARTY_JOIN_REQ_ACK);
+
+			packet.PutString(targetName, 24);
+			packet.PutInt(result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// sakEP12+ "party config" toggle ack. Single-byte payload
+		/// echoes the flag the client sent.
+		/// </summary>
+		public static void ZC_PARTY_CONFIG(PlayerCharacter character, byte expShareFlag)
+		{
+			using var packet = Packet.Rent(Op.ZC_PARTY_CONFIG);
+
+			packet.PutByte(expShareFlag);
 
 			character.Connection.Send(packet);
 		}

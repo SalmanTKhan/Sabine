@@ -376,6 +376,10 @@ namespace Sabine.Zone.World.Actors
 			if (remainingHp == 0)
 				this.Kill(attacker);
 
+			// Push the HP change to party members on the same map.
+			if (this is PlayerCharacter player)
+				player.Party?.BroadcastHp(player);
+
 			return remainingHp;
 		}
 

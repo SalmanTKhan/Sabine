@@ -19,6 +19,7 @@ namespace Sabine.Shared.Configuration.Files
 
 		// party.conf
 		public int MaxPartySize { get; set; }
+		public int PartyEvenShareBonus { get; set; }
 
 		// skills.conf
 		public bool CheckBasicSkills { get; set; }
@@ -38,6 +39,7 @@ namespace Sabine.Shared.Configuration.Files
 			this.DisplayMonsterHp = (DisplayMonsterHpType)this.GetInt("display_monster_hp", (int)DisplayMonsterHpType.No);
 
 			this.MaxPartySize = this.GetInt("max_party_size", 8);
+			this.PartyEvenShareBonus = this.GetInt("party_even_share_bonus", 0);
 
 			this.CheckBasicSkills = this.GetBool("check_basic_skills", true);
 		}
