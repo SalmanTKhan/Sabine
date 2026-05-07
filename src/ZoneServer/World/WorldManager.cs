@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Linq;
 using Sabine.Shared.Util;
+using Sabine.Zone.Network;
+using Sabine.Zone.Scripting;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Instances;
 using Sabine.Zone.World.Maps;
@@ -239,6 +242,59 @@ namespace Sabine.Zone.World
 		}
 
 		/// <summary>
+		/// Looks up the first <see cref="Npc"/> with the given visible
+		/// <paramref name="name"/> across every map. Used by converted
+		/// rAthena scripts that target a specific NPC by name (e.g.
+		/// <c>disablenpc "OtherName"</c>); returns <c>null</c> if no
+		/// match is found.
+		/// </summary>
+		/// <remarks>
+		/// Linear scan across every map's NPC list. Acceptable while
+		/// scripted-NPC counts stay in the low thousands and the calls
+		/// are infrequent (script load and one-off dialog actions); if
+		/// a hot path needs this, build a name index instead.
+		/// </remarks>
+		public Npc GetNpc(string name)
+		{
+			if (string.IsNullOrEmpty(name))
+				return null;
+
+			foreach (var map in this.Maps.GetAll())
+			{
+				foreach (var npc in map.GetAllNpcs())
+				{
+					if (string.Equals(npc.Name, name, StringComparison.Ordinal))
+						return npc;
+				}
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Removes the NPC with the given visible <paramref name="name"/>
+		/// from its map. Mirrors rAthena's <c>unloadnpc "Name"</c>.
+		/// Returns <c>true</c> if a matching NPC was found and removed.
+		/// </summary>
+		public bool RemoveNpc(string name)
+		{
+			var npc = this.GetNpc(name);
+			if (npc?.Map == null)
+				return false;
+
+			npc.Map.RemoveNpc(npc);
+			return true;
+		}
+
+		/// <summary>
+		/// Broadcasts an announcement to every player on every map.
+		/// Mirrors rAthena's global <c>announce</c>; for a map-scoped
+		/// announcement use <see cref="Map.Announce"/>.
+		/// </summary>
+		/// <param name="message">The message to display.</param>
+		public void Announce(string message)
+			=> Send.ZC_BROADCAST(message);
+
+		/// <summary>
 		/// Returns the number of players across all maps.
 		/// </summary>
 		/// <returns></returns>
@@ -256,6 +312,8 @@ namespace Sabine.Zone.World
 		{
 			this.NpcShops.Clear();
 			this.Spawners.Clear();
+			SpawnService.ClearAll();
+			ScriptEvents.ClearAll();
 
 			// Yes, this is inefficient, but do we really care, with how
 			// rare script reloads are?

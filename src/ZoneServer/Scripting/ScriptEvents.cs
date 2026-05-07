@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Yggdrasil.Logging;
 
@@ -22,6 +23,15 @@ namespace Sabine.Zone.Scripting
 	public static class ScriptEvents
 	{
 		private static readonly ConcurrentDictionary<string, List<ScriptEventHandler>> _handlers = new();
+
+		// Matches an instance-suffixed NPC name in an event id —
+		// `"#1F Controller#5::OnInstanceInit"` → captures the bare
+		// portion (everything before the trailing `#<digits>` *that
+		// directly precedes* `::`). The trailing `#5` is the suffix
+		// emitted by `Shortcuts.GetInstanceNpcName`; the leading `#`
+		// in `#1F Controller` is part of the NPC's own name.
+		private static readonly Regex _InstanceSuffixRe =
+			new(@"^(?<base>.+?)#(?<id>\d+)(?<rest>::.*)$", RegexOptions.Compiled);
 
 		/// <summary>
 		/// Registers a handler for the given event name.
@@ -77,7 +87,29 @@ namespace Sabine.Zone.Scripting
 		public static async Task RaiseAsync(string eventName, params object[] args)
 		{
 			if (!_handlers.TryGetValue(eventName, out var list))
-				return;
+			{
+				// Per-instance scoping: scripts subscribe to bare
+				// names at load time (`"NpcName::OnEvent"`) but raise
+				// with `Shortcuts.GetInstanceNpcName(...)` which
+				// appends a `#<id>` suffix to the NPC portion. When
+				// the exact suffixed name has no subscribers, fall
+				// back to the bare name and inject the instance id as
+				// the first arg so the handler can scope its
+				// per-instance state if needed.
+				var match = _InstanceSuffixRe.Match(eventName);
+				if (!match.Success)
+					return;
+				var baseName = match.Groups["base"].Value + match.Groups["rest"].Value;
+				if (!_handlers.TryGetValue(baseName, out list))
+					return;
+				if (!int.TryParse(match.Groups["id"].Value, out var instanceId))
+					instanceId = 0;
+				var newArgs = new object[args.Length + 1];
+				newArgs[0] = instanceId;
+				Array.Copy(args, 0, newArgs, 1, args.Length);
+				args = newArgs;
+				eventName = baseName;
+			}
 
 			ScriptEventHandler[] snapshot;
 			lock (list)

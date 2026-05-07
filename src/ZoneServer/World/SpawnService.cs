@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
+using Sabine.Zone.Scripting;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Logging;
 
@@ -60,6 +61,17 @@ namespace Sabine.Zone.World
 				monster.Killed += m =>
 				{
 					RemoveFromLabel(key, m);
+
+					// Mirror rAthena's behavior: if a non-empty label was
+					// supplied, raise a ScriptEvents event of that name so
+					// converted scripts that attached an OnLabel handler
+					// via Subscribe(...) get the death notification.
+					if (!string.IsNullOrEmpty(label))
+					{
+						try { _ = ScriptEvents.RaiseAsync(label, m); }
+						catch (Exception ex) { Log.Error("SpawnService.RaiseAsync: {0}", ex); }
+					}
+
 					if (onDeath != null)
 					{
 						try { onDeath(m); }
@@ -142,6 +154,17 @@ namespace Sabine.Zone.World
 				if (_byLabel.TryGetValue(key, out var list))
 					list.Remove(monster);
 			}
+		}
+
+		/// <summary>
+		/// Drops every tracked spawn. Called during script reload so
+		/// stale closures (and the labels they hold open) don't outlive
+		/// the script that registered them.
+		/// </summary>
+		public static void ClearAll()
+		{
+			lock (_syncLock)
+				_byLabel.Clear();
 		}
 	}
 }

@@ -201,7 +201,12 @@ namespace Sabine.Zone
 			{
 				var values = MEnum<IdentityId>.Shared.GetAllValues();
 
-				var longestName = values.Max(static a => a.EnumKey.ToString().Length);
+				// `Max` throws on empty sequences. Some packet
+				// versions don't have any IdentityId mappings yet,
+				// in which case we just emit an empty header.
+				var longestName = values.Any()
+					? values.Max(static a => a.EnumKey.ToString().Length)
+					: 0;
 				var col1 = Math.Max(30, longestName + 2);
 				var col2 = 8;
 
