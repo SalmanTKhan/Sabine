@@ -350,13 +350,21 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		#endregion
 
 		#region Currencies and Identity
+
+		/// <summary>
+		/// Hard cap on Zeny, mirroring eAthena's <c>MAX_ZENY</c>. Keeps
+		/// pathological gains (sell stacks, vending dumps, quest rewards)
+		/// from overflowing the signed-int Zeny field.
+		/// </summary>
+		public const int MaxZeny = 1_000_000_000;
+
 		/// <summary>
 		/// Gets or sets how many Zeny the character has.
 		/// </summary>
 		public int Zeny
 		{
 			get => _zeny;
-			set { _zeny = Math.Max(0, value); }
+			set { _zeny = Math2.Clamp(0, MaxZeny, value); }
 		}
 		private int _zeny = 0;
 
