@@ -87,6 +87,13 @@ namespace Sabine.Zone.World
 		public Woe.WoeService Woe { get; } = new();
 
 		/// <summary>
+		/// Active Battleground (Flavius / KVM / Tierra) team registry.
+		/// In-memory only; matches reset on restart. See
+		/// <see cref="Battlegrounds.BattlegroundManager"/>.
+		/// </summary>
+		public Battlegrounds.BattlegroundManager Battlegrounds { get; } = new();
+
+		/// <summary>
 		/// Returns the world's monster spawner collection.
 		/// </summary>
 		public Spawners Spawners { get; } = new Spawners();
