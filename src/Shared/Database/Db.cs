@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using MySqlConnector;
+using Newtonsoft.Json;
 using Sabine.Shared.Const;
 using Yggdrasil.Db.MySql;
 using Yggdrasil.Db.MySql.SimpleCommands;
@@ -197,6 +198,12 @@ namespace Sabine.Shared.Database
 							case "b": vars[name] = bool.Parse(val); break;
 							case "s": vars[name] = val; break;
 							case "B": vars[name] = Convert.FromBase64String(val); break;
+							// JSON-encoded array types — see SaveVars
+							// for the encode side. The choice of JSON
+							// over CSV avoids the quoting headache for
+							// strings that contain commas / quotes.
+							case "iA": vars[name] = JsonConvert.DeserializeObject<int[]>(val) ?? Array.Empty<int>(); break;
+							case "sA": vars[name] = JsonConvert.DeserializeObject<string[]>(val) ?? Array.Empty<string>(); break;
 
 							default:
 								Log.Warning("Db.LoadVars: Unknown variable type '{0}'.", type);
@@ -242,6 +249,14 @@ namespace Sabine.Shared.Database
 					else if (var.Value is string) type = "s";
 					else if (var.Value is bool) type = "b";
 					else if (var.Value is byte[]) type = "B";
+					// Sabine's `Variables` extension stores eAthena
+					// server/account/npc-scope arrays as plain
+					// `int[]` / `string[]`. Encode as JSON so the
+					// existing mediumtext column doesn't need a
+					// schema change; the value-too-large guard below
+					// catches degenerate cases.
+					else if (var.Value is int[]) type = "iA";
+					else if (var.Value is string[]) type = "sA";
 					else
 					{
 						Log.Warning("Db.SaveVars: Skipping variable '{0}', as it's using the unsupported type '{1}'.", var.Key, var.Value.GetType());
@@ -261,6 +276,10 @@ namespace Sabine.Shared.Database
 					else if (type == "B")
 					{
 						val = Convert.ToBase64String((byte[])var.Value);
+					}
+					else if (type == "iA" || type == "sA")
+					{
+						val = JsonConvert.SerializeObject(var.Value);
 					}
 					else
 					{
