@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
+using Sabine.Shared.Util;
 using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Instances;
 using Sabine.Zone.World.Maps;
@@ -66,12 +68,64 @@ namespace Sabine.Zone.World
 		public Spawners Spawners { get; } = new Spawners();
 
 		/// <summary>
+		/// Server-wide variables. Mirrors rAthena's <c>$x</c> (perm) and
+		/// <c>$@x</c> (temp) sigils. <c>Vars.Perm</c> is loaded from
+		/// <c>vars_world</c> at startup and saved on shutdown.
+		/// <c>Vars.Temp</c> is in-memory only and resets on restart.
+		/// </summary>
+		public VariableContainer Vars { get; } = new VariableContainer();
+
+		/// <summary>
+		/// Fixed owner id used by <see cref="LoadVars"/> / <see cref="SaveVars"/>
+		/// when reading/writing <c>vars_world</c>. World-scope is a singleton,
+		/// so a constant 0 keeps it inside the existing <c>(ownerId, name)</c>
+		/// schema without needing a separate code path.
+		/// </summary>
+		private const long WorldVarsOwnerId = 0;
+
+		/// <summary>
 		/// Loads world and its maps.
 		/// </summary>
 		public void Load()
 		{
 			this.LoadMaps();
+			this.LoadVars();
 			this.SetupUpdates();
+		}
+
+		/// <summary>
+		/// Hydrates <see cref="Vars"/>.<c>Perm</c> from the
+		/// <c>vars_world</c> table.
+		/// </summary>
+		private void LoadVars()
+		{
+			try
+			{
+				var stored = ZoneServer.Instance.Database.GetVars("vars_world", WorldVarsOwnerId);
+				this.Vars.Perm.Load(stored);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("WorldManager.LoadVars: failed to load world variables: {0}", ex);
+			}
+		}
+
+		/// <summary>
+		/// Persists <see cref="Vars"/>.<c>Perm</c> to the
+		/// <c>vars_world</c> table. Called automatically on process exit;
+		/// can also be invoked manually (e.g. from a chat command) to
+		/// flush mid-session.
+		/// </summary>
+		public void SaveVars()
+		{
+			try
+			{
+				ZoneServer.Instance.Database.SaveVars("vars_world", WorldVarsOwnerId, this.Vars.Perm.GetList());
+			}
+			catch (Exception ex)
+			{
+				Log.Error("WorldManager.SaveVars: failed to save world variables: {0}", ex);
+			}
 		}
 
 		/// <summary>

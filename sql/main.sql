@@ -67,6 +67,14 @@ CREATE TABLE `vars_character` (
   `value` mediumtext NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=COMPACT;
 
+CREATE TABLE `vars_world` (
+  `varId` bigint(20) NOT NULL,
+  `ownerId` bigint(20) NOT NULL,
+  `name` varchar(128) NOT NULL,
+  `type` char(2) NOT NULL,
+  `value` mediumtext NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=COMPACT;
+
 ALTER TABLE `accounts`
   ADD PRIMARY KEY (`accountId`);
 
@@ -86,6 +94,10 @@ ALTER TABLE `vars_character`
   ADD PRIMARY KEY (`varId`),
   ADD KEY `accountId` (`ownerId`);
 
+ALTER TABLE `vars_world`
+  ADD PRIMARY KEY (`varId`),
+  ADD KEY `ownerId` (`ownerId`);
+
 
 ALTER TABLE `accounts`
   MODIFY `accountId` bigint(20) NOT NULL AUTO_INCREMENT;
@@ -100,6 +112,9 @@ ALTER TABLE `vars_account`
   MODIFY `varId` bigint(20) NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `vars_character`
+  MODIFY `varId` bigint(20) NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `vars_world`
   MODIFY `varId` bigint(20) NOT NULL AUTO_INCREMENT;
 
 

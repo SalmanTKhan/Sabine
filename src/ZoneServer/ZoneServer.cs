@@ -97,6 +97,8 @@ namespace Sabine.Zone
 
 			this.World.Start();
 
+			AppDomain.CurrentDomain.ProcessExit += (_, _) => this.World.SaveVars();
+
 			_acceptor = new TcpConnectionAcceptor<ZoneConnection>(this.Conf.Zone.BindIp, this.Conf.Zone.BindPort);
 			_acceptor.ConnectionAccepted += this.OnConnectionAccepted;
 			_acceptor.Listen();
