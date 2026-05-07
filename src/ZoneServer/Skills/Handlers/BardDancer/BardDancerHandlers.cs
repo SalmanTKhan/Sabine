@@ -34,13 +34,26 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.BD_ADAPTATION)]
 	public class AdaptationHandler : ITargetedSkillHandler
 	{
-		// TODO: cancel any active song / dance the caster is performing.
+		// eAthena BD_ADAPTATION: ends the SC_DANCING status, which on
+		// renewal also tears down any active song/dance unit. Sabine's
+		// song state lives entirely on the SongUnit, so the equivalent
+		// is removing the caster's own SongUnit(s) from the map.
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
 			var skill = parameters.Skill;
 			var level = parameters.SkillLevel;
+
 			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			if (caster.Map == null)
+				return;
+
+			foreach (var unit in caster.Map.GetSkillUnitsByOwner(caster))
+			{
+				if (unit is SongUnit)
+					caster.Map.RemoveSkillUnit(unit);
+			}
 		}
 	}
 

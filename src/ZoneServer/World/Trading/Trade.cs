@@ -189,6 +189,16 @@ namespace Sabine.Zone.World.Trading
 					return;
 				}
 
+				// The client greys out equipped pieces in the trade window;
+				// only a crafted CZ_ADD_EXCHANGE_ITEM hits this branch. The
+				// trade would otherwise orphan RightHand/LeftHand on Complete.
+				if (item.IsEquipped)
+				{
+					player.ServerMessage(Localization.Get("Equipped items cannot be traded."));
+					Send.ZC_ACK_ADD_EXCHANGE_ITEM(player, inventoryId, TradingSuccess.Fail);
+					return;
+				}
+
 				trader.Items.Add(new TradeItem(inventoryId, amount));
 				Send.ZC_ADD_EXCHANGE_ITEM.Item(otherPlayer, item, amount);
 
@@ -331,44 +341,54 @@ namespace Sabine.Zone.World.Trading
 					return;
 				}
 
-				var traderItems = new List<Item>();
-				var otherTraderItems = new List<Item>();
+				// Resolve each TradeItem against the live inventory. Keep
+				// the amount alongside so the commit step can split
+				// stackables instead of moving whole stacks (the prior
+				// RemoveItem-based commit transferred the entire stack
+				// regardless of the offered amount).
+				var traderItems = new List<(Item Source, int Amount)>();
+				var otherTraderItems = new List<(Item Source, int Amount)>();
 
 				foreach (var tradeItem in trader.Items)
 				{
-					if (!player.Inventory.TryGetItem(tradeItem.InventoryId, out var item))
+					if (!player.Inventory.TryGetItem(tradeItem.InventoryId, out var item) || item.Amount < tradeItem.Amount)
 					{
-						Log.Warning($"Cancelling trade between {trader.CharacterId} and {otherTrader.CharacterId} because trader {trader.CharacterId} does not have item with inventory id {tradeItem.InventoryId}.");
+						Log.Warning($"Cancelling trade between {trader.CharacterId} and {otherTrader.CharacterId} because trader {trader.CharacterId} does not have enough of inventory id {tradeItem.InventoryId}.");
 						this.Cancel();
 						return;
 					}
 
-					traderItems.Add(item);
+					traderItems.Add((item, tradeItem.Amount));
 				}
 
 				foreach (var tradeItem in otherTrader.Items)
 				{
-					if (!otherPlayer.Inventory.TryGetItem(tradeItem.InventoryId, out var item))
+					if (!otherPlayer.Inventory.TryGetItem(tradeItem.InventoryId, out var item) || item.Amount < tradeItem.Amount)
 					{
-						Log.Warning($"Cancelling trade between {trader.CharacterId} and {otherTrader.CharacterId} because trader {otherTrader.CharacterId} does not have item with inventory id {tradeItem.InventoryId}.");
+						Log.Warning($"Cancelling trade between {trader.CharacterId} and {otherTrader.CharacterId} because trader {otherTrader.CharacterId} does not have enough of inventory id {tradeItem.InventoryId}.");
 						this.Cancel();
 						return;
 					}
 
-					otherTraderItems.Add(item);
+					otherTraderItems.Add((item, tradeItem.Amount));
 				}
 
-				foreach (var item in traderItems)
+				// Pre-flight receiver capacity: weight, slots, and zeny cap
+				// for both sides. Mirrors eAthena's trade_tradecommit
+				// pre-checks and avoids partial-state on overflow.
+				if (!CanReceive(otherPlayer, traderItems, traderZeny) ||
+					!CanReceive(player, otherTraderItems, otherTraderZeny))
 				{
-					player.Inventory.RemoveItem(item);
-					otherPlayer.Inventory.AddItem(item);
+					Log.Debug($"Cancelling trade between {trader.CharacterId} and {otherTrader.CharacterId} because a receiver lacks capacity.");
+					this.Cancel();
+					return;
 				}
 
-				foreach (var item in otherTraderItems)
-				{
-					otherPlayer.Inventory.RemoveItem(item);
-					player.Inventory.AddItem(item);
-				}
+				foreach (var (source, amount) in traderItems)
+					TransferItem(player, otherPlayer, source, amount);
+
+				foreach (var (source, amount) in otherTraderItems)
+					TransferItem(otherPlayer, player, source, amount);
 
 				player.Parameters.Zeny -= traderZeny;
 				otherPlayer.Parameters.Zeny -= otherTraderZeny;
@@ -381,6 +401,64 @@ namespace Sabine.Zone.World.Trading
 
 				ZoneServer.Instance.World.Trades.RemoveTrade(this);
 			}
+		}
+
+		/// <summary>
+		/// Checks that the receiver's inventory has weight, slot, and zeny
+		/// headroom for the incoming bundle. Mirrors eAthena's pre-commit
+		/// trade_check.
+		/// </summary>
+		private static bool CanReceive(PlayerCharacter receiver, List<(Item Source, int Amount)> incoming, int incomingZeny)
+		{
+			var inv = receiver.Inventory;
+
+			var addedWeight = 0;
+			var newSlots = 0;
+			var seenStackables = new HashSet<int>();
+			foreach (var (source, amount) in incoming)
+			{
+				addedWeight += source.Data.Weight * amount;
+
+				if (!source.IsStackable)
+				{
+					newSlots += amount;
+				}
+				else if (!inv.Contains(source.ClassId) && seenStackables.Add(source.ClassId))
+				{
+					newSlots += 1;
+				}
+			}
+
+			if (inv.GetWeight() + addedWeight > receiver.Parameters.WeightMax)
+				return false;
+
+			if (inv.ItemCount + newSlots > Sabine.Zone.World.Actors.Components.Characters.Inventory.MaxSlots)
+				return false;
+
+			if ((long)receiver.Parameters.Zeny + incomingZeny > Sabine.Zone.World.Actors.Components.Characters.Parameters.MaxZeny)
+				return false;
+
+			return true;
+		}
+
+		/// <summary>
+		/// Transfers <paramref name="amount"/> units of <paramref name="source"/>
+		/// from sender to receiver. Stackables are split (decrement source,
+		/// add a fresh stack on the receiver) so partial-amount offers don't
+		/// move the entire stack. Non-stackable items move whole, preserving
+		/// refine / card / damage state.
+		/// </summary>
+		private static void TransferItem(PlayerCharacter sender, PlayerCharacter receiver, Item source, int amount)
+		{
+			if (source.IsStackable && amount < source.Amount)
+			{
+				sender.Inventory.DecrementItem(source, amount);
+				receiver.Inventory.AddItem(new Item(source.ClassId, amount));
+				return;
+			}
+
+			sender.Inventory.RemoveItem(source);
+			receiver.Inventory.AddItem(source);
 		}
 
 		/// <summary>

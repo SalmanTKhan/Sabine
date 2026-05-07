@@ -74,6 +74,11 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (fromPos == toPos)
 				return TimeSpan.Zero;
 
+			// Stone/Freeze/Sleep/Stun lock movement — the cast/attack paths
+			// already check this, but the move path was missing the guard.
+			if (character.IsImmobilized)
+				return TimeSpan.Zero;
+
 			_finalDestination = toPos;
 
 			character.StopAttacking();

@@ -63,6 +63,47 @@ namespace Sabine.Zone.World.Shops
 		}
 
 		/// <summary>
+		/// Updates the price of every item in the shop with the given
+		/// class id. Mirrors rAthena's <c>npcshopupdate</c>. If the
+		/// shop has no matching item, one is added at the new price
+		/// (matches the legacy command's add-or-set semantics). Use
+		/// <see cref="RemoveItem"/> to drop an entry instead.
+		/// </summary>
+		/// <param name="classId">Class id of the item to retag.</param>
+		/// <param name="price">New price (-1 keeps the default).</param>
+		public void UpdateItem(int classId, int price)
+		{
+			lock (_items)
+			{
+				var any = false;
+				foreach (var item in _items)
+				{
+					if (item.ClassId == classId)
+					{
+						item.Price = price;
+						any = true;
+					}
+				}
+				if (!any)
+				{
+					// AddItem locks _items itself, so release first.
+				}
+				if (any) return;
+			}
+			this.AddItem(classId, price);
+		}
+
+		/// <summary>
+		/// Removes every item with the given class id from the shop.
+		/// Returns the number of entries removed.
+		/// </summary>
+		public int RemoveItem(int classId)
+		{
+			lock (_items)
+				return _items.RemoveAll(i => i.ClassId == classId);
+		}
+
+		/// <summary>
 		/// Returns a list of all items in the shop.
 		/// </summary>
 		/// <returns></returns>

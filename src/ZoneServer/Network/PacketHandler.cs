@@ -136,6 +136,12 @@ namespace Sabine.Zone.Network
 			conn.Character = character;
 			character.Connection = conn;
 
+			// Reconcile guild membership: if the character has a row
+			// in `guild_members`, attach the live PlayerCharacter to
+			// the matching in-memory Guild so `player.Guild` resolves
+			// for downstream features (chat tags, /guildspy, scripts).
+			ZoneServer.Instance.World.Guilds.OnPlayerLogin(character);
+
 			ZoneServer.Instance.ServerEvents.PlayerLoggedIn.Raise(new PlayerEventArgs(character));
 
 			if (Game.Version >= Versions.Beta2)
@@ -469,9 +475,14 @@ namespace Sabine.Zone.Network
 				return; // Skill doesn't exist or max level reached
 			}
 
-			// TODO: Add full requirement checks (job level, prerequisite skills)
-			// if (character.Parameters.JobLevel < skillData.GetJobLevelRequirement(newLevel)) { ... return; }
-			// if (!skills.HasPrerequisitesFor(skillId, newLevel)) { ... return; }
+			// CanUpgrade enforces the skill-tree prerequisites (eAthena's
+			// pc_skill_tree). Without this gate, a crafted CZ_UPGRADE_SKILLLEVEL
+			// could level any tree skill regardless of prerequisites.
+			if (!canCurrentlyUpgrade)
+			{
+				Send.ZC_SKILLINFO_UPDATE(character, skillId, currentLevel, false);
+				return;
+			}
 
 			parameters.Modify(ParameterType.SkillPoints, -1);
 
@@ -744,6 +755,11 @@ namespace Sabine.Zone.Network
 			{
 				case ActionType.SitDown:
 				{
+					// A vendor must remain standing behind their stall;
+					// eAthena rejects the action silently.
+					if (character.VendingShop?.IsOpen == true)
+						return;
+
 					if (NV_BASIC.TryFail(character, BasicSkillAbility.Sit))
 						return;
 
@@ -914,6 +930,16 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			// The client greys out equipped pieces in the drop UI; only
+			// a crafted packet hits this branch. DecrementItem on amount=1
+			// of an equipped weapon would erase the source item without
+			// clearing RightHand/LeftHand.
+			if (item.IsEquipped)
+			{
+				Log.Warning("CZ_ITEM_THROW: User '{0}' tried to drop equipped item '{1}'.", conn.Account.Username, item.Data.Name);
+				return;
+			}
+
 			var removedAmount = character.Inventory.DecrementItem(item, amount);
 			var dropItem = new Item(item.ClassId, removedAmount);
 
@@ -954,6 +980,34 @@ namespace Sabine.Zone.Network
 
 				Log.Debug("CZ_USE_ITEM: User '{0}' tried to equip an item they don't have.", conn.Account.Username);
 				conn.Close();
+				return;
+			}
+
+			// eAthena pc_useitem / pc_isUseitem guards: dead players, hard
+			// CC, and Hiding/TrickDead block consumption; equipment must
+			// go through CZ_REQ_WEAR_EQUIP, never CZ_USE_ITEM.
+			if (character.IsDead)
+			{
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				return;
+			}
+
+			if (!item.Type.IsConsumable())
+			{
+				Log.Debug("CZ_USE_ITEM: User '{0}' tried to consume non-consumable item '{1}' (type {2}).", conn.Account.Username, item.Data.Name, item.Type);
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				return;
+			}
+
+			if (character.StatusEffects != null && (
+				character.StatusEffects.Has(StatusId.Stone) ||
+				character.StatusEffects.Has(StatusId.Freeze) ||
+				character.StatusEffects.Has(StatusId.Stun) ||
+				character.StatusEffects.Has(StatusId.Sleep) ||
+				character.StatusEffects.Has(StatusId.TrickDead) ||
+				character.StatusEffects.Has(StatusId.Hiding)))
+			{
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
 				return;
 			}
 
@@ -1161,7 +1215,42 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
-			// TODO: Add overweight and item count checks.
+			// Aggregate weight + slot demand across the whole basket so
+			// partial-fit purchases reject up front instead of half-applying
+			// (eAthena's clif_parse_NpcBuyListSend does the same up-front
+			// reject). Equipment costs one slot per unit; stackables that
+			// the player already carries consume no new slot, while novel
+			// stackables need one slot for the new stack.
+			var addedWeight = 0;
+			var newSlots = 0;
+			foreach (var entry in buyItems)
+			{
+				var data = entry.Key.Data;
+				var amount = entry.Value;
+
+				addedWeight += data.Weight * amount;
+
+				if (data.Type.IsEquip())
+				{
+					newSlots += amount;
+				}
+				else if (!character.Inventory.Contains(data.ClassId))
+				{
+					newSlots += 1;
+				}
+			}
+
+			if (character.Inventory.GetWeight() + addedWeight > character.Parameters.WeightMax)
+			{
+				Send.ZC_PC_PURCHASE_RESULT(character, PurchaseResult.Overweight);
+				return;
+			}
+
+			if (character.Inventory.ItemCount + newSlots > Sabine.Zone.World.Actors.Components.Characters.Inventory.MaxSlots)
+			{
+				Send.ZC_PC_PURCHASE_RESULT(character, PurchaseResult.ItemCountOver);
+				return;
+			}
 
 			foreach (var entry in buyItems)
 			{
@@ -1209,10 +1298,25 @@ namespace Sabine.Zone.Network
 					return;
 				}
 
+				// The client greys out equipped pieces in the sell window;
+				// only a crafted packet hits this branch. Selling amount=1
+				// of an equipped weapon would remove it from the inventory
+				// without unequipping, leaving stale RightHand/LeftHand
+				// references.
+				if (item.IsEquipped)
+				{
+					Log.Warning("CZ_PC_SELL_ITEMLIST: User '{0}' tried to sell equipped item '{1}'.", conn.Account.Username, item.Data.Name);
+					Send.ZC_PC_SELL_RESULT(character, SellResult.CannotSell);
+					return;
+				}
+
 				sellItems[item] = amount;
 			}
 
-			var gainZeny = 0;
+			// Computed as long to avoid int overflow when selling stacks
+			// of high-price items in one batch; the Zeny setter clamps
+			// the final value at MaxZeny.
+			var gainZeny = 0L;
 
 			foreach (var entry in sellItems)
 			{
@@ -1220,10 +1324,11 @@ namespace Sabine.Zone.Network
 				var amount = entry.Value;
 
 				character.Inventory.DecrementItem(item, amount);
-				gainZeny += item.Data.SellPrice * amount;
+				gainZeny += (long)item.Data.SellPrice * amount;
 			}
 
-			character.Parameters.Modify(ParameterType.Zeny, gainZeny);
+			var clamped = (int)Math.Min(gainZeny, Sabine.Zone.World.Actors.Components.Characters.Parameters.MaxZeny);
+			character.Parameters.Modify(ParameterType.Zeny, clamped);
 			Send.ZC_PC_SELL_RESULT(character, SellResult.Success);
 		}
 
@@ -1338,6 +1443,11 @@ namespace Sabine.Zone.Network
 			if (character.IsImmobilized || character.IsSilenced || character.SkillBlocked)
 				return;
 
+			// Vendors are pinned to their stall; skills are blocked
+			// while the shop is open, matching eAthena.
+			if (character.VendingShop?.IsOpen == true)
+				return;
+
 			if (!TryResolveSkill(character, skillId, out var skill))
 			{
 				Log.Warning("CZ_USE_SKILL: User '{0}' tried to use skill '{1}', which they don't have.", conn.Account.Username, skillId);
@@ -1387,6 +1497,11 @@ namespace Sabine.Zone.Network
 			var character = conn.GetCurrentCharacter();
 
 			if (character.IsImmobilized || character.IsSilenced || character.SkillBlocked)
+				return;
+
+			// Mirror the targeted-skill guard so vendors can't fire
+			// AOEs from behind the stall either.
+			if (character.VendingShop?.IsOpen == true)
 				return;
 
 			if (!TryResolveSkill(character, skillId, out var skill))

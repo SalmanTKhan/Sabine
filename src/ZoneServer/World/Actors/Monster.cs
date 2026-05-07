@@ -25,6 +25,13 @@ namespace Sabine.Zone.World.Actors
 		public HashSet<int> StolenDropSlots { get; } = new();
 
 		/// <summary>
+		/// Set once Steal Coin succeeds against this mob; eAthena's
+		/// <c>state.steal_coin_flag</c>. Prevents repeated zeny drains
+		/// from the same mob instance.
+		/// </summary>
+		public bool StolenCoin { get; set; }
+
+		/// <summary>
 		/// Return a reference to the monster's data.
 		/// </summary>
 		public MonsterData Data { get; }

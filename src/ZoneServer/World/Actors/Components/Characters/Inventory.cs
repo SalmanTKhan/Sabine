@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Sabine.Shared;
 using Sabine.Shared.Const;
+using Sabine.Zone.Battle;
 using Sabine.Zone.Battle.Cards;
 using Sabine.Zone.Network;
 
@@ -24,6 +25,22 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 		/// <summary>Maximum number of distinct item slots in the cart.</summary>
 		public const int CartMaxSlots = 100;
+
+		/// <summary>
+		/// Maximum number of distinct item stacks in the body inventory.
+		/// Mirrors eAthena's <c>MAX_INVENTORY</c>.
+		/// </summary>
+		public const int MaxSlots = 100;
+
+		/// <summary>Number of distinct item stacks in the body inventory.</summary>
+		public int ItemCount
+		{
+			get
+			{
+				lock (_syncLock)
+					return _items.Count;
+			}
+		}
 
 		/// <summary>
 		/// Returns the character this inventory belongs to.
@@ -719,8 +736,16 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			{
 				foreach (var item in _items)
 				{
-					if (item.IsEquipped)
-						result += item.Data.Defense;
+					if (!item.IsEquipped)
+						continue;
+
+					result += item.Data.Defense;
+
+					// Refining adds a small flat DEF bonus on top of
+					// each armor piece's base defense; weapons handle
+					// their refine bonus through ATK.
+					if (item.Data.Type == ItemType.Armor && item.RefineLevel > 0)
+						result += RefinementService.GetArmorDefBonus(item.Data.ArmorLevel, item.RefineLevel);
 				}
 			}
 

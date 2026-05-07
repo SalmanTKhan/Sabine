@@ -27,6 +27,14 @@ namespace Sabine.Shared.Data.Databases
 		public EquipSlots WearSlots { get; set; }
 		public int RequiredLevel { get; set; }
 		public int WeaponLevel { get; set; }
+
+		/// <summary>
+		/// Renewal armor tier (1..4). Selects the refine row used for
+		/// this piece; defaults to 1 (matches classic, where every
+		/// armor uses the single armor refine row).
+		/// </summary>
+		public int ArmorLevel { get; set; } = 1;
+
 		public int LookId { get; set; }
 
 		/// <summary>
@@ -119,6 +127,7 @@ namespace Sabine.Shared.Data.Databases
 			data.WearSlots = entry.ReadEnum("equip", EquipSlots.None);
 			data.RequiredLevel = entry.ReadInt("equipLevel", 1);
 			data.WeaponLevel = entry.ReadInt("weaponLevel", 0);
+			data.ArmorLevel = entry.ReadInt("armorLevel", 1);
 			data.LookId = entry.ReadInt("look", 0);
 			data.Element = entry.ReadEnum("element", ElementType.Neutral);
 			data.DefenseElement = entry.ReadEnum("defenseElement", ElementType.None);

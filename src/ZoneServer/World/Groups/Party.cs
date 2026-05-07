@@ -42,6 +42,13 @@ namespace Sabine.Zone.World.Groups
 
 		public PartyMember GetMember(int characterId) => _members.FirstOrDefault(m => m.CharacterId == characterId);
 
+		/// <summary>
+		/// Returns true if <paramref name="player"/> is this party's
+		/// leader. Mirrors rAthena's <c>is_party_leader()</c>.
+		/// </summary>
+		public bool IsLeader(PlayerCharacter player)
+			=> player != null && this.GetLeader()?.CharacterId == player.Id;
+
 		public bool AddMember(PlayerCharacter character)
 		{
 			if (_members.Count >= ZoneServer.Instance.Conf.World.MaxPartySize || GetMember(character.Id) != null)

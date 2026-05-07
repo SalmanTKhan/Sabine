@@ -101,6 +101,15 @@ namespace Sabine.Zone.World.Actors
 		public int[] Cards { get; private set; } = Array.Empty<int>();
 
 		/// <summary>
+		/// Personalised name engraved on this item, when it was
+		/// produced via `getnameditem` (eAthena's wedding rings,
+		/// custom event prizes, etc.). Empty/null for stock items.
+		/// Display logic can prefix the player's item name with this
+		/// engraving when rendering `[Recipient]'s ItemName`.
+		/// </summary>
+		public string EngravedName { get; set; } = string.Empty;
+
+		/// <summary>
 		/// Gets or sets the id of the map the item is on, if any.
 		/// </summary>
 		public int MapId { get; set; }

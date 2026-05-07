@@ -62,6 +62,11 @@ namespace Sabine.Zone.Network
 				if (character.Homunculus?.IsActive == true)
 					Sabine.Zone.Skills.Homunculi.HomunculusService.Detach(character);
 
+				// Detach the live player back-pointer from the
+				// in-memory Guild record so the GC can reclaim the
+				// session; the member row stays put.
+				ZoneServer.Instance.World.Guilds.OnPlayerLogout(character);
+
 				character?.Map.RemovePlayer(character);
 			}
 

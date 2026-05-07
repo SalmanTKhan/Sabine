@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using Sabine.Shared.Const;
+using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
 using Sabine.Zone.Scripting.Dialogues;
@@ -148,6 +149,24 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Guild whose emblem this NPC displays (castle flags, etc.).
+		/// Set by <see cref="SetGuildEmblem"/>; defaults to 0 (none).
+		/// </summary>
+		public int GuildEmblemId { get; private set; }
+
+		/// <summary>
+		/// Associates the NPC with a guild's emblem. Mirrors rAthena's
+		/// <c>flagemblem &lt;gid&gt;</c>. Pre-renewal/alpha clients do not
+		/// render guild emblems on NPC sprites; the value is cached for
+		/// future use and the call is logged.
+		/// </summary>
+		public void SetGuildEmblem(int guildId)
+		{
+			this.GuildEmblemId = guildId;
+			Log.Debug("Npc.SetGuildEmblem: stubbed for alpha client (npc='{0}', guildId={1}).", this.Name, guildId);
+		}
+
+		/// <summary>
 		/// Returns metadata about this NPC. Field selector mirrors
 		/// rAthena's <c>strnpcinfo</c>:
 		/// 0 = name, 1 = visible name (alias), 2 = map id (string),
@@ -166,6 +185,17 @@ namespace Sabine.Zone.World.Actors
 				_ => string.Empty,
 			};
 		}
+
+		/// <summary>
+		/// NPC-scoped variables. Mirrors rAthena's <c>.x</c> sigil:
+		/// readable and writable by any script handler on this NPC, but
+		/// not shared across NPCs and not persisted to the database
+		/// (NPCs are recreated on every script reload, so persistence
+		/// would be misleading). Use <see cref="Vars"/>.<c>Temp</c> for
+		/// per-instance state; <see cref="Vars"/>.<c>Perm</c> exists for
+		/// API symmetry with other actors but has no DB backing.
+		/// </summary>
+		public VariableContainer Vars { get; } = new VariableContainer();
 
 		private NpcTimer _timer;
 

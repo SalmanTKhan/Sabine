@@ -38,6 +38,16 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			// MoveToCart removes from _items but doesn't unequip; cart-storing
+			// an equipped weapon would orphan RightHand/LeftHand. The client
+			// disables the drag for equipped pieces, so this only fires on
+			// crafted packets.
+			if (item.IsEquipped)
+			{
+				Send.ZC_ACK_ADDITEM_TO_CART(character, false);
+				return;
+			}
+
 			var moved = character.Inventory.MoveToCart(item, count);
 			Send.ZC_ACK_ADDITEM_TO_CART(character, moved > 0);
 
@@ -182,6 +192,9 @@ namespace Sabine.Zone.Network
 
 			// Pre-validate state.
 			if (character.VendingShop?.IsOpen == true)
+				return;
+
+			if (character.Storage.IsOpen)
 				return;
 
 			if (ZoneServer.Instance.World.Trades.TryGetTrade(character, out _))
@@ -349,7 +362,32 @@ namespace Sabine.Zone.Network
 					return;
 				}
 
-				if ((long)merchant.Parameters.Zeny + totalCost > int.MaxValue)
+				// Slot demand: equipment costs one slot per unit; stackables
+				// already in the buyer's inventory take 0 slots, novel
+				// stackables take 1 per unique class id. Mirrors the
+				// NPC-shop buy guard so vending can't bypass MAX_INVENTORY.
+				var newSlots = 0;
+				var seenStackables = new HashSet<int>();
+				foreach (var (entry, amount) in resolved)
+				{
+					var data = entry.Item.Data;
+					if (data.Type.IsEquip())
+					{
+						newSlots += amount;
+					}
+					else if (!character.Inventory.Contains(data.ClassId) && seenStackables.Add(data.ClassId))
+					{
+						newSlots += 1;
+					}
+				}
+
+				if (character.Inventory.ItemCount + newSlots > Sabine.Zone.World.Actors.Components.Characters.Inventory.MaxSlots)
+				{
+					Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.ItemCountOver);
+					return;
+				}
+
+				if ((long)merchant.Parameters.Zeny + totalCost > Sabine.Zone.World.Actors.Components.Characters.Parameters.MaxZeny)
 				{
 					Send.ZC_PC_PURCHASE_RESULT_FROMMC(character, 0, 0, PurchaseResult.Unknown);
 					return;

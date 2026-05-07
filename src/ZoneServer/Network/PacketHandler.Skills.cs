@@ -115,6 +115,15 @@ namespace Sabine.Zone.Network
 			if (character.Parameters.Weight + weightAdd > character.Parameters.WeightMax)
 				return;
 
+			// Slot guard for novel stackables / each non-stackable unit;
+			// without this a withdraw could push body over MAX_INVENTORY.
+			var needsSlot = entry.Data.Type.IsEquip()
+				? amount
+				: (character.Inventory.Contains(entry.Data.ClassId) ? 0 : 1);
+
+			if (character.Inventory.ItemCount + needsSlot > Sabine.Zone.World.Actors.Components.Characters.Inventory.MaxSlots)
+				return;
+
 			var detached = character.Storage.RemoveByIndex(itemIndex, amount);
 			if (detached == null)
 				return;

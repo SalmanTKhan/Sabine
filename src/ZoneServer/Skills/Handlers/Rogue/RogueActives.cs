@@ -2,13 +2,18 @@ using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Skills.Handlers.Rogue
 {
 	[SkillHandler(SkillId.RG_STEALCOIN)]
 	public class StealCoinHandler : ITargetedSkillHandler
 	{
-		// TODO: actually steal Zeny from monster (50% + level*1.5%).
+		// eAthena pc_steal_coin (pc.c): rate is out of 1000 and combines
+		// skill level, base-level delta, and the rogue's Dex/Luk; amount
+		// is the mob's level scaled with a small random padding. MVP mobs
+		// and already-coined mobs are skipped. On success the mob aggros
+		// the rogue, mirroring the mob_target call in skill.c.
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
@@ -17,6 +22,36 @@ namespace Sabine.Zone.Skills.Handlers.Rogue
 			var level = parameters.SkillLevel;
 
 			Send.ZC_NOTIFY_SKILL(caster, target?.Handle ?? caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			if (caster is not PlayerCharacter pc)
+				return;
+
+			if (target is not Monster mob || mob.IsDead)
+				return;
+
+			if (mob.StolenCoin || mob.Data.MvpExp > 0)
+				return;
+
+			var casterParams = pc.Parameters;
+			var rate = level * 10
+				+ (casterParams.BaseLevel - mob.Parameters.BaseLevel) * 3
+				+ casterParams.Dex * 2
+				+ casterParams.Luk * 2;
+
+			var rnd = RandomProvider.Get();
+			if (rate <= 0 || rnd.Next(1000) >= rate)
+				return;
+
+			var amount = mob.Parameters.BaseLevel * 10 + rnd.Next(100);
+			if (amount <= 0)
+				return;
+
+			pc.Parameters.Modify(ParameterType.Zeny, amount);
+			mob.StolenCoin = true;
+
+			// Successful theft draws aggro, matching eAthena's mob_target
+			// call from skill_castend_nodamage_id.
+			mob.AttackerHandleTest = pc.Handle;
 		}
 	}
 

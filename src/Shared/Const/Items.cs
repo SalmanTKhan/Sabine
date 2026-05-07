@@ -292,5 +292,25 @@ namespace Sabine.Shared.Const
 					return false;
 			}
 		}
+
+		/// <summary>
+		/// Returns true if the type is a directly-consumed item (Item /
+		/// Usable / Cash tabs). Mirrors eAthena's IT_HEALING / IT_USABLE /
+		/// IT_CASH check in pc_isUseitem; CZ_USE_ITEM should reject any
+		/// other type (equipment goes through CZ_REQ_WEAR_EQUIP).
+		/// </summary>
+		public static bool IsConsumable(this ItemType type)
+		{
+			switch (type)
+			{
+				case ItemType.Healing:
+				case ItemType.Item2:
+				case ItemType.Usable:
+				case ItemType.Cash:
+					return true;
+				default:
+					return false;
+			}
+		}
 	}
 }
