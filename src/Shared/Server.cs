@@ -199,6 +199,13 @@ namespace Sabine.Shared
 			this.LoadDataFile(this.Data.Skills, "skills.txt");
 			this.LoadDataFile(this.Data.SkillTrees, "skill_trees.txt");
 
+			// Refine numbers diverge between classic/pre-re and renewal
+			// (cap and bonuses); pick the file matching the active era.
+			var refineFile = Game.Era == Sabine.Shared.Const.Era.Renewal
+				? "refine_db_renewal.txt"
+				: "refine_db.txt";
+			this.LoadDataFile(this.Data.Refine, refineFile);
+
 			// Get the latest cache file for the selected version
 			var cacheFileName = "map_cache.dat";
 			for (var i = 0; i <= Game.Version; ++i)

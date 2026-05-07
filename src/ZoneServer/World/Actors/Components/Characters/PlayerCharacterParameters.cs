@@ -168,7 +168,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				fromWeapon = weapon.Data.Attack;
 				fromWeaponMin = weapon.Data.AttackMin;
 				fromWeaponMax = weapon.Data.AttackMax;
-				refineBonus = RefinementTable.GetWeaponAtkBonus(weapon.Data.WeaponLevel, weapon.RefineLevel);
+				refineBonus = RefinementService.GetWeaponAtkBonus(weapon.Data.WeaponLevel, weapon.RefineLevel);
 			}
 
 			var masteryBonus = this.CalculateMasteryAtk(weapon);

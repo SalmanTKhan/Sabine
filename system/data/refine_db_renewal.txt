@@ -1,0 +1,368 @@
+// Sabine
+// Database File
+//
+// Renewal-era refine bonuses, success rates, and per-attempt costs.
+// Loaded instead of refine_db.txt when the Renewal feature flag is
+// enabled. Schema mirrors rAthena's db/re/refine.yml: per-refine-level
+// data with one or more cost-type chances (Normal / HD / Enriched).
+// HD ores downgrade the refine on failure instead of breaking the
+// item; Enriched ores trade a higher zeny cost for a higher base
+// success rate.
+//
+// Coverage in this file:
+//   * Armor Lv1: refine +1..+10 ported 1:1 from rAthena re/refine.yml.
+//     Levels +11..+20 require Blacksmith Blessing items and Carnium
+//     ores -- those land in a follow-up pass with the renewal stat
+//     overhaul.
+//   * Armor Lv2: refine +1..+10. Lv2 armor uses Ethernium (no HD
+//     option in renewal) and downgrades on failure rather than
+//     breaking. Lv3 / Lv4 armor refining is not in rAthena's data --
+//     not present in this file either.
+//   * Weapon Lv1..Lv4: bonuses kept at classic values to keep the
+//     existing weapon ATK formula balanced. Cost types and per-level
+//     break / downgrade behavior match rAthena renewal. Switch the
+//     bonus columns to rAthena's larger values once the renewal
+//     damage formula pass is in.
+//
+// Material item ids (eAthena/rAthena classic):
+//   Phracon=1010, Emveretarcon=1011, Oridecon=984, Elunium=985,
+//   HD_Elunium=6226, HD_Oridecon=6240,
+//   Enriched_Elunium=7619, Enriched_Oridecon=7620.
+// Renewal ores (rAthena re/item_db_etc.yml):
+//   Ethernium=1000331, Enriched_Ethernium=1000333.
+//---------------------------------------------------------------------------
+
+[
+{
+	group: "Armor", weaponLevel: 0,
+	levels: [
+		{ level:  1, bonus:  100, chances: [
+			{ type: "Normal",   rate: 100, material: 985,  price:  2000 },
+			{ type: "HD",       rate: 100, material: 6226, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7619, price:  2000 },
+		]},
+		{ level:  2, bonus:  200, chances: [
+			{ type: "Normal",   rate: 100, material: 985,  price:  2000 },
+			{ type: "HD",       rate: 100, material: 6226, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7619, price:  2000 },
+		]},
+		{ level:  3, bonus:  300, chances: [
+			{ type: "Normal",   rate: 100, material: 985,  price:  2000 },
+			{ type: "HD",       rate: 100, material: 6226, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7619, price:  2000 },
+		]},
+		{ level:  4, bonus:  400, chances: [
+			{ type: "Normal",   rate: 100, material: 985,  price:  2000 },
+			{ type: "HD",       rate: 100, material: 6226, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7619, price:  2000 },
+		]},
+		{ level:  5, bonus:  600, chances: [
+			{ type: "Normal",   rate:  60, material: 985,  price:  2000, breakingRate: 100 },
+			{ type: "HD",       rate:  60, material: 6226, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  90, material: 7619, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  6, bonus:  800, chances: [
+			{ type: "Normal",   rate:  40, material: 985,  price:  2000, breakingRate: 100 },
+			{ type: "HD",       rate:  40, material: 6226, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  70, material: 7619, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  7, bonus: 1000, chances: [
+			{ type: "Normal",   rate:  40, material: 985,  price:  2000, breakingRate: 100 },
+			{ type: "HD",       rate:  40, material: 6226, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  70, material: 7619, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  8, bonus: 1200, chances: [
+			{ type: "Normal",   rate:  20, material: 985,  price:  2000, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6226, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7619, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  9, bonus: 1500, chances: [
+			{ type: "Normal",   rate:  20, material: 985,  price:  2000, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6226, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7619, price:  2000, breakingRate: 100 },
+		]},
+		{ level: 10, bonus: 1800, chances: [
+			{ type: "Normal",   rate:   9, material: 985,  price:  2000, breakingRate: 100 },
+			{ type: "HD",       rate:   9, material: 6226, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  20, material: 7619, price:  2000, breakingRate: 100 },
+		]},
+	]
+},
+
+// Armor Lv2: Ethernium-based; Normal + Enriched only (no HD ore in
+// rAthena renewal). Failure downgrades the refine instead of
+// breaking the item.
+{
+	group: "Armor", armorLevel: 2,
+	levels: [
+		{ level:  1, bonus:  120, chances: [
+			{ type: "Normal",   rate: 100, material: 1000331, price: 50000 },
+			{ type: "Enriched", rate: 100, material: 1000333, price: 50000 },
+		]},
+		{ level:  2, bonus:  240, chances: [
+			{ type: "Normal",   rate: 100, material: 1000331, price: 50000 },
+			{ type: "Enriched", rate: 100, material: 1000333, price: 50000 },
+		]},
+		{ level:  3, bonus:  360, chances: [
+			{ type: "Normal",   rate: 100, material: 1000331, price: 50000 },
+			{ type: "Enriched", rate: 100, material: 1000333, price: 50000 },
+		]},
+		{ level:  4, bonus:  480, chances: [
+			{ type: "Normal",   rate:  60, material: 1000331, price: 50000, downgradeAmount: 3 },
+			{ type: "Enriched", rate:  90, material: 1000333, price: 50000, downgradeAmount: 1 },
+		]},
+		{ level:  5, bonus:  720, chances: [
+			{ type: "Normal",   rate:  60, material: 1000331, price: 50000, downgradeAmount: 3 },
+			{ type: "Enriched", rate:  70, material: 1000333, price: 50000, downgradeAmount: 1 },
+		]},
+		{ level:  6, bonus:  960, chances: [
+			{ type: "Normal",   rate:  40, material: 1000331, price: 50000, downgradeAmount: 3 },
+			{ type: "Enriched", rate:  60, material: 1000333, price: 50000, downgradeAmount: 1 },
+		]},
+		{ level:  7, bonus: 1200, chances: [
+			{ type: "Normal",   rate:  40, material: 1000331, price: 50000, downgradeAmount: 3 },
+			{ type: "Enriched", rate:  60, material: 1000333, price: 50000, downgradeAmount: 1 },
+		]},
+		{ level:  8, bonus: 1440, chances: [
+			{ type: "Normal",   rate:  20, material: 1000331, price: 50000, downgradeAmount: 3 },
+			{ type: "Enriched", rate:  40, material: 1000333, price: 50000, downgradeAmount: 1 },
+		]},
+		{ level:  9, bonus: 1800, chances: [
+			{ type: "Normal",   rate:  20, material: 1000331, price: 50000, downgradeAmount: 3 },
+			{ type: "Enriched", rate:  40, material: 1000333, price: 50000, downgradeAmount: 1 },
+		]},
+		{ level: 10, bonus: 2160, chances: [
+			{ type: "Normal",   rate:   9, material: 1000331, price: 50000, downgradeAmount: 3 },
+			{ type: "Enriched", rate:  20, material: 1000333, price: 50000, downgradeAmount: 1 },
+		]},
+	]
+},
+
+// Weapon Lv1: bonuses match classic (2 per safe refine, 3 above).
+{
+	group: "Weapon", weaponLevel: 1,
+	levels: [
+		{ level:  1, bonus:  2, chances: [
+			{ type: "Normal",   rate: 100, material: 1010, price:    50 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  2, bonus:  4, chances: [
+			{ type: "Normal",   rate: 100, material: 1010, price:    50 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  3, bonus:  6, chances: [
+			{ type: "Normal",   rate: 100, material: 1010, price:    50 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  4, bonus:  8, chances: [
+			{ type: "Normal",   rate: 100, material: 1010, price:    50 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  5, bonus: 10, chances: [
+			{ type: "Normal",   rate: 100, material: 1010, price:    50 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  6, bonus: 12, chances: [
+			{ type: "Normal",   rate: 100, material: 1010, price:    50 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  7, bonus: 14, chances: [
+			{ type: "Normal",   rate: 100, material: 1010, price:    50 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  8, bonus: 17, chances: [
+			{ type: "Normal",   rate:  60, material: 1010, price:    50, breakingRate: 100 },
+			{ type: "HD",       rate:  60, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  90, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  9, bonus: 20, chances: [
+			{ type: "Normal",   rate:  40, material: 1010, price:    50, breakingRate: 100 },
+			{ type: "HD",       rate:  40, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  70, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level: 10, bonus: 23, chances: [
+			{ type: "Normal",   rate:  20, material: 1010, price:    50, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+	]
+},
+
+// Weapon Lv2: classic bonuses (3 safe / 5 risky).
+{
+	group: "Weapon", weaponLevel: 2,
+	levels: [
+		{ level:  1, bonus:  3, chances: [
+			{ type: "Normal",   rate: 100, material: 1011, price:   200 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  2, bonus:  6, chances: [
+			{ type: "Normal",   rate: 100, material: 1011, price:   200 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  3, bonus:  9, chances: [
+			{ type: "Normal",   rate: 100, material: 1011, price:   200 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  4, bonus: 12, chances: [
+			{ type: "Normal",   rate: 100, material: 1011, price:   200 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  5, bonus: 15, chances: [
+			{ type: "Normal",   rate: 100, material: 1011, price:   200 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  6, bonus: 18, chances: [
+			{ type: "Normal",   rate: 100, material: 1011, price:   200 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  7, bonus: 23, chances: [
+			{ type: "Normal",   rate:  60, material: 1011, price:   200, breakingRate: 100 },
+			{ type: "HD",       rate:  60, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  90, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  8, bonus: 28, chances: [
+			{ type: "Normal",   rate:  40, material: 1011, price:   200, breakingRate: 100 },
+			{ type: "HD",       rate:  40, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  70, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  9, bonus: 33, chances: [
+			{ type: "Normal",   rate:  20, material: 1011, price:   200, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level: 10, bonus: 38, chances: [
+			{ type: "Normal",   rate:  20, material: 1011, price:   200, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+	]
+},
+
+// Weapon Lv3: classic bonuses (5 safe / 8 risky).
+{
+	group: "Weapon", weaponLevel: 3,
+	levels: [
+		{ level:  1, bonus:  5, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price:  5000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  2, bonus: 10, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price:  5000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  3, bonus: 15, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price:  5000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  4, bonus: 20, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price:  5000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  5, bonus: 25, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price:  5000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  6, bonus: 33, chances: [
+			{ type: "Normal",   rate:  60, material:  984, price:  5000, breakingRate: 100 },
+			{ type: "HD",       rate:  60, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  90, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  7, bonus: 41, chances: [
+			{ type: "Normal",   rate:  50, material:  984, price:  5000, breakingRate: 100 },
+			{ type: "HD",       rate:  50, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  80, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  8, bonus: 49, chances: [
+			{ type: "Normal",   rate:  20, material:  984, price:  5000, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  9, bonus: 57, chances: [
+			{ type: "Normal",   rate:  20, material:  984, price:  5000, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level: 10, bonus: 65, chances: [
+			{ type: "Normal",   rate:  20, material:  984, price:  5000, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+	]
+},
+
+// Weapon Lv4: classic bonuses (7 safe / 13 risky).
+{
+	group: "Weapon", weaponLevel: 4,
+	levels: [
+		{ level:  1, bonus:   7, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price: 20000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  2, bonus:  14, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price: 20000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  3, bonus:  21, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price: 20000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  4, bonus:  28, chances: [
+			{ type: "Normal",   rate: 100, material:  984, price: 20000 },
+			{ type: "HD",       rate: 100, material: 6240, price: 20000 },
+			{ type: "Enriched", rate: 100, material: 7620, price:  2000 },
+		]},
+		{ level:  5, bonus:  41, chances: [
+			{ type: "Normal",   rate:  60, material:  984, price: 20000, breakingRate: 100 },
+			{ type: "HD",       rate:  60, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  90, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  6, bonus:  54, chances: [
+			{ type: "Normal",   rate:  40, material:  984, price: 20000, breakingRate: 100 },
+			{ type: "HD",       rate:  40, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  70, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  7, bonus:  67, chances: [
+			{ type: "Normal",   rate:  40, material:  984, price: 20000, breakingRate: 100 },
+			{ type: "HD",       rate:  40, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  70, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  8, bonus:  80, chances: [
+			{ type: "Normal",   rate:  20, material:  984, price: 20000, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level:  9, bonus:  93, chances: [
+			{ type: "Normal",   rate:  20, material:  984, price: 20000, breakingRate: 100 },
+			{ type: "HD",       rate:  20, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  40, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+		{ level: 10, bonus: 106, chances: [
+			{ type: "Normal",   rate:   9, material:  984, price: 20000, breakingRate: 100 },
+			{ type: "HD",       rate:   9, material: 6240, price: 20000, downgradeAmount: 1 },
+			{ type: "Enriched", rate:  20, material: 7620, price:  2000, breakingRate: 100 },
+		]},
+	]
+},
+]

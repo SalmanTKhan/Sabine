@@ -1,0 +1,30 @@
+// Sabine
+// Database File
+//
+// Refine bonuses and per-attempt success rates per equipment group
+// and weapon level. Ported 1:1 from eAthena db/refine_db.txt
+// (classic-era), with the following normalization:
+//
+//   * group:        "Armor" or "Weapon".
+//   * weaponLevel:  1..4 for weapons; 0 for armor.
+//   * safeBonus:    bonus per refine within the safe range.
+//                   Weapons add this directly to ATK; armor adds
+//                   (safeBonus / 100) to DEF (eAthena's hundredths).
+//   * riskyBonus:   bonus per refine above the safe limit, same
+//                   units as safeBonus.
+//   * safeLimit:    highest refine level still using safeBonus.
+//   * successRates: percent chance per refine attempt at that level
+//                   (index 0 = +1 -> +0..1, index 9 = +10 -> +9..10).
+//
+// Used by Sabine.Zone.Battle.RefinementService. Renewal numbers live
+// in refine_db_renewal.txt and are loaded when the active era is
+// Renewal (see features.txt).
+//---------------------------------------------------------------------------
+
+[
+{ group: "Armor",  weaponLevel: 0, safeBonus: 70, riskyBonus:  4, safeLimit: 4, successRates: [100, 100, 100, 100,  60,  40,  40,  20,  20,  10] },
+{ group: "Weapon", weaponLevel: 1, safeBonus:  2, riskyBonus:  3, safeLimit: 7, successRates: [100, 100, 100, 100, 100, 100, 100,  60,  40,  20] },
+{ group: "Weapon", weaponLevel: 2, safeBonus:  3, riskyBonus:  5, safeLimit: 6, successRates: [100, 100, 100, 100, 100, 100,  60,  40,  20,  20] },
+{ group: "Weapon", weaponLevel: 3, safeBonus:  5, riskyBonus:  8, safeLimit: 5, successRates: [100, 100, 100, 100, 100,  60,  50,  20,  20,  20] },
+{ group: "Weapon", weaponLevel: 4, safeBonus:  7, riskyBonus: 13, safeLimit: 4, successRates: [100, 100, 100, 100,  60,  40,  40,  20,  20,  10] },
+]
