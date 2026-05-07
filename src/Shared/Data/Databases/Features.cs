@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using Sabine.Shared.Const;
 using Yggdrasil.Data.JSON;
 using Yggdrasil.Extensions;
 
@@ -17,6 +18,38 @@ namespace Sabine.Shared.Data.Databases
 		/// classic-era servers.
 		/// </summary>
 		public static readonly string Renewal = "Renewal";
+
+		/// <summary>
+		/// Selects rAthena's PRE-RE branch instead of eAthena classic.
+		/// Has no effect when <see cref="Renewal"/> is enabled. See
+		/// <see cref="Era"/>.
+		/// </summary>
+		public static readonly string PreRenewal = "PreRenewal";
+
+		/// <summary>
+		/// Master toggle for the expanded status-effect catalogue (Curse,
+		/// upcoming song/dance, food, etc.). When disabled, only the
+		/// originally-shipped buffs and debuffs are active. Independent of
+		/// the era flags so a classic server can opt into individual SCs.
+		/// </summary>
+		public static readonly string StatusEffectsExpanded = "StatusEffectsExpanded";
+
+		/// <summary>
+		/// When enabled, debuff durations are scaled with the renewal
+		/// resistance formula (rAthena status_get_sc_def's RENEWAL branch);
+		/// when disabled, the eAthena classic formula is used. Independent
+		/// of <see cref="Renewal"/> so the server operator can opt into
+		/// renewal status math without flipping the damage formulas.
+		/// </summary>
+		public static readonly string RenewalStatusResistance = "RenewalStatusResistance";
+
+		/// <summary>
+		/// When enabled, base status durations follow rAthena's
+		/// <c>db/re/status.yml</c>; when disabled, they follow
+		/// <c>db/pre-re/status.yml</c>. Skill handlers that compute their
+		/// own duration consult this flag where the two databases diverge.
+		/// </summary>
+		public static readonly string RenewalStatusDurations = "RenewalStatusDurations";
 	}
 
 	/// <summary>
@@ -64,6 +97,25 @@ namespace Sabine.Shared.Data.Databases
 		/// <returns></returns>
 		public bool IsEnabled(string featureName)
 			=> this.Entries.TryGetValue(featureName)?.Enabled ?? false;
+
+		/// <summary>
+		/// Returns the gameplay era resolved from the current feature flags.
+		/// </summary>
+		/// <remarks>
+		/// Renewal beats PreRenewal beats Classic. Resolved on every call
+		/// so live config reloads take effect; callers that hot-path this
+		/// should cache locally.
+		/// </remarks>
+		public Era GetEra()
+		{
+			if (this.IsEnabled(FeatureId.Renewal))
+				return Era.Renewal;
+
+			if (this.IsEnabled(FeatureId.PreRenewal))
+				return Era.PreRenewal;
+
+			return Era.Classic;
+		}
 
 		/// <summary>
 		/// Called to read an entry from the database.

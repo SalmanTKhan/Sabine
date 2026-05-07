@@ -1,4 +1,7 @@
 ﻿using System;
+using Sabine.Shared.Const;
+using Sabine.Shared.Data;
+using Sabine.Shared.Data.Databases;
 
 namespace Sabine.Shared
 {
@@ -19,6 +22,39 @@ namespace Sabine.Shared
 		/// <returns></returns>
 		public static int GetTick()
 			=> Environment.TickCount;
+
+		/// <summary>
+		/// The active server's loaded data, registered during
+		/// <see cref="Server.LoadData"/>. Used by the script-facing
+		/// feature accessors (<see cref="IsRenewal"/>) so they can be
+		/// called from Sabine.Shared without taking a hard dependency
+		/// on a particular server type.
+		/// </summary>
+		public static SabineData CurrentData { get; set; }
+
+		/// <summary>
+		/// The gameplay era resolved from <c>features.txt</c>. Defaults
+		/// to <see cref="Era.Classic"/> when no data is loaded.
+		/// </summary>
+		public static Era Era
+			=> CurrentData?.Features.GetEra() ?? Era.Classic;
+
+		/// <summary>
+		/// True when the Renewal feature flag is enabled in
+		/// <c>features.txt</c>. Mirrors rAthena's <c>checkre()</c>.
+		/// Returns false if data has not been loaded yet.
+		/// </summary>
+		public static bool IsRenewal => Era == Era.Renewal;
+
+		/// <summary>
+		/// True when the era is rAthena PRE-RE.
+		/// </summary>
+		public static bool IsPreRenewal => Era == Era.PreRenewal;
+
+		/// <summary>
+		/// True when the era is eAthena classic. Default.
+		/// </summary>
+		public static bool IsClassic => Era == Era.Classic;
 	}
 
 	/// <summary>

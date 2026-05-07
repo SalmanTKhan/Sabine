@@ -187,6 +187,8 @@ namespace Sabine.Shared
 		{
 			Log.Info("Loading data...");
 
+			Game.CurrentData = this.Data;
+
 			this.LoadDataFile(this.Data.Features, "features.txt");
 			this.LoadDataFile(this.Data.ExpTables, "exp.txt");
 			this.LoadDataFile(this.Data.Items, "items.txt");

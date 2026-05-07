@@ -32,8 +32,28 @@
 	{ name: "HigherMaxWeight", enabled: true },
 ]},
 
+// Selects rAthena PRE-RE behavior over eAthena classic. Affects
+// data file selection (e.g. produce_db) and a handful of caps that
+// rAthena raised pre-renewal. Has no effect when "Renewal" is on.
+{ name: "PreRenewal", enabled: false },
+
 // Switches damage calculation to the renewal formulas (multiplicative
 // DEF/MDEF, weapon ATK split into mastery and base ATK, etc.). Disabled
 // by default; classic/pre-renewal formulas are used while this is off.
 { name: "Renewal", enabled: false },
+
+// Master toggle for the expanded status-effect catalogue (Curse and
+// future additions). Disable to fall back to the originally-shipped
+// SC bundle.
+{ name: "StatusEffectsExpanded", enabled: true },
+
+// When enabled, status-resistance durations follow the rAthena renewal
+// formula (status_get_sc_def #ifdef RENEWAL branch). Disabled by default
+// so classic VIT/LUK math is used.
+{ name: "RenewalStatusResistance", enabled: false },
+
+// When enabled, base SC durations follow rAthena db/re/status.yml; when
+// disabled they follow db/pre-re/status.yml. Independent of the Renewal
+// damage flag so operators can mix-and-match.
+{ name: "RenewalStatusDurations", enabled: false },
 ]
