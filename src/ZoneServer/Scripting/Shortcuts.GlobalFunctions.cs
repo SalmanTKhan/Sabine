@@ -160,6 +160,11 @@ namespace Sabine.Zone.Scripting
 		/// <summary>Returns a random "hello" message.</summary>
 		public static string Hi() => Rand("Hi!", "Hello!", "Good day!", "How are you?", "Hello there.");
 
+		// instance_npcname / instance_id stubs were superseded by the
+		// Phase-2 `Instance*` helpers in the
+		// `eAthena script-API helpers` region at the bottom of this
+		// file.
+
 		/// <summary>Returns a random "goodbye" message.</summary>
 		public static string Bye() => Rand("Bye. See you again.", "Later.", "Goodbye.", "Good luck!", "Have a nice day!", "Byebye!!!");
 
@@ -509,6 +514,1354 @@ namespace Sabine.Zone.Scripting
 			if (uppercase) finalNoun = finalNoun.ToUpper();
 
 			return string.Format(format, number, finalNoun);
+		}
+
+		#endregion
+
+		#region eAthena script-API helpers
+
+		// Plain helpers the converter (`SabineTools/convert_rathena.py`)
+		// emits in place of the eAthena builtins it can't translate
+		// inline. Each one is a single-line wrap over an existing
+		// Sabine API; the goal is to take the converter out of the
+		// "emit a typed `""`/`0` placeholder" business for these
+		// builtins so generated scripts compile against real data
+		// instead of comment-stub TODOs. Order in this region mirrors
+		// the eAthena script API for easy cross-reference.
+
+		/// <summary>
+		/// eAthena `getitemname(<id>)`. Returns the bare item name as
+		/// stored in the item DB, or empty string when the id isn't
+		/// known. (For the styled, refine/element-prefixed name used
+		/// in dialogs, see <see cref="ItemName(int, int, int, int)"/>.)
+		/// </summary>
+		public static string GetItemName(int itemId)
+		{
+			return ZoneServer.Instance.Data.Items.TryFind(itemId, out var data)
+				? (data.Name ?? string.Empty)
+				: string.Empty;
+		}
+
+		/// <summary>
+		/// eAthena `getequipname(<slot>)`. Returns the name of the
+		/// item currently equipped in the given slot, or empty when
+		/// the slot is empty. The argument is the eAthena slot index
+		/// cast through Sabine's <see cref="EquipSlots"/> bitmask —
+		/// callers built by the converter already use that cast.
+		/// </summary>
+		public static string GetEquipName(PlayerCharacter player, EquipSlots slot)
+		{
+			var equipped = player?.Inventory.GetEquip(slot);
+			return equipped?.Data?.Name ?? string.Empty;
+		}
+
+		/// <summary>
+		/// eAthena `getequipweaponlv(<slot>)`. Returns the weapon
+		/// level of the item in the given slot, or 0 when nothing is
+		/// equipped or the equipped item has no weapon level.
+		/// </summary>
+		public static int GetEquipWeaponLevel(PlayerCharacter player, EquipSlots slot)
+		{
+			var equipped = player?.Inventory.GetEquip(slot);
+			return equipped?.Data?.WeaponLevel ?? 0;
+		}
+
+		/// <summary>
+		/// eAthena `getsavepoint(0)`. Returns the player's savepoint
+		/// map's string id, or empty string if the player has no
+		/// savepoint set.
+		/// </summary>
+		public static string GetSavepointMap(PlayerCharacter player)
+		{
+			if (player == null || player.SaveLocation.IsZero)
+				return string.Empty;
+			return ZoneServer.Instance.World.Maps.TryGet(player.SaveLocation.MapId, out var map)
+				? map.StringId
+				: string.Empty;
+		}
+
+		/// <summary>eAthena `getsavepoint(1)`. Savepoint x-coordinate.</summary>
+		public static int GetSavepointX(PlayerCharacter player)
+			=> player?.SaveLocation.X ?? 0;
+
+		/// <summary>eAthena `getsavepoint(2)`. Savepoint y-coordinate.</summary>
+		public static int GetSavepointY(PlayerCharacter player)
+			=> player?.SaveLocation.Y ?? 0;
+
+		/// <summary>
+		/// eAthena `gettimetick(<mode>)`. Mode 0 returns server uptime
+		/// in milliseconds (the "tick" since boot); mode 1 returns
+		/// seconds since midnight; mode 2 returns Unix time. Other
+		/// modes return 0 with a log warning so the surprise is
+		/// visible during script porting.
+		/// </summary>
+		public static int GetTimeTick(int mode)
+		{
+			switch (mode)
+			{
+				case 0:
+					return Environment.TickCount;
+				case 1:
+				{
+					var now = DateTime.Now;
+					return now.Hour * 3600 + now.Minute * 60 + now.Second;
+				}
+				case 2:
+					return (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+				default:
+					Log.Warning("GetTimeTick: unknown mode {0}, returning 0.", mode);
+					return 0;
+			}
+		}
+
+		/// <summary>
+		/// eAthena `gettimestr(<format>, <maxlen>)`. The format string
+		/// is a strftime-style template; we map the most common
+		/// directives (%Y/%m/%d/%H/%M/%S/%a/%A/%b/%B) to their .NET
+		/// equivalents. Anything we don't recognise is passed through
+		/// as a literal so the human reviewer can spot it. Result is
+		/// truncated to <paramref name="maxLen"/> characters.
+		/// </summary>
+		public static string GetTimeStr(string format, int maxLen)
+		{
+			if (string.IsNullOrEmpty(format) || maxLen <= 0)
+				return string.Empty;
+
+			// Map strftime → .NET DateTime format. Doubles each
+			// .NET token through a sentinel so the percent-prefix
+			// scheme of strftime doesn't collide mid-replace.
+			var net = format
+				.Replace("%Y", "yyyy")
+				.Replace("%m", "MM")
+				.Replace("%d", "dd")
+				.Replace("%H", "HH")
+				.Replace("%M", "mm")
+				.Replace("%S", "ss")
+				.Replace("%a", "ddd")
+				.Replace("%A", "dddd")
+				.Replace("%b", "MMM")
+				.Replace("%B", "MMMM");
+
+			string formatted;
+			try
+			{
+				formatted = DateTime.Now.ToString(net);
+			}
+			catch (FormatException)
+			{
+				Log.Warning("GetTimeStr: bad format string '{0}', returning empty.", format);
+				return string.Empty;
+			}
+
+			return formatted.Length <= maxLen ? formatted : formatted.Substring(0, maxLen);
+		}
+
+		/// <summary>
+		/// eAthena `basicskillcheck()`. Returns 1 if the player has
+		/// the basic-skill prerequisite for trade/party/storage, 0
+		/// otherwise. Sabine treats Basic Skill level 9 as the
+		/// "fully learned" mark, matching kRO's `bs_lv` ceiling.
+		/// </summary>
+		public static bool BasicSkillCheck(PlayerCharacter player)
+		{
+			if (player == null) return false;
+			var basicSkillCheck = ZoneServer.Instance.Conf.World.CheckBasicSkills;
+			if (!basicSkillCheck)
+				return true;
+			return player.Skills.GetLevel(SkillId.NV_BASIC) >= 9;
+		}
+
+		#endregion
+
+		#region Instance system
+
+		// Thin script-facing wrappers over `World.Instances`. The
+		// engine model is in `World/Instances/Instance.cs` +
+		// `InstanceManager.cs`. eAthena returns 0/"" sentinels on
+		// failure, but Sabine prefers proper types: `Has*` returns
+		// `bool`, `*Name` returns `string`, ids return `int`.
+
+		/// <summary>
+		/// eAthena `instance_create("name")`. Allocates a new instance
+		/// scoped to the player's party (when one exists), otherwise
+		/// to the player. When <paramref name="name"/> matches an
+		/// entry in <c>system/data/instances.txt</c>, every source
+		/// map listed in the template is auto-attached and the
+		/// template's TTL replaces the default 1h. Returns the new
+		/// instance's id, or 0 on failure (no player).
+		/// </summary>
+		public static int InstanceCreate(PlayerCharacter player, string name = null)
+		{
+			if (player == null)
+				return 0;
+			var partyId = player.Party?.Id ?? 0;
+			var manager = ZoneServer.Instance.World.Instances;
+			var inst = manager.Create(
+				ownerCharId: player.Id,
+				ownerPartyId: partyId);
+
+			if (!string.IsNullOrEmpty(name)
+				&& ZoneServer.Instance.Data.Instances.Entries.TryGetValue(name, out var tmpl))
+			{
+				inst.Ttl = TimeSpan.FromMinutes(tmpl.TtlMinutes);
+				foreach (var sourceMap in tmpl.SourceMaps)
+				{
+					if (manager.AttachMap(inst, sourceMap) == null)
+						Log.Warning("InstanceCreate: '{0}' template lists '{1}' but the map isn't loaded.",
+							name, sourceMap);
+				}
+				Log.Info("InstanceCreate: '{0}' (id={1}, ttl={2}m) for char {3}.",
+					name, inst.Id, tmpl.TtlMinutes, player.Id);
+			}
+			else if (!string.IsNullOrEmpty(name))
+			{
+				Log.Info("InstanceCreate: '{0}' (id={1}, no template) for char {2}.",
+					name, inst.Id, player.Id);
+			}
+
+			return inst.Id;
+		}
+
+		/// <summary>
+		/// eAthena `instance_attachmap("base_map", instanceId)`. Clones
+		/// the source map into the instance and returns the cloned
+		/// map's string id (e.g. `"orcs_lab@5"`), or empty on failure
+		/// (instance not found, source map not loaded).
+		/// </summary>
+		public static string InstanceAttachMap(string sourceMapStringId, int instanceId)
+		{
+			var inst = ZoneServer.Instance.World.Instances.Get(instanceId);
+			if (inst == null)
+				return string.Empty;
+			return ZoneServer.Instance.World.Instances.AttachMap(inst, sourceMapStringId)
+				?? string.Empty;
+		}
+
+		/// <summary>
+		/// eAthena `instance_id()`. Returns the active instance's id
+		/// for the given player (resolved guild → party → char), or 0
+		/// when the player isn't in any instance.
+		/// </summary>
+		public static int GetInstanceId(PlayerCharacter player)
+		{
+			return ZoneServer.Instance.World.Instances.TryFindByOwner(player, out var inst)
+				? inst.Id
+				: 0;
+		}
+
+		/// <summary>
+		/// eAthena `instance_npcname("npcName" [, instanceId])`. Returns
+		/// the per-instance NPC name (`"npcName#5"`) so events scoped
+		/// to a single run don't bleed across instances. Falls back to
+		/// the bare name when no instance is given and none can be
+		/// resolved from context.
+		/// </summary>
+		public static string GetInstanceNpcName(string baseName, int instanceId = 0)
+		{
+			if (instanceId <= 0 || string.IsNullOrEmpty(baseName))
+				return baseName ?? string.Empty;
+			return $"{baseName}#{instanceId}";
+		}
+
+		/// <summary>
+		/// eAthena `instance_mapname("base_map" [, instanceId])`.
+		/// Returns the per-instance map name (`"base_map@5"`). When
+		/// no explicit instance is given, the player's resolved
+		/// instance is used; falls back to empty when nothing matches.
+		/// </summary>
+		public static string GetInstanceMapName(string baseMapStringId, int instanceId = 0, PlayerCharacter player = null)
+		{
+			if (string.IsNullOrEmpty(baseMapStringId))
+				return string.Empty;
+			if (instanceId <= 0 && player != null)
+			{
+				if (ZoneServer.Instance.World.Instances.TryFindByOwner(player, out var inst))
+					instanceId = inst.Id;
+			}
+			if (instanceId <= 0)
+				return baseMapStringId;
+			return $"{baseMapStringId}@{instanceId}";
+		}
+
+		/// <summary>
+		/// eAthena `has_instance("base_map")`. Returns `true` (and the
+		/// resolved instance map name via <paramref name="resolved"/>)
+		/// when the player has an active instance with the given
+		/// source map attached. The bool form is the modern shape;
+		/// callers that need rAthena's string-or-empty contract can
+		/// use <see cref="HasInstanceMapName"/>.
+		/// </summary>
+		public static bool HasInstance(PlayerCharacter player, string baseMapStringId, out string resolved)
+		{
+			resolved = string.Empty;
+			if (!ZoneServer.Instance.World.Instances.TryFindByOwner(player, out var inst))
+				return false;
+			var map = inst.TryGetMap(baseMapStringId);
+			if (map == null)
+				return false;
+			resolved = map.StringId;
+			return true;
+		}
+
+		/// <summary>
+		/// String form of <see cref="HasInstance"/> mirroring eAthena's
+		/// return contract: the resolved instance map name on success,
+		/// or empty string when no match. Useful when the surrounding
+		/// expression compares against `""` directly.
+		/// </summary>
+		public static string HasInstanceMapName(PlayerCharacter player, string baseMapStringId)
+			=> HasInstance(player, baseMapStringId, out var resolved) ? resolved : string.Empty;
+
+		/// <summary>
+		/// eAthena `instance_destroy(instanceId)`. Tears down every
+		/// cloned map attached to the instance and removes the
+		/// instance from the registry. Returns true on success,
+		/// false when the id is unknown — the bool form lets callers
+		/// chain `if (InstanceDestroy(...))` cleanly.
+		/// </summary>
+		public static bool InstanceDestroy(int instanceId)
+		{
+			if (ZoneServer.Instance.World.Instances.Get(instanceId) == null)
+				return false;
+			ZoneServer.Instance.World.Instances.Destroy(instanceId);
+			return true;
+		}
+
+		#endregion
+
+		#region Marriage system
+
+		// Script-facing helpers for the marriage subsystem (Phase 3).
+		// State lives on `PlayerCharacter.MarriedToCharId` /
+		// `MarriedAt`; persistence is in `ZoneDb.SaveCharacter` /
+		// `GetCharacter` (migration `2026-05-03_001.sql`). The chat
+		// commands `/marry` and `/divorce` route through these
+		// helpers too so the rules stay in one place.
+
+		/// <summary>
+		/// eAthena `getpartnerid()`. Returns the partner's char id, or
+		/// 0 when the player is unmarried.
+		/// </summary>
+		public static int GetPartnerId(PlayerCharacter player)
+			=> player?.MarriedToCharId ?? 0;
+
+		/// <summary>
+		/// eAthena `ismarried()` (renewal). True when the player has
+		/// a partner. Cheap pass-through; provided for symmetry with
+		/// the rest of the bool-typed helpers.
+		/// </summary>
+		public static bool IsMarried(PlayerCharacter player)
+			=> player?.IsMarried ?? false;
+
+		/// <summary>
+		/// Returns the partner's name. Tries the online roster first
+		/// (cheap), falls back to a single-column DB lookup when the
+		/// partner isn't connected. Returns empty string when the
+		/// player is unmarried or the partner record has been
+		/// deleted.
+		/// </summary>
+		public static string GetPartnerName(PlayerCharacter player)
+		{
+			if (player?.MarriedToCharId is not int partnerId)
+				return string.Empty;
+			if (ZoneServer.Instance.World.Maps.TryGetPlayerById(partnerId, out var partner))
+				return partner.Name;
+			return ZoneServer.Instance.Database.GetCharacterName(partnerId);
+		}
+
+		/// <summary>
+		/// Marries the two characters. Sets both sides of
+		/// <see cref="PlayerCharacter.MarriedToCharId"/> and stamps
+		/// <see cref="PlayerCharacter.MarriedAt"/>. Returns false if
+		/// either side is null, the two are the same character, or
+		/// either is already married — bool result lets callers
+		/// surface a refusal without inspecting state.
+		/// </summary>
+		public static bool Marry(PlayerCharacter a, PlayerCharacter b)
+		{
+			if (a == null || b == null || a.Id == b.Id)
+				return false;
+			if (a.IsMarried || b.IsMarried)
+				return false;
+
+			var now = DateTime.UtcNow;
+			a.MarriedToCharId = b.Id;
+			a.MarriedAt = now;
+			b.MarriedToCharId = a.Id;
+			b.MarriedAt = now;
+
+			Log.Info("Marry: {0} (#{1}) and {2} (#{3}) at {4:u}.",
+				a.Name, a.Id, b.Name, b.Id, now);
+			return true;
+		}
+
+		/// <summary>
+		/// Divorces the player from their partner. Clears both sides
+		/// of <see cref="PlayerCharacter.MarriedToCharId"/>: the
+		/// online partner is updated in-memory and will save on their
+		/// next checkpoint; the offline partner is updated directly
+		/// in the database. Returns true when the player was married.
+		/// </summary>
+		public static bool Divorce(PlayerCharacter player)
+		{
+			if (player?.MarriedToCharId is not int partnerId)
+				return false;
+
+			player.MarriedToCharId = null;
+			player.MarriedAt = null;
+
+			if (ZoneServer.Instance.World.Maps.TryGetPlayerById(partnerId, out var partner))
+			{
+				partner.MarriedToCharId = null;
+				partner.MarriedAt = null;
+			}
+			else
+			{
+				// Offline partner: write the column directly so we
+				// don't rely on the lazy reconcile-on-load path
+				// catching it. Reconcile-on-load remains as a
+				// belt-and-braces safety net for any state that
+				// pre-dates this change.
+				ZoneServer.Instance.Database.ClearMarriage(partnerId);
+			}
+
+			Log.Info("Divorce: {0} (#{1}) from char #{2}.",
+				player.Name, player.Id, partnerId);
+			return true;
+		}
+
+		#endregion
+
+		#region Misc script-API helpers
+
+		/// <summary>
+		/// eAthena `isloggedin(charId)`. True when the given character
+		/// is currently online, false otherwise (including for
+		/// non-existent ids). Cheap pass-through over the world's
+		/// player roster.
+		/// </summary>
+		public static bool IsLoggedIn(int characterId)
+			=> ZoneServer.Instance.World.Maps.TryGetPlayerById(characterId, out _);
+
+		/// <summary>
+		/// eAthena `getnameditem(itemId, recipientName$)`. Adds the
+		/// item to the player's inventory and stamps its
+		/// <see cref="World.Actors.Item.EngravedName"/> with
+		/// <paramref name="recipientName"/> so display logic can
+		/// render `"<recipient>'s <itemName>"`. Returns true on
+		/// success, false when the item id isn't known.
+		/// </summary>
+		public static bool GetNamedItem(PlayerCharacter player, int itemId, string recipientName)
+		{
+			if (player == null)
+				return false;
+			if (!ZoneServer.Instance.Data.Items.TryFind(itemId, out _))
+				return false;
+
+			var item = new World.Actors.Item(itemId);
+			item.EngravedName = recipientName ?? string.Empty;
+			player.Inventory.AddItem(item);
+			return true;
+		}
+
+		/// <summary>
+		/// eAthena `getguildname(guildId)`. Returns the guild's
+		/// display name, or empty string when the id isn't known.
+		/// </summary>
+		public static string GetGuildName(int guildId)
+		{
+			var guild = ZoneServer.Instance.World.Guilds.Get(guildId);
+			return guild?.Name ?? string.Empty;
+		}
+
+		/// <summary>
+		/// eAthena `getpartyname(partyId)`. Returns the party's
+		/// display name, or empty when the id isn't an active
+		/// party. Parties are session-scoped today (no DB
+		/// persistence) so an offline party returns empty.
+		/// </summary>
+		public static string GetPartyName(int partyId)
+		{
+			var party = World.Groups.PartyManager.Instance.GetParty(partyId);
+			return party?.Name ?? string.Empty;
+		}
+
+		/// <summary>
+		/// eAthena `getpartyleader(partyId)`. Default (no <c>type</c>
+		/// arg) returns the leader's char id, matching rAthena's
+		/// documented default. Returns 0 when the id is unknown or
+		/// the party has no resolvable leader. The string-name
+		/// variant (eAthena's <c>type=1</c>) goes through
+		/// <see cref="GetPartyLeaderName"/>.
+		/// </summary>
+		public static int GetPartyLeader(int partyId)
+		{
+			var party = World.Groups.PartyManager.Instance.GetParty(partyId);
+			var leader = party?.GetLeader();
+			return leader?.CharacterId ?? 0;
+		}
+
+		/// <summary>
+		/// eAthena `getpartyleader(partyId, 1)`. Returns the leader's
+		/// character name; empty when the party id is unknown.
+		/// </summary>
+		public static string GetPartyLeaderName(int partyId)
+		{
+			var party = World.Groups.PartyManager.Instance.GetParty(partyId);
+			var leader = party?.GetLeader();
+			return leader?.Name ?? string.Empty;
+		}
+
+		/// <summary>
+		/// eAthena `getguildmaster(guildId)`. Returns the master's
+		/// character name. Falls back to a DB lookup for the offline
+		/// case when the in-memory cache doesn't have it.
+		/// </summary>
+		public static string GetGuildMaster(int guildId)
+		{
+			var guild = ZoneServer.Instance.World.Guilds.Get(guildId);
+			if (guild == null)
+				return string.Empty;
+			if (!string.IsNullOrEmpty(guild.MasterName))
+				return guild.MasterName;
+			// Master is offline and we never cached the name (or the
+			// guild was loaded from disk before the master logged in).
+			// One-shot DB lookup; result is intentionally not cached
+			// here to keep the helper stateless.
+			return ZoneServer.Instance.Database.GetCharacterName(guild.MasterCharId);
+		}
+
+		/// <summary>
+		/// eAthena `getcastlename(<map>)`. Returns the castle's
+		/// display name (e.g. <c>"Neuschwanstein"</c>) for the
+		/// given map id. Falls back to the raw map id when the
+		/// map isn't a known castle so dialogs still display
+		/// something sensible. Phase-8 castle DB lookup.
+		/// </summary>
+		public static string GetCastleName(string mapStringId)
+		{
+			if (string.IsNullOrEmpty(mapStringId))
+				return string.Empty;
+			return ZoneServer.Instance.Data.Castles.Entries.TryGetValue(
+					mapStringId, out var template)
+				? template.Name
+				: mapStringId;
+		}
+
+		/// <summary>
+		/// eAthena `GetCastleData(<map>, <type>)`. Reads one of the
+		/// numeric per-castle slots: 0 castle id, 1 owner guild,
+		/// 2 economy, 3 defense, 4 triggerE, 5 triggerD, 10..17
+		/// treasure-day flags. Returns 0 for unknown maps or types.
+		/// </summary>
+		public static int GetCastleData(string mapStringId, int dataType)
+			=> ZoneServer.Instance.World.Castles.GetData(mapStringId, dataType);
+
+		/// <summary>
+		/// eAthena `SetCastleData(<map>, <type>, <value>)`. Persists
+		/// the change to the <c>castle_state</c> table on success.
+		/// Returns true when the type is recognised.
+		/// </summary>
+		public static bool SetCastleData(string mapStringId, int dataType, int value)
+			=> ZoneServer.Instance.World.Castles.SetData(mapStringId, dataType, value);
+
+		/// <summary>
+		/// eAthena `GetCastleOwnerGuildId(<map>)` shorthand —
+		/// <c>GetCastleData(<map>, 1)</c>. Provided for readability
+		/// at the script-API layer.
+		/// </summary>
+		public static int GetCastleOwnerGuildId(string mapStringId)
+			=> GetCastleData(mapStringId, 1);
+
+		/// <summary>
+		/// eAthena `agitstart`. Turns WoE on and fans out
+		/// <c>Agit::OnAgitStart</c> to every subscriber.
+		/// </summary>
+		public static void Agitstart()
+			=> ZoneServer.Instance.World.Woe.Start();
+
+		/// <summary>
+		/// eAthena `agitend`. Turns WoE off and fans out
+		/// <c>Agit::OnAgitEnd</c>.
+		/// </summary>
+		public static void Agitend()
+			=> ZoneServer.Instance.World.Woe.End();
+
+		/// <summary>
+		/// eAthena `agitcheck()`. True while WoE is currently active.
+		/// </summary>
+		public static bool IsAgitActive()
+			=> ZoneServer.Instance.World.Woe.IsActive;
+
+		/// <summary>
+		/// eAthena `MapRespawnGuildID "<map>", <gid>, <flag>`. Kicks
+		/// every player on the given map whose guild id doesn't
+		/// match <paramref name="ownerGuildId"/> back to their
+		/// savepoint. The <paramref name="flag"/> argument follows
+		/// the eAthena bitfield: bit 0 = guild members of other
+		/// guilds, bit 1 = unaffiliated players, bit 2 = monsters
+		/// (we don't model the monster sweep yet).
+		/// </summary>
+		public static void MapRespawnGuildId(string mapStringId, int ownerGuildId, int flag)
+		{
+			if (string.IsNullOrEmpty(mapStringId))
+				return;
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
+				return;
+
+			var kickOtherGuilds = (flag & 1) != 0;
+			var kickNonGuilded = (flag & 2) != 0;
+
+			using var snapshot = Yggdrasil.Collections.PooledList<PlayerCharacter>.Rent();
+			map.GetPlayers(snapshot, 0, static (_, _) => true);
+
+			foreach (var player in snapshot)
+			{
+				var pgid = player.Guild?.Id ?? 0;
+				if (pgid == ownerGuildId)
+					continue; // Owner guild — keep them on the map.
+				if (pgid == 0 && !kickNonGuilded)
+					continue;
+				if (pgid != 0 && !kickOtherGuilds)
+					continue;
+				if (player.SaveLocation.IsZero)
+					continue;
+				player.Warp(player.SaveLocation);
+			}
+		}
+
+		/// <summary>
+		/// eAthena `flagemblem <gid>`. Sets the calling NPC's
+		/// guild-emblem to the given guild's emblem id (looked up
+		/// against the in-memory guild registry). Pass 0 to clear.
+		/// </summary>
+		public static void FlagEmblem(World.Actors.Npc npc, int guildId)
+		{
+			if (npc == null)
+				return;
+			npc.SetGuildEmblem(guildId);
+		}
+
+		/// <summary>
+		/// Registers a per-castle <c>OnRecvCastle</c> hook. eAthena
+		/// scripts express this via the statement form
+		/// <c>GetCastleData "&lt;map&gt;", 0, "&lt;NpcName::Event&gt;"</c> —
+		/// at runtime, when the castle's owner guild changes,
+		/// <see cref="World.Woe.CastleManager.SetData"/> raises the
+		/// stored event name.
+		/// </summary>
+		public static void RegisterOnRecvCastle(string mapStringId, string eventName)
+			=> ZoneServer.Instance.World.Castles.RegisterOnRecvCastle(mapStringId, eventName);
+
+		/// <summary>
+		/// Resolves a map by string id and applies <paramref name="mutator"/>.
+		/// No-op when the map isn't loaded; the inner action sees
+		/// the live <see cref="World.Maps.Map"/> instance. Helper
+		/// for the per-map flag toggles below — not part of the
+		/// eAthena script API itself.
+		/// </summary>
+		private static void WithMap(string mapStringId, System.Action<World.Maps.Map> mutator)
+		{
+			if (string.IsNullOrEmpty(mapStringId) || mutator == null)
+				return;
+			if (ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
+				mutator(map);
+		}
+
+		/// <summary>
+		/// eAthena `gvgon "<map>"`. Marks the map as a GvG zone —
+		/// guild-vs-guild attack rules apply, used for WoE castle
+		/// maps to enable PvP only for guild members during
+		/// <c>agitstart</c>.
+		/// </summary>
+		public static void GvgOn(string mapStringId)
+			=> WithMap(mapStringId, m => m.SetFlag(World.Maps.MapFlags.Gvg));
+
+		/// <summary>eAthena `gvgoff "<map>"`. Clears the GvG flag.</summary>
+		public static void GvgOff(string mapStringId)
+			=> WithMap(mapStringId, m => m.ClearFlag(World.Maps.MapFlags.Gvg));
+
+		/// <summary>eAthena `pvpon "<map>"`. Enables PvP on the map.</summary>
+		public static void PvpOn(string mapStringId)
+			=> WithMap(mapStringId, m => m.SetFlag(World.Maps.MapFlags.PvP));
+
+		/// <summary>eAthena `pvpoff "<map>"`. Disables PvP on the map.</summary>
+		public static void PvpOff(string mapStringId)
+			=> WithMap(mapStringId, m => m.ClearFlag(World.Maps.MapFlags.PvP));
+
+		// Map-flag name → MapFlags enum lookup. eAthena's constants
+		// (`mf_pvp`, `mf_gvg`, `mf_nosave`, …) are case-insensitive
+		// and may or may not include the `mf_` prefix depending on
+		// the script. We accept either form and any casing.
+		private static readonly System.Collections.Generic.Dictionary<string, World.Maps.MapFlags>
+			_mapFlagAliases = new(System.StringComparer.OrdinalIgnoreCase)
+		{
+			["pvp"] = World.Maps.MapFlags.PvP,
+			["gvg"] = World.Maps.MapFlags.Gvg,
+			["noteleport"] = World.Maps.MapFlags.NoTeleport,
+			["nomemo"] = World.Maps.MapFlags.NoMemo,
+			["noreturn"] = World.Maps.MapFlags.NoReturn,
+			["nosave"] = World.Maps.MapFlags.NoSave,
+			["noexp"] = World.Maps.MapFlags.NoExp,
+			["nodrop"] = World.Maps.MapFlags.NoDrop,
+			["novending"] = World.Maps.MapFlags.NoVending,
+			["nochat"] = World.Maps.MapFlags.NoChat,
+			["noskill"] = World.Maps.MapFlags.NoSkill,
+			["noicewall"] = World.Maps.MapFlags.NoIcewall,
+			["noknockback"] = World.Maps.MapFlags.NoKnockback,
+			["nocommand"] = World.Maps.MapFlags.NoCommand,
+		};
+
+		private static bool TryResolveMapFlag(string name, out World.Maps.MapFlags flag)
+		{
+			flag = World.Maps.MapFlags.None;
+			if (string.IsNullOrEmpty(name))
+				return false;
+			var key = name.StartsWith("mf_", System.StringComparison.OrdinalIgnoreCase)
+				? name.Substring(3) : name;
+			return _mapFlagAliases.TryGetValue(key, out flag);
+		}
+
+		/// <summary>
+		/// eAthena `setmapflag "<map>", <flag>`. Generic flag-set
+		/// over <see cref="World.Maps.MapFlags"/>. Unknown flag
+		/// names are logged and ignored.
+		/// </summary>
+		public static void SetMapFlag(string mapStringId, string flagName)
+		{
+			if (!TryResolveMapFlag(flagName, out var flag))
+			{
+				Log.Warning("SetMapFlag: unknown flag '{0}'.", flagName);
+				return;
+			}
+			WithMap(mapStringId, m => m.SetFlag(flag));
+		}
+
+		/// <summary>
+		/// eAthena `removemapflag "<map>", <flag>`. Generic flag-clear.
+		/// </summary>
+		public static void RemoveMapFlag(string mapStringId, string flagName)
+		{
+			if (!TryResolveMapFlag(flagName, out var flag))
+			{
+				Log.Warning("RemoveMapFlag: unknown flag '{0}'.", flagName);
+				return;
+			}
+			WithMap(mapStringId, m => m.ClearFlag(flag));
+		}
+
+		/// <summary>
+		/// eAthena `areawarp "<src>", x1, y1, x2, y2, "<dst>", dx, dy`.
+		/// Warps every player whose position falls within the
+		/// inclusive source rectangle to the destination map+coords.
+		/// </summary>
+		public static void AreaWarp(string srcMap, int x1, int y1, int x2, int y2,
+									string dstMap, int dstX, int dstY)
+		{
+			if (string.IsNullOrEmpty(srcMap) || string.IsNullOrEmpty(dstMap))
+				return;
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(srcMap, out var src))
+				return;
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(dstMap, out var dst))
+				return;
+
+			// Normalise the rectangle so callers can pass corners in
+			// any order — eAthena scripts aren't strict about it.
+			var minX = System.Math.Min(x1, x2);
+			var maxX = System.Math.Max(x1, x2);
+			var minY = System.Math.Min(y1, y2);
+			var maxY = System.Math.Max(y1, y2);
+
+			using var snapshot = Yggdrasil.Collections.PooledList<PlayerCharacter>.Rent();
+			src.GetPlayers(snapshot, 0, static (_, _) => true);
+			foreach (var player in snapshot)
+			{
+				var px = player.Position.X;
+				var py = player.Position.Y;
+				if (px < minX || px > maxX || py < minY || py > maxY)
+					continue;
+				player.Warp(new Sabine.Shared.World.Location(dst.Id, dstX, dstY));
+			}
+		}
+
+		/// <summary>
+		/// eAthena `RequestGuildInfo <gid>`. In a multi-server
+		/// architecture this asks the inter-server bus for an
+		/// up-to-date snapshot of a remote guild's data. Sabine is
+		/// single-server so guild data is already authoritative —
+		/// the call is a no-op kept for script-API parity.
+		/// </summary>
+		public static void RequestGuildInfo(int guildId)
+		{
+			_ = guildId;
+		}
+
+		/// <summary>
+		/// eAthena `deletearray <var>[<idx>], <count>` — clears
+		/// (zeros) <paramref name="count"/> consecutive elements in
+		/// the named non-local array starting at
+		/// <paramref name="startIndex"/>. The local-scope `.@` /
+		/// `@` form is handled at the converter layer because the
+		/// LHS is a real C# array there.
+		/// </summary>
+		public static void DeleteArrayInt(Sabine.Shared.Util.Variables vars, string varName,
+										   int startIndex, int count)
+		{
+			if (vars == null || string.IsNullOrEmpty(varName) || count <= 0)
+				return;
+			var arr = vars.GetIntArray(varName);
+			var end = System.Math.Min(arr.Length, startIndex + count);
+			for (var i = System.Math.Max(0, startIndex); i < end; i++)
+				arr[i] = 0;
+			vars.SetIntArray(varName, arr);
+		}
+
+		/// <summary>String-array companion to <see cref="DeleteArrayInt"/>.</summary>
+		public static void DeleteArrayString(Sabine.Shared.Util.Variables vars, string varName,
+											  int startIndex, int count)
+		{
+			if (vars == null || string.IsNullOrEmpty(varName) || count <= 0)
+				return;
+			var arr = vars.GetStringArray(varName);
+			var end = System.Math.Min(arr.Length, startIndex + count);
+			for (var i = System.Math.Max(0, startIndex); i < end; i++)
+				arr[i] = string.Empty;
+			vars.SetStringArray(varName, arr);
+		}
+
+		/// <summary>
+		/// eAthena `setbattleflag "<name>", <value>`. Stores a
+		/// server-config knob (drop rate, exp rate, etc.) under the
+		/// world-scope variable container so reads via
+		/// <see cref="GetBattleFlag"/> see the same value across
+		/// scripts. Names are case-insensitive — eAthena script
+		/// authors mix casing freely.
+		/// </summary>
+		public static void SetBattleFlag(string name, int value)
+		{
+			if (string.IsNullOrEmpty(name))
+				return;
+			ZoneServer.Instance.World.Vars.Perm.SetInt("BattleFlag." + name.ToLowerInvariant(), value);
+		}
+
+		/// <summary>
+		/// eAthena `getbattleflag("<name>")`. Reads back a value
+		/// previously set with <see cref="SetBattleFlag"/>; defaults
+		/// to 0 when the flag has never been written.
+		/// </summary>
+		public static int GetBattleFlag(string name)
+		{
+			if (string.IsNullOrEmpty(name))
+				return 0;
+			return ZoneServer.Instance.World.Vars.Perm.GetInt(
+				"BattleFlag." + name.ToLowerInvariant(), 0);
+		}
+
+		/// <summary>
+		/// Tuple form of eAthena `getmapxy <map$>, <x>, <y>, <type>{, "<name>"}`.
+		/// Returns the player's current map / x / y. Type values
+		/// 1 (NPC) / 2 (pet) / 3 (homunculus) / 4 (mercenary) /
+		/// 5 (elemental) aren't modelled yet; they fall back to the
+		/// player's coords with a log warning so script flow
+		/// survives. Caller (the converter) destructures into the
+		/// three out-vars.
+		/// </summary>
+		public static (string Map, int X, int Y) GetMapXy(PlayerCharacter player, int type, string lookupName = null)
+		{
+			_ = lookupName;
+			if (player == null)
+				return (string.Empty, 0, 0);
+			if (type != 0)
+				Log.Warning("GetMapXy: type {0} not modelled, using player coords.", type);
+			return (player.Map?.StringId ?? string.Empty,
+				player.Position.X, player.Position.Y);
+		}
+
+		#endregion
+
+		#region Phase 12 quick wins
+
+		/// <summary>
+		/// eAthena `setlook <type>, <value>`. The <paramref name="type"/>
+		/// argument matches eAthena's LOOK_* enum (1 = hair, 2 = weapon,
+		/// 3/4/5 = headgear slots, 6 = hair color, 7 = clothes color,
+		/// 8 = shield, 10 = body, 12 = robe). Sabine's
+		/// <see cref="PlayerCharacter.ChangeLook"/> already persists +
+		/// broadcasts the field-backed types; for color / shield / robe
+		/// we have no persistent field, so we just broadcast the sprite
+		/// change so the rest of the map sees it.
+		/// </summary>
+		public static void SetLook(PlayerCharacter player, int type, int value)
+		{
+			if (player == null)
+				return;
+			var sprite = (SpriteType)type;
+			switch (sprite)
+			{
+				case SpriteType.Hair:
+				case SpriteType.Weapon:
+				case SpriteType.HeadTop:
+				case SpriteType.HeadMiddle:
+				case SpriteType.HeadBottom:
+					player.ChangeLook(sprite, value);
+					return;
+			}
+
+			if (Sabine.Shared.Game.Version < Sabine.Shared.Versions.S500)
+				Sabine.Zone.Network.Send.ZC_SPRITE_CHANGE(player, sprite, value);
+			else
+				Sabine.Zone.Network.Send.ZC_SPRITE_CHANGE2(player, sprite, value, 0);
+		}
+
+		/// <summary>
+		/// eAthena `setd "<name>", <value>` — write a runtime-named
+		/// variable. The name carries the scope sigil
+		/// (<c>$</c>, <c>$@</c>, <c>#</c>, <c>@</c>, <c>.</c>); we route
+		/// to the matching Sabine variable container based on the
+		/// prefix. <paramref name="player"/> is required for character /
+		/// account / npc-temp scope; world scope ignores it.
+		/// </summary>
+		public static void SetD(PlayerCharacter player, string name, int value)
+			=> SetDImpl(player, name, value, asString: false);
+
+		/// <summary>String overload of <see cref="SetD"/> — invoked by
+		/// the converter when the rAthena variable name ends in `$`.</summary>
+		public static void SetD(PlayerCharacter player, string name, string value)
+			=> SetDImpl(player, name, value, asString: true);
+
+		private static void SetDImpl(PlayerCharacter player, string name, object value, bool asString)
+		{
+			if (string.IsNullOrEmpty(name))
+				return;
+
+			var key = name;
+			Sabine.Shared.Util.Variables vars = null;
+
+			if (key.StartsWith("$@"))
+			{
+				vars = ZoneServer.Instance.World.Vars.Temp;
+				key = key.Substring(2);
+			}
+			else if (key.StartsWith("$"))
+			{
+				vars = ZoneServer.Instance.World.Vars.Perm;
+				key = key.Substring(1);
+			}
+			else if (key.StartsWith("#"))
+			{
+				vars = player?.Vars.Perm;
+				key = key.Substring(1);
+			}
+			else if (key.StartsWith("@"))
+			{
+				vars = player?.Vars.Temp;
+				key = key.Substring(1);
+			}
+			else if (key.StartsWith("."))
+			{
+				// .npc / .@local — we don't have a non-runtime way to
+				// reach the script's locals, so this is a best-effort
+				// no-op with a log entry.
+				Log.Warning("SetD: scope '.{0}' not addressable at runtime.", key);
+				return;
+			}
+
+			if (vars == null)
+				return;
+
+			if (key.EndsWith("$"))
+				key = key.Substring(0, key.Length - 1);
+
+			if (asString)
+				vars.SetString(key, (string)value);
+			else
+				vars.SetInt(key, System.Convert.ToInt32(value));
+		}
+
+		/// <summary>String overload of <c>getd</c> — sigil-prefixed read.</summary>
+		public static int GetDInt(PlayerCharacter player, string name)
+		{
+			var (vars, key) = ResolveVarScope(player, name);
+			return vars?.GetInt(key, 0) ?? 0;
+		}
+
+		/// <summary>String-typed companion to <see cref="GetDInt"/>.</summary>
+		public static string GetDStr(PlayerCharacter player, string name)
+		{
+			var (vars, key) = ResolveVarScope(player, name);
+			return vars?.GetString(key, string.Empty) ?? string.Empty;
+		}
+
+		private static (Sabine.Shared.Util.Variables vars, string key) ResolveVarScope(PlayerCharacter player, string name)
+		{
+			if (string.IsNullOrEmpty(name))
+				return (null, string.Empty);
+
+			var key = name;
+			Sabine.Shared.Util.Variables vars = null;
+
+			if (key.StartsWith("$@"))
+			{
+				vars = ZoneServer.Instance.World.Vars.Temp;
+				key = key.Substring(2);
+			}
+			else if (key.StartsWith("$"))
+			{
+				vars = ZoneServer.Instance.World.Vars.Perm;
+				key = key.Substring(1);
+			}
+			else if (key.StartsWith("#"))
+			{
+				vars = player?.Vars.Perm;
+				key = key.Substring(1);
+			}
+			else if (key.StartsWith("@"))
+			{
+				vars = player?.Vars.Temp;
+				key = key.Substring(1);
+			}
+
+			if (key.EndsWith("$"))
+				key = key.Substring(0, key.Length - 1);
+
+			return (vars, key);
+		}
+
+		/// <summary>
+		/// eAthena `npcwalkto <x>, <y>` — drive the script-context
+		/// NPC's movement controller toward the target tile. Falls
+		/// silently when the NPC is null (event firing on a script
+		/// without an NPC handle).
+		/// </summary>
+		public static void NpcWalkTo(World.Actors.Npc npc, int x, int y)
+		{
+			if (npc == null)
+				return;
+			npc.Controller.MoveTo(new Sabine.Shared.World.Position(x, y));
+		}
+
+		/// <summary>
+		/// eAthena `npcskilleffect <skillId>, <level>, <x>, <y>` —
+		/// purely-cosmetic ground-skill broadcast originating from the
+		/// scripted NPC. We log+drop instead of synthesising a packet:
+		/// every script that uses this is for ambient flavour (the
+		/// ToysFestival-style sparkles), and the gameplay loop is fine
+		/// without it. Wire up `ZC_NOTIFY_GROUNDSKILL` here when we
+		/// add a packet builder for it.
+		/// </summary>
+		public static void NpcSkillEffect(World.Actors.Npc npc, int skillId, int level, int x, int y)
+		{
+			_ = npc; _ = skillId; _ = level; _ = x; _ = y;
+		}
+
+		/// <summary>
+		/// eAthena `areapercentheal "<map>", x1, y1, x2, y2, hp%, sp%`.
+		/// Heals every player whose position is inside the inclusive
+		/// rect by the given percentage of their max HP / SP.
+		/// </summary>
+		public static void AreaPercentHeal(string mapStringId, int x1, int y1, int x2, int y2, int hpPct, int spPct)
+		{
+			if (string.IsNullOrEmpty(mapStringId))
+				return;
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
+				return;
+
+			var minX = System.Math.Min(x1, x2);
+			var maxX = System.Math.Max(x1, x2);
+			var minY = System.Math.Min(y1, y2);
+			var maxY = System.Math.Max(y1, y2);
+
+			var matched = new System.Collections.Generic.List<PlayerCharacter>();
+			map.GetPlayers(matched, (minX, maxX, minY, maxY),
+				(state, p) =>
+				{
+					var pos = p.Position;
+					return pos.X >= state.minX && pos.X <= state.maxX
+						&& pos.Y >= state.minY && pos.Y <= state.maxY;
+				});
+
+			foreach (var p in matched)
+			{
+				var hp = (int)((long)p.Parameters.HpMax * hpPct / 100);
+				var sp = (int)((long)p.Parameters.SpMax * spPct / 100);
+				if (hp > 0) p.HealHp(hp);
+				if (sp > 0) p.HealSp(sp);
+			}
+		}
+
+		/// <summary>
+		/// eAthena `makeitem <itemId>, <count>, "<map>", <x>, <y>` —
+		/// drops a stack on the ground at the given tile. Stackable
+		/// items collapse into a single floor entity; non-stackables
+		/// drop one per call (we let the engine's floor-item dedup
+		/// rules handle that downstream).
+		/// </summary>
+		public static void MakeItem(int itemId, int amount, string mapStringId, int x, int y)
+		{
+			if (amount <= 0 || string.IsNullOrEmpty(mapStringId))
+				return;
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
+				return;
+
+			var item = new World.Actors.Item(itemId, amount);
+			item.Drop(map, new Sabine.Shared.World.Position(x, y));
+		}
+
+		/// <summary>
+		/// eAthena `query_sql "<sql>", <out1>, <out2>, …` — exec the
+		/// raw SQL against the zone DB connection. SELECTs scatter the
+		/// first row's columns into <paramref name="outVarNames"/>;
+		/// non-SELECTs (INSERT / UPDATE / DELETE) just return the
+		/// affected-row count. Every call is logged. The string-concat
+		/// nature of eAthena's API means we can't parameterise; the
+		/// SQL is static script source authored by the server admin,
+		/// so the trust model is "anyone who can edit scripts already
+		/// owns the box."
+		/// </summary>
+		/// <param name="player">For routing `@` / `#` out-var sigils.</param>
+		/// <param name="sql">The SQL text. Use single quotes around literals.</param>
+		/// <param name="outVarNames">
+		/// Optional list of sigil-prefixed var names that receive the
+		/// columns of the first matching row. Skipped when empty.
+		/// </param>
+		/// <returns>Number of rows read (SELECT) or affected (DML).</returns>
+		public static int QuerySql(PlayerCharacter player, string sql, params string[] outVarNames)
+		{
+			if (string.IsNullOrWhiteSpace(sql))
+				return 0;
+			Log.Debug("QuerySql: {0}", sql);
+
+			try
+			{
+				using var conn = ZoneServer.Instance.Database.GetConnection();
+				using var cmd = new MySqlConnector.MySqlCommand(sql, conn);
+
+				if (outVarNames != null && outVarNames.Length > 0)
+				{
+					using var reader = cmd.ExecuteReader();
+					if (!reader.Read())
+						return 0;
+
+					var cols = System.Math.Min(reader.FieldCount, outVarNames.Length);
+					for (var i = 0; i < cols; i++)
+					{
+						var raw = reader.IsDBNull(i) ? null : reader.GetValue(i);
+						AssignDynamicVar(player, outVarNames[i], raw);
+					}
+					return 1;
+				}
+
+				return cmd.ExecuteNonQuery();
+			}
+			catch (System.Exception ex)
+			{
+				Log.Error("QuerySql: {0}", ex.Message);
+				return 0;
+			}
+		}
+
+		/// <summary>
+		/// Routes a value into a sigil-prefixed runtime variable name,
+		/// auto-detecting int vs string by the trailing `$` (and
+		/// falling back to the value's runtime type when the name has
+		/// no `$`).
+		/// </summary>
+		private static void AssignDynamicVar(PlayerCharacter player, string name, object value)
+		{
+			if (string.IsNullOrEmpty(name))
+				return;
+			var asString = name.EndsWith("$");
+			if (asString)
+				SetDImpl(player, name, value?.ToString() ?? string.Empty, asString: true);
+			else
+				SetDImpl(player, name, System.Convert.ToInt32(value ?? 0), asString: false);
+		}
+
+		/// <summary>
+		/// eAthena `escape_sql(<expr>)` — escape special chars for safe
+		/// embedding in raw SQL. We just route to MySqlConnector's
+		/// command-builder utility.
+		/// </summary>
+		public static string EscapeSql(string value)
+			=> string.IsNullOrEmpty(value) ? string.Empty
+				: MySqlConnector.MySqlHelper.EscapeString(value);
+
+		/// <summary>
+		/// eAthena `summon "<slave-name>", <mobId>{, <duration>{, "<event>"}}`.
+		/// Spawns a temporary mob at the calling player's position,
+		/// firing <paramref name="onDeathEvent"/> on death (if set).
+		/// Mirrors eAthena's default 60-second auto-despawn via a
+		/// scheduled <c>Killed</c> trigger so the slave can't outlive
+		/// the encounter.
+		/// </summary>
+		public static void Summon(PlayerCharacter player, string slaveName, int monsterId,
+			string onDeathEvent = null, int durationMs = 60_000)
+		{
+			_ = slaveName;
+			if (player?.Map == null)
+				return;
+
+			var label = string.IsNullOrEmpty(onDeathEvent) ? null : onDeathEvent;
+			var spawned = Sabine.Zone.World.SpawnService.SpawnMonster(player.Map.StringId,
+				player.Position.X, player.Position.Y,
+				label, monsterId, 1);
+
+			if (spawned.Count == 0 || durationMs <= 0)
+				return;
+
+			var mob = spawned[0];
+			ZoneServer.Instance.World.Scheduler.Schedule(System.TimeSpan.FromMilliseconds(durationMs),
+				_ => { if (!mob.IsDead) mob.Kill(null); });
+		}
+
+		#endregion
+
+		#region Battleground (Phase 12c)
+
+		/// <summary>
+		/// eAthena `bg_create_team(<map>, <x>, <y>, "<onQuit>", "<onDeath>")`.
+		/// Creates a new BG team entry, returning its id. The two
+		/// event labels are fired by future `Quit` / `OnDeath` plumbing
+		/// once the rest of the BG framework lands; for now we just
+		/// hold the strings on the team so reads round-trip correctly.
+		/// </summary>
+		public static int BgCreateTeam(string mapStringId, int x, int y,
+			string onQuit = null, string onDeath = null)
+			=> ZoneServer.Instance.World.Battlegrounds.Create(
+				mapStringId, x, y, onQuit, onDeath).Id;
+
+		/// <summary>eAthena `bg_join_team <bgId>{, <accountId>}`.</summary>
+		public static int BgJoinTeam(int bgId, PlayerCharacter player)
+		{
+			if (player == null) return 0;
+			var team = ZoneServer.Instance.World.Battlegrounds.Get(bgId);
+			if (team == null) return 0;
+			lock (team.CharacterIds)
+			{
+				if (!team.CharacterIds.Contains(player.Id))
+					team.CharacterIds.Add(player.Id);
+			}
+			return team.CharacterIds.Count;
+		}
+
+		/// <summary>eAthena `bg_leave`.</summary>
+		public static void BgLeave(PlayerCharacter player)
+		{
+			if (player == null) return;
+			foreach (var team in ZoneServer.Instance.World.Battlegrounds.All)
+			{
+				lock (team.CharacterIds)
+					team.CharacterIds.Remove(player.Id);
+			}
+		}
+
+		/// <summary>eAthena `bg_destroy <bgId>`.</summary>
+		public static bool BgDestroy(int bgId)
+			=> ZoneServer.Instance.World.Battlegrounds.Destroy(bgId);
+
+		/// <summary>eAthena `bg_warp <bgId>, "<map>", <x>, <y>` —
+		/// teleport every team member to the destination.</summary>
+		public static void BgWarp(int bgId, string mapStringId, int x, int y)
+		{
+			var team = ZoneServer.Instance.World.Battlegrounds.Get(bgId);
+			if (team == null) return;
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
+				return;
+			List<int> members;
+			lock (team.CharacterIds)
+				members = new List<int>(team.CharacterIds);
+			foreach (var charId in members)
+			{
+				var p = FindPlayerById(charId);
+				p?.Warp(new Sabine.Shared.World.Location(map.Id, new Sabine.Shared.World.Position(x, y)));
+			}
+		}
+
+		/// <summary>eAthena `bg_team_setxy <bgId>, <x>, <y>` —
+		/// updates the team's respawn coords (used by the BG when
+		/// members die in-match).</summary>
+		public static void BgTeamSetXy(int bgId, int x, int y)
+		{
+			var team = ZoneServer.Instance.World.Battlegrounds.Get(bgId);
+			if (team == null) return;
+			team.RespawnX = x;
+			team.RespawnY = y;
+		}
+
+		/// <summary>eAthena `bg_updatescore "<map>", <gScore>, <cScore>` —
+		/// broadcast a scoreboard tick to everyone on the map.</summary>
+		public static void BgUpdateScore(string mapStringId, int teamA, int teamB)
+		{
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
+				return;
+			map.Announce($"Score: {teamA} - {teamB}");
+		}
+
+		/// <summary>eAthena `bg_monster <bgId>, "<map>", <x>, <y>, "<name>", <mobId>, "<event>"`.</summary>
+		public static void BgMonster(int bgId, string mapStringId, int x, int y,
+			string name, int monsterId, string onDeathEvent = null)
+		{
+			_ = bgId; _ = name;
+			Sabine.Zone.World.SpawnService.SpawnMonster(mapStringId, x, y,
+				onDeathEvent, monsterId, 1);
+		}
+
+		/// <summary>eAthena `bg_monster_set_team <gid>, <bgId>` — bind
+		/// a previously-spawned mob to a BG team. Stub for now; the
+		/// gameplay piece (monster->team enmity) lands with the rest
+		/// of the BG framework.</summary>
+		public static void BgMonsterSetTeam(int gid, int bgId)
+		{
+			_ = gid; _ = bgId;
+		}
+
+		/// <summary>eAthena `waitingroom "<title>", <maxUsers>{, …}`.
+		/// Stub: the chat-room plumbing for NPC-attached waiting rooms
+		/// isn't built yet; we no-op so scripts that try to install
+		/// one don't crash.</summary>
+		public static void WaitingRoom(World.Actors.Npc npc, string title, int maxUsers,
+			string triggerEvent = null, int triggerCount = 0)
+		{
+			_ = npc; _ = title; _ = maxUsers;
+			_ = triggerEvent; _ = triggerCount;
+		}
+
+		/// <summary>eAthena `delwaitingroom{ "<npc>"}`.</summary>
+		public static void DelWaitingRoom(World.Actors.Npc npc, string targetNpcName = null)
+		{
+			_ = npc; _ = targetNpcName;
+		}
+
+		/// <summary>eAthena `enablewaitingroomevent{ "<npc>"}`.</summary>
+		public static void EnableWaitingRoomEvent(World.Actors.Npc npc, string targetNpcName = null)
+		{
+			_ = npc; _ = targetNpcName;
+		}
+
+		/// <summary>eAthena `disablewaitingroomevent{ "<npc>"}`.</summary>
+		public static void DisableWaitingRoomEvent(World.Actors.Npc npc, string targetNpcName = null)
+		{
+			_ = npc; _ = targetNpcName;
+		}
+
+		/// <summary>eAthena `warpwaitingpc "<map>", <x>, <y>{, <count>}`.
+		/// Stub — pairs with WaitingRoom; lands with BG match-start
+		/// plumbing.</summary>
+		public static void WarpWaitingPc(World.Actors.Npc npc, string mapStringId,
+			int x, int y, int count = -1)
+		{
+			_ = npc; _ = mapStringId; _ = x; _ = y; _ = count;
+		}
+
+		private static PlayerCharacter FindPlayerById(int charId)
+		{
+			foreach (var map in ZoneServer.Instance.World.Maps.GetAll())
+			{
+				var matched = new List<PlayerCharacter>();
+				map.GetPlayers(matched, charId, (id, p) => p.Id == id);
+				if (matched.Count > 0) return matched[0];
+			}
+			return null;
 		}
 
 		#endregion

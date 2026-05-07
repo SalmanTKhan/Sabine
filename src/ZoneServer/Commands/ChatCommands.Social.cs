@@ -51,20 +51,22 @@ namespace Sabine.Zone.Commands
 				sender.ServerMessage(Localization.Get("Player '{0}' not found."), args.Get(0));
 				return CommandResult.Okay;
 			}
-			target.MarriedToCharId = spouse.Id;
-			spouse.MarriedToCharId = target.Id;
+			if (!Scripting.Shortcuts.Marry(target, spouse))
+			{
+				sender.ServerMessage(Localization.Get("Marriage refused (already married, or invalid pairing)."));
+				return CommandResult.Okay;
+			}
 			sender.ServerMessage(Localization.Get("{0} and {1} are now married."), target.Name, spouse.Name);
 			return CommandResult.Okay;
 		}
 
 		private CommandResult Divorce(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			if (target.MarriedToCharId is int spouseId
-				&& ZoneServer.Instance.World.Maps.TryGetPlayerById(spouseId, out var spouse))
+			if (!Scripting.Shortcuts.Divorce(target))
 			{
-				spouse.MarriedToCharId = null;
+				sender.ServerMessage(Localization.Get("Not married."));
+				return CommandResult.Okay;
 			}
-			target.MarriedToCharId = null;
 			sender.ServerMessage(Localization.Get("Divorced."));
 			return CommandResult.Okay;
 		}

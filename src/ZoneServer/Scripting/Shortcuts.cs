@@ -145,7 +145,15 @@ namespace Sabine.Zone.Scripting
 			mapStringId = NormalizeMapName(mapStringId);
 
 			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
-				throw new ArgumentException($"Map '{mapStringId}' not found.");
+			{
+				// Skip the registration instead of throwing, so a single
+				// stray reference (typo, post-EP2 map, demo-only map, …)
+				// doesn't take the whole script's Load() down with it.
+				// Returning null is documented; the few callers that
+				// chain off the result already null-check it.
+				Log.Warning("AddNpc('{0}'): Map '{1}' not found, skipping.", name, mapStringId);
+				return null;
+			}
 
 			var npc = new Npc(identityId)
 			{
@@ -171,6 +179,15 @@ namespace Sabine.Zone.Scripting
 		/// <returns></returns>
 		public static (Npc, NpcShop) AddShopNpc(string name, FlexIdentityId identityId, string mapStringId, int x, int y, int direction, ShopCreationFunc creationFunc = null)
 		{
+			// Pre-flight the map check so we don't leak an anonymous
+			// shop registration for a map that isn't loaded.
+			var normalizedMap = NormalizeMapName(mapStringId);
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(normalizedMap, out _))
+			{
+				Log.Warning("AddShopNpc('{0}'): Map '{1}' not found, skipping.", name, normalizedMap);
+				return (null, null);
+			}
+
 			var shopName = "__AnonymousShop__" + Interlocked.Increment(ref AnonymousShopCounter);
 			var shop = AddShop(shopName, creationFunc);
 
@@ -204,10 +221,16 @@ namespace Sabine.Zone.Scripting
 		public static Npc AddWarp(Location from, Location to)
 		{
 			if (!ZoneServer.Instance.World.Maps.TryGet(from.MapId, out var mapFrom))
-				throw new ArgumentException($"Map '{from.MapId}' not found.");
+			{
+				Log.Warning("AddWarp: source map '{0}' not found, skipping.", from.MapId);
+				return null;
+			}
 
 			if (!ZoneServer.Instance.World.Maps.TryGet(to.MapId, out var mapTo))
-				throw new ArgumentException($"Map '{from.MapId}' not found.");
+			{
+				Log.Warning("AddWarp: target map '{0}' not found, skipping.", to.MapId);
+				return null;
+			}
 
 			var npc = new Npc(IdentityId.JT_WARPNPC);
 
@@ -253,7 +276,10 @@ namespace Sabine.Zone.Scripting
 			mapStringId = NormalizeMapName(mapStringId);
 
 			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(mapStringId, out var map))
-				throw new ArgumentException($"Map '{mapStringId}' not found.");
+			{
+				Log.Warning("AddWarpTrigger: Map '{0}' not found, skipping.", mapStringId);
+				return null;
+			}
 
 			var pos = new Position(x, y);
 			var location = new Location(map.Id, pos);
@@ -492,6 +518,41 @@ namespace Sabine.Zone.Scripting
 			if (min >= max)
 				throw new ArgumentException("Min must be less than max.");
 			return RandomProvider.Get().Next(min, max);
+		}
+
+		/// <summary>
+		/// Writes a script-trace message to the server log. Mirrors
+		/// rAthena's <c>logmes</c>; routed through <see cref="Log.Info"/>
+		/// with a <c>[Script]</c> prefix so script output can be grepped
+		/// out of mixed engine logs.
+		/// </summary>
+		/// <param name="message">The message to log.</param>
+		public static void Logmes(string message)
+			=> Log.Info("[Script] {0}", message);
+
+		/// <summary>
+		/// Reads the <paramref name="i"/>th argument from a callsub
+		/// <c>params object[]</c> and converts it to <typeparamref name="T"/>.
+		/// Mirrors rAthena's <c>getarg(n)</c> with a type-aware twist
+		/// so callers can pull strings, ints, doubles, or bools out of
+		/// the same untyped argument bag without bespoke casts at
+		/// every call site. Out-of-range / null entries return
+		/// <c>default(T)</c>.
+		/// </summary>
+		public static T Arg<T>(object[] args, int i, T def = default)
+		{
+			if (args == null || i < 0 || i >= args.Length || args[i] == null)
+				return def;
+			if (args[i] is T direct)
+				return direct;
+			try
+			{
+				return (T)System.Convert.ChangeType(args[i], typeof(T));
+			}
+			catch
+			{
+				return def;
+			}
 		}
 	}
 }

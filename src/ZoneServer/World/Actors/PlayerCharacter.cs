@@ -191,6 +191,21 @@ namespace Sabine.Zone.World.Actors
 		public int? MarriedToCharId { get; set; }
 
 		/// <summary>
+		/// Wall-clock time of the wedding, set when
+		/// <see cref="MarriedToCharId"/> transitions from null to a
+		/// real id. Null while unmarried; useful for "married for
+		/// X days" cosmetics and future anniversary triggers.
+		/// </summary>
+		public DateTime? MarriedAt { get; set; }
+
+		/// <summary>
+		/// True when the character is currently in a marriage. Cheap
+		/// computed from <see cref="MarriedToCharId"/>; preferred over
+		/// `MarriedToCharId.HasValue` at call sites for readability.
+		/// </summary>
+		public bool IsMarried => this.MarriedToCharId.HasValue;
+
+		/// <summary>
 		/// Renewal-style cosmetic body style index. Stored verbatim; the
 		/// alpha client ignores it, but the value persists.
 		/// </summary>
@@ -426,6 +441,15 @@ namespace Sabine.Zone.World.Actors
 									if (room.IsOwner(player))
 										Send.ZC_ROOM_NEWENTRY(room);
 								}
+
+								// Map.AddPlayer broadcasts existing shop
+								// signs at warp-in; this handles the
+								// mid-session case where a vendor walks
+								// into our visible range after we're
+								// already on the map.
+								var shop = player.VendingShop;
+								if (shop != null && shop.IsOpen)
+									Send.ZC_STORE_ENTRY(this, player, shop.Title);
 							}
 
 							break;

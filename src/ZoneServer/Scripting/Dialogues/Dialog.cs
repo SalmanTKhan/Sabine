@@ -220,8 +220,15 @@ namespace Sabine.Zone.Scripting.Dialogues
 				foreach (var paragraph in paragraphs)
 					this.Msg(paragraph);
 
-				//if (i < pages.Length - 1 || pages.Length == 1)
-				await this.Next();
+				// Only prompt a Next click *between* explicit pages
+				// (`<p/>`), not after the last one. The follow-up
+				// statement (`Close`, `Select`, an explicit `Next`,
+				// etc.) emits its own button. Without this, every
+				// single-page Talk forced a Next-click before any
+				// trailing Close, so `Talk("Welcome"); Close();`
+				// required two clicks instead of one.
+				if (i < pages.Length - 1)
+					await this.Next();
 			}
 		}
 
@@ -248,6 +255,25 @@ namespace Sabine.Zone.Scripting.Dialogues
 
 			Send.ZC_WAIT_DIALOG(this.Player, this.Npc.Handle);
 			await GetClientResponse();
+		}
+
+		/// <summary>
+		/// Stub for rAthena's <c>input</c> command. Alpha-era clients
+		/// don't have a number-input dialog packet, so this is a
+		/// placeholder that immediately returns the optional default
+		/// value (or zero). Awaits a confirmation click via
+		/// <see cref="Next"/> so the dialog flow still gates on user
+		/// interaction. Min/max bounds are accepted for API parity but
+		/// not enforced.
+		/// </summary>
+		/// <param name="defaultValue">Value returned to the script.</param>
+		/// <param name="min">Lower bound (ignored on alpha clients).</param>
+		/// <param name="max">Upper bound (ignored on alpha clients).</param>
+		public async Task<int> InputNumber(int defaultValue = 0, int min = int.MinValue, int max = int.MaxValue)
+		{
+			_ = min; _ = max;
+			await this.Next();
+			return defaultValue;
 		}
 
 		/// <summary>
@@ -467,8 +493,10 @@ namespace Sabine.Zone.Scripting.Dialogues
 				}
 				case ShopOpenType.SellOnly:
 				{
-					// TODO: Check for sellability?
-					var items = this.Player.Inventory.GetItems();
+					// Items with SellPrice <= 0 are non-sellable (quest
+					// items, event drops, etc.); the sell window in the
+					// alpha client cannot meaningfully present them.
+					var items = this.Player.Inventory.GetItems(i => i.Data.SellPrice > 0);
 					Send.ZC_PC_SELL_ITEMLIST(this.Player, items);
 					break;
 				}

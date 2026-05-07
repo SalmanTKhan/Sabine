@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using MySqlConnector;
 using Sabine.Shared;
 using Sabine.Shared.Const;
@@ -71,6 +72,25 @@ namespace Sabine.Zone.Database
 						character.Parameters.SkillPoints = reader.GetInt32("skillPoints");
 						character.Parameters.Weight = reader.GetInt32("weight");
 						character.Parameters.WeightMax = reader.GetInt32("weightMax");
+
+						// Marriage state — columns are nullable and
+						// added by `sql/updates/2026-05-03_001.sql`.
+						// Older databases that haven't run the
+						// migration yet won't have either column;
+						// swallow the exception so the character still
+						// loads (mirrors the `location` pattern at
+						// line 99 above).
+						try
+						{
+							var partnerOrd = reader.GetOrdinal("marriedToCharId");
+							if (!reader.IsDBNull(partnerOrd))
+								character.MarriedToCharId = reader.GetInt32(partnerOrd);
+
+							var marriedAtOrd = reader.GetOrdinal("marriedAt");
+							if (!reader.IsDBNull(marriedAtOrd))
+								character.MarriedAt = reader.GetDateTime(marriedAtOrd);
+						}
+						catch { }
 
 						var x = reader.GetInt32("x");
 						var y = reader.GetInt32("y");
@@ -155,7 +175,69 @@ namespace Sabine.Zone.Database
 				character.Parameters.Sp = character.Parameters.SpMax;
 			}
 
+			// Marriage reconcile: if we're marked as married but the
+			// partner's record no longer points back at us (one-sided
+			// divorce that happened while we were offline), clear the
+			// local side so the next save persists the corrected
+			// state. Cheap one-shot check at login time; no heartbeat
+			// scan needed.
+			if (character.MarriedToCharId is int partnerId
+				&& this.GetMarriedPartnerId(partnerId) != character.Id)
+			{
+				character.MarriedToCharId = null;
+				character.MarriedAt = null;
+			}
+
 			return character;
+		}
+
+		/// <summary>
+		/// Returns the partner char id of the given char (whatever
+		/// is currently in the `marriedToCharId` column), or 0 when
+		/// the character isn't married or doesn't exist. Used by the
+		/// reconcile-on-load path in <see cref="GetCharacter"/> and
+		/// by `Shortcuts.GetPartnerName` for offline lookup.
+		/// </summary>
+		public int GetMarriedPartnerId(int characterId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand("SELECT `marriedToCharId` FROM `characters` WHERE `characterId` = @id", conn);
+			cmd.AddParameter("@id", characterId);
+			var result = cmd.ExecuteScalar();
+			if (result == null || result == DBNull.Value)
+				return 0;
+			return Convert.ToInt32(result);
+		}
+
+		/// <summary>
+		/// Returns the character name for the given char id, or empty
+		/// string when the id isn't found. Cheap single-column lookup
+		/// for use by `Shortcuts.GetPartnerName` when the partner is
+		/// offline; heavier DB calls live in <see cref="GetCharacter"/>.
+		/// </summary>
+		public string GetCharacterName(int characterId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand("SELECT `name` FROM `characters` WHERE `characterId` = @id", conn);
+			cmd.AddParameter("@id", characterId);
+			var result = cmd.ExecuteScalar();
+			return result as string ?? string.Empty;
+		}
+
+		/// <summary>
+		/// Clears the marriage columns on the given character id
+		/// directly in the database. Used by `Shortcuts.Divorce`
+		/// when the partner is offline — keeps the two records in
+		/// sync without waiting for the partner's next login.
+		/// </summary>
+		public void ClearMarriage(int characterId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"UPDATE `characters` SET `marriedToCharId` = NULL, `marriedAt` = NULL WHERE `characterId` = @id",
+				conn);
+			cmd.AddParameter("@id", characterId);
+			cmd.ExecuteNonQuery();
 		}
 
 		/// <summary>
