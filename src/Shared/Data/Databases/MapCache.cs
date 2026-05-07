@@ -1,9 +1,63 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.IO.Compression;
+using Sabine.Shared.Const;
 using Yggdrasil.Data.Binary;
 
 namespace Sabine.Shared.Data.Databases
 {
+	/// <summary>
+	/// Runtime overlay flags that override the static
+	/// <see cref="MapCacheTile.Type"/>. Used to mutate cell behavior at
+	/// runtime via the script-facing <c>SetCell</c> command — walls,
+	/// skill-zone barriers, basilica sanctuaries, etc. The flags are
+	/// stored sparsely (only for cells that actually have an override),
+	/// so memory cost stays proportional to the mutation count rather
+	/// than the map area.
+	/// </summary>
+	[Flags]
+	public enum CellFlags : ushort
+	{
+		None = 0,
+
+		/// <summary>Force the cell walkable, regardless of underlying tile.</summary>
+		AllowWalk = 1 << 0,
+
+		/// <summary>Block walking on the cell.</summary>
+		BlockWalk = 1 << 1,
+
+		/// <summary>Force the cell to allow projectiles through.</summary>
+		AllowShoot = 1 << 2,
+
+		/// <summary>Block projectiles from passing through.</summary>
+		BlockShoot = 1 << 3,
+
+		/// <summary>Cell is marked as water (set/clear toggle).</summary>
+		Water = 1 << 4,
+
+		/// <summary>Cell is NPC-only (blocks PCs but not projectiles).</summary>
+		Npc = 1 << 5,
+
+		/// <summary>Basilica sanctuary cell.</summary>
+		Basilica = 1 << 6,
+
+		/// <summary>Land Protector cell (skill-blocking).</summary>
+		LandProtector = 1 << 7,
+
+		/// <summary>No vending allowed on this cell.</summary>
+		NoVending = 1 << 8,
+
+		/// <summary>No chat rooms allowed on this cell.</summary>
+		NoChat = 1 << 9,
+
+		/// <summary>Ice Wall cell.</summary>
+		IceWall = 1 << 10,
+
+		/// <summary>No skills usable on this cell.</summary>
+		NoSkill = 1 << 11,
+	}
+
 	/// <summary>
 	/// Represents the cache data of a map.
 	/// </summary>
@@ -13,6 +67,96 @@ namespace Sabine.Shared.Data.Databases
 		public int Width { get; set; }
 		public int Height { get; set; }
 		public MapCacheTile[,] Tiles { get; set; }
+
+		// Sparse runtime cell-flag overlay. Only populated for cells
+		// that were explicitly mutated via SetCell / SetWall.
+		private readonly Dictionary<long, CellFlags> _overrides = new();
+		private readonly object _overridesLock = new();
+
+		private static long Key(int x, int y) => ((long)y << 32) | (uint)x;
+
+		/// <summary>
+		/// Returns the runtime override flags for the given cell.
+		/// <see cref="CellFlags.None"/> means the cell has no overrides
+		/// and the underlying <see cref="MapCacheTile.Type"/> governs
+		/// behavior.
+		/// </summary>
+		public CellFlags GetOverrideFlags(int x, int y)
+		{
+			lock (_overridesLock)
+				return _overrides.TryGetValue(Key(x, y), out var f) ? f : CellFlags.None;
+		}
+
+		/// <summary>
+		/// Sets or clears a runtime cell override. Mirrors rAthena's
+		/// <c>setcell</c> single-cell form. Walkable / Shootable use
+		/// paired bits (Allow / Block) so explicit forced-state survives
+		/// any later toggle of the opposite direction; single-bit flags
+		/// (Water, Npc, Basilica, …) just set or clear one bit.
+		/// </summary>
+		public void SetCell(int x, int y, CellType type, bool value)
+		{
+			if (!this.IsPositionOnMap(x, y))
+				return;
+
+			var (set, clear) = TypeToFlags(type, value);
+			lock (_overridesLock)
+			{
+				_overrides.TryGetValue(Key(x, y), out var current);
+				current = (current | set) & ~clear;
+				if (current == CellFlags.None)
+					_overrides.Remove(Key(x, y));
+				else
+					_overrides[Key(x, y)] = current;
+			}
+		}
+
+		/// <summary>
+		/// Mutates every cell in the inclusive rectangle
+		/// [x1..x2, y1..y2]. Mirrors rAthena's <c>setcell</c>
+		/// rectangle form.
+		/// </summary>
+		public void SetCellRect(int x1, int y1, int x2, int y2, CellType type, bool value)
+		{
+			if (x1 > x2) (x1, x2) = (x2, x1);
+			if (y1 > y2) (y1, y2) = (y2, y1);
+			for (var x = x1; x <= x2; x++)
+				for (var y = y1; y <= y2; y++)
+					this.SetCell(x, y, type, value);
+		}
+
+		private static (CellFlags set, CellFlags clear) TypeToFlags(CellType type, bool value)
+		{
+			switch (type)
+			{
+				case CellType.Walkable:
+					return value
+						? (CellFlags.AllowWalk, CellFlags.BlockWalk)
+						: (CellFlags.BlockWalk, CellFlags.AllowWalk);
+				case CellType.Shootable:
+					return value
+						? (CellFlags.AllowShoot, CellFlags.BlockShoot)
+						: (CellFlags.BlockShoot, CellFlags.AllowShoot);
+				case CellType.Water:
+					return value ? (CellFlags.Water, CellFlags.None) : (CellFlags.None, CellFlags.Water);
+				case CellType.Npc:
+					return value ? (CellFlags.Npc, CellFlags.None) : (CellFlags.None, CellFlags.Npc);
+				case CellType.Basilica:
+					return value ? (CellFlags.Basilica, CellFlags.None) : (CellFlags.None, CellFlags.Basilica);
+				case CellType.LandProtector:
+					return value ? (CellFlags.LandProtector, CellFlags.None) : (CellFlags.None, CellFlags.LandProtector);
+				case CellType.NoVending:
+					return value ? (CellFlags.NoVending, CellFlags.None) : (CellFlags.None, CellFlags.NoVending);
+				case CellType.NoChat:
+					return value ? (CellFlags.NoChat, CellFlags.None) : (CellFlags.None, CellFlags.NoChat);
+				case CellType.IceWall:
+					return value ? (CellFlags.IceWall, CellFlags.None) : (CellFlags.None, CellFlags.IceWall);
+				case CellType.NoSkill:
+					return value ? (CellFlags.NoSkill, CellFlags.None) : (CellFlags.None, CellFlags.NoSkill);
+				default:
+					return (CellFlags.None, CellFlags.None);
+			}
+		}
 
 		/// <summary>
 		/// Returns true if the given position is within the bounds of the
@@ -37,6 +181,9 @@ namespace Sabine.Shared.Data.Databases
 			if (!this.IsPositionOnMap(x, y))
 				return false;
 
+			var ovr = this.GetOverrideFlags(x, y);
+			if ((ovr & CellFlags.BlockWalk) != 0) return false;
+			if ((ovr & CellFlags.AllowWalk) != 0) return true;
 			return this.Tiles[x, y].IsWalkable;
 		}
 
@@ -51,7 +198,23 @@ namespace Sabine.Shared.Data.Databases
 			if (!this.IsPositionOnMap(x, y))
 				return false;
 
-			return !this.Tiles[x, y].IsWalkable;
+			return !this.IsPassable(x, y);
+		}
+
+		/// <summary>
+		/// Returns true if projectiles can pass through the given cell.
+		/// Defaults to <see cref="IsPassable"/> when no Shootable
+		/// override is set.
+		/// </summary>
+		public bool IsShootable(int x, int y)
+		{
+			if (!this.IsPositionOnMap(x, y))
+				return false;
+
+			var ovr = this.GetOverrideFlags(x, y);
+			if ((ovr & CellFlags.BlockShoot) != 0) return false;
+			if ((ovr & CellFlags.AllowShoot) != 0) return true;
+			return this.IsPassable(x, y);
 		}
 
 		/// <summary>
