@@ -57,9 +57,12 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// </summary>
 		public void Start(StatusId id, int level, TimeSpan duration, Character caster, int val1 = 0, int val2 = 0, int val3 = 0, int val4 = 0, bool applyResistance = true)
 		{
+			// A missing handler is treated as a flag-only effect: the
+			// status is tracked, ticked, and surfaced to the client but
+			// no OnStart/OnEnd side-effects are invoked. Most listener-
+			// or Has()-driven effects (Cloaking, BladeStop, AnkleSnare,
+			// FalconFly, …) work this way and predate having a handler.
 			var handler = StatusEffectHandlerManager.GetHandler(id);
-			if (handler == null)
-				return;
 
 			if (applyResistance)
 			{
@@ -76,14 +79,14 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			// callbacks (which may call Parameters.Modify and ultimately
 			// send packets) don't run while we hold the components lock.
 			if (previous != null)
-				handler.OnEnd(this.Character, previous);
+				handler?.OnEnd(this.Character, previous);
 
 			var effect = new StatusEffect(id, level, duration, this.Character, caster, val1, val2, val3, val4);
 
 			lock (_syncLock)
 				_effects[id] = effect;
 
-			handler.OnStart(this.Character, effect);
+			handler?.OnStart(this.Character, effect);
 
 			BroadcastIcon(id, true);
 		}
