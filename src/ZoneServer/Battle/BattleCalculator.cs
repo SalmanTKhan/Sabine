@@ -156,14 +156,31 @@ namespace Sabine.Zone.Battle
 			var afterElement = ApplyElement(afterDef, attackElement, defenseElement, defenseLevel);
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
+			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
 
-			result.Damage = Math.Max(ctx.MinDamage > 0 ? ctx.MinDamage : 1, afterStatus);
+			result.Damage = Math.Max(ctx.MinDamage > 0 ? ctx.MinDamage : 1, afterDefender);
 			result.DamagePerHit = (int)Math.Ceiling(result.Damage / (float)result.HitCount);
 			result.Damage = result.DamagePerHit * result.HitCount;
 
 			TryProcBleeding(ctx, result, rnd);
 
 			return result;
+		}
+
+		// SC_DEFENDER (CR_DEFENDER): long-range physical damage on the
+		// target is reduced by val2 (5 + 15*level)%. Mirrors eAthena
+		// battle.c:424 — only applied to BF_LONG|BF_WEAPON hits.
+		private static int ApplyDefenderReduction(int damage, Character target, bool isLongRange)
+		{
+			if (!isLongRange || target.StatusEffects == null)
+				return damage;
+
+			var defender = target.StatusEffects.Get(StatusId.Defender);
+			if (defender == null || defender.Val2 <= 0)
+				return damage;
+
+			var reduction = Math.Clamp(defender.Val2, 0, 100);
+			return damage * (100 - reduction) / 100;
 		}
 
 		// Sleeping/petrified targets take 1.5x damage. Mirrors eAthena

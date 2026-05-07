@@ -54,7 +54,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (type == ParameterType.Agi)
 				this.RecalculateFlee();
 
-			if (type == ParameterType.Agi || type == ParameterType.Dex)
+			if (type == ParameterType.Agi || type == ParameterType.Dex || type == ParameterType.AspdBonus)
 				this.RecalculateSpeeds();
 
 			if (type == ParameterType.Vit)
@@ -389,6 +389,19 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var mods = 1f;
 
 			var delay = Math.Ceiling(mods * (weaponDelay - (Math.Ceiling(weaponDelay * agi / 25f) + Math.Ceiling(weaponDelay * dex / 100f)) / 10f));
+
+			// AspdBonus is a percentage delta on the attack rate
+			// (positive = faster, negative = slower). Mirrors eAthena's
+			// aspd_rate adjustment from status_calc_aspd_rate, where
+			// quicken buffs reduce delay and Defender slows it down.
+			// Floored so an extreme penalty can't stall attacks entirely.
+			var aspdBonus = this.AspdBonus;
+			if (aspdBonus != 0)
+			{
+				var rate = Math.Max(20, 100 + aspdBonus);
+				delay = delay * 100.0 / rate;
+			}
+
 			var aspd = (int)Math.Min(200, 200 - delay);
 
 			this.AttackMotionDelay = (int)(delay * 20);
