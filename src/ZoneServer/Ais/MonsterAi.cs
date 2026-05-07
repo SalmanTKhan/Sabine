@@ -18,10 +18,15 @@ namespace Sabine.Zone.Ais
 	/// </summary>
 	public abstract class MonsterAi : EnumerableAi, ICharacterComponent
 	{
-		//private Position _initialPosition;
-		//private bool _initialPositionSet;
-
 		private bool _initiated;
+
+		/// <summary>
+		/// Position the monster occupied on its first AI tick. Used as the
+		/// anchor for leash-back behavior so kited mobs return to where
+		/// they were placed rather than wandering from wherever they lost
+		/// aggro. Mirrors rAthena's spawn-x/y on mob_data.
+		/// </summary>
+		protected Position SpawnPosition { get; private set; }
 
 		private readonly int _wanderMinDistance = 3;
 		private readonly Dictionary<string, List<CallbackFunc>> _durings = new();
@@ -47,14 +52,9 @@ namespace Sabine.Zone.Ais
 			if (this.Character.Map.PlayerCount == 0)
 				return;
 
-			//if (!_initialPositionSet)
-			//{
-			//	_initialPositionSet = true;
-			//	_initialPosition = this.Character.Position;
-			//}
-
 			if (!_initiated)
 			{
+				this.SpawnPosition = this.Character.Position;
 				this.Init();
 				_initiated = true;
 			}

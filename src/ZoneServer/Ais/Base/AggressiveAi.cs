@@ -14,8 +14,9 @@ namespace Sabine.Zone.Ais.Base
 	{
 		protected override void Init()
 		{
-			base.Init(); // Hooks CheckAttacks
+			base.Init(); // Hooks CheckAttacks (Idle + Leash)
 			During("Idle", CheckForTargets);
+			During("Leash", CheckForTargets);
 		}
 
 		/// <summary>

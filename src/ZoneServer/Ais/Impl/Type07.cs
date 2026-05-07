@@ -1,8 +1,5 @@
-﻿using System.Collections;
 using System.Linq;
-using Sabine.Shared.World;
 using Sabine.Zone.Ais.Base;
-using Sabine.Zone.Ais.Impl;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Collections;
 
@@ -16,36 +13,24 @@ namespace Sabine.Zone.Ais.Impl
 	/// <remarks>
 	/// Aegis: 07
 	/// Athena: 0x0183 (MD_CANMOVE|MD_CANATTACK|MD_LOOTER|MD_ASSIST)
-	/// Behavior: A combination of Type 02 (Looter) and Type 03 (Social).
-	/// It picks up items, attacks back when hit, and helps friends in need.
+	/// Behavior: combination of Type 02 (Looter) and Type 03 (Social).
+	/// Picks up items, fights back when attacked, helps friends in need,
+	/// and leashes back to spawn. Looter and leash behavior is inherited;
+	/// the friend-assist callback is layered on top.
 	/// </remarks>
 	[Ai("Type07")]
-	public class Type07 : ReactiveAi
+	public class Type07 : LooterAi
 	{
-		private int _targetItemHandle;
-
 		protected override void Init()
 		{
-			base.Init(); // Hooks CheckAttacks
+			base.Init(); // Hooks CheckAttacks, CheckNearbyItems, CheckTargetItem.
 			During("Idle", CheckFriendAttacks);
-			During("Idle", CheckNearbyItems);
-
-			During("PickUpItem", CheckTargetItem);
-			During("PickUpItem", base.CheckAttacks); // Can be attacked while looting
-		}
-
-		private IEnumerable PickUpItem(int handle, Position pos)
-		{
-			_targetItemHandle = handle;
-			yield return MoveTo(pos);
-			yield return PickUp(handle);
-
-			StartRoutine("Idle", Idle());
 		}
 
 		private void CheckFriendAttacks(CallbackState state)
 		{
-			if (state.Handled || _targetCharacterHandle != 0) return;
+			if (state.Handled || _targetCharacterHandle != 0)
+				return;
 
 			var character = (Monster)Character;
 			using var friends = PooledList<Monster>.Rent();
@@ -74,30 +59,6 @@ namespace Sabine.Zone.Ais.Impl
 			{
 				var friend = friends.First();
 				StartRoutine("Combat", Combat(friend.AttackerHandleTest));
-				state.Handled = true;
-			}
-		}
-
-		private void CheckNearbyItems(CallbackState state)
-		{
-			if (state.Handled) return;
-
-			if (TryFindNearbyItem(out var handle, out var pos))
-			{
-				StartRoutine("PickUpItem", PickUpItem(handle, pos));
-				state.Handled = true;
-			}
-		}
-
-		private void CheckTargetItem(CallbackState state)
-		{
-			if (state.Handled) return;
-
-			if (!EntityExists(_targetItemHandle))
-			{
-				_targetItemHandle = 0;
-				StopMove();
-				StartRoutine("Idle", Idle());
 				state.Handled = true;
 			}
 		}
