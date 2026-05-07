@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using Sabine.Zone.World.Chats;
+using Sabine.Zone.World.Instances;
 using Sabine.Zone.World.Maps;
 using Sabine.Zone.World.Shops;
 using Sabine.Zone.World.Spawning;
@@ -54,6 +55,12 @@ namespace Sabine.Zone.World
 		public ChatRooms ChatRooms { get; } = new();
 
 		/// <summary>
+		/// Returns the instance registry, tracking active dungeon /
+		/// scoped-map instances. See <see cref="InstanceManager"/>.
+		/// </summary>
+		public InstanceManager Instances { get; } = new();
+
+		/// <summary>
 		/// Returns the world's monster spawner collection.
 		/// </summary>
 		public Spawners Spawners { get; } = new Spawners();
@@ -73,6 +80,7 @@ namespace Sabine.Zone.World
 		private void SetupUpdates()
 		{
 			this.Heartbeat.HeartbeatTick += this.Maps.Update;
+			this.Heartbeat.HeartbeatTick += this.Instances.Update;
 		}
 
 		/// <summary>

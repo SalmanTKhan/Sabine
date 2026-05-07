@@ -48,6 +48,14 @@ namespace Sabine.Shared.Data
 		public MonsterDb Monsters { get; } = new();
 
 		/// <summary>
+		/// db/instances.txt — instance template definitions used by
+		/// the runtime <c>InstanceManager</c> to resolve
+		/// <c>instance_create("name")</c> back to a list of source
+		/// maps + ttl.
+		/// </summary>
+		public InstanceDb Instances { get; } = new();
+
+		/// <summary>
 		/// db/produce_db.txt
 		/// </summary>
 		public ProduceDb Produce { get; } = new();

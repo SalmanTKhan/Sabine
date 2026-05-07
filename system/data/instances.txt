@@ -1,0 +1,55 @@
+// Sabine
+// Instance Template Database
+//
+// Each entry is one instance template, resolved by name when a script
+// calls `instance_create("name")`. The runtime manager (see
+// `World/Instances/InstanceManager.cs`) clones each listed source map
+// into an instance-scoped variant (`<map>@<id>`) and tears the whole
+// run down after `ttlMinutes` of wall-clock time.
+//
+// The four templates below mirror rAthena's renewal instance set —
+// these are the dungeons whose scripts under
+// `user/scripts/episodes/eathena/npcs/instances/` previously emitted
+// `0 /* TODO: instance_create(...) */` placeholders.
+//---------------------------------------------------------------------------
+
+[
+{
+	name: "Endless Tower",
+	sourceMaps: [
+		"1@tower",
+		"2@tower",
+		"3@tower",
+		"4@tower",
+		"5@tower",
+		"6@tower"
+	],
+	ttlMinutes: 240
+},
+
+{
+	name: "Nydhogg's Nest",
+	sourceMaps: [
+		"1@nyd",
+		"2@nyd"
+	],
+	ttlMinutes: 60
+},
+
+{
+	name: "Orcs Memory",
+	sourceMaps: [
+		"1@orcs"
+	],
+	ttlMinutes: 60
+},
+
+{
+	name: "Sealed Shrine",
+	sourceMaps: [
+		"1@cata",
+		"2@cata"
+	],
+	ttlMinutes: 60
+}
+]

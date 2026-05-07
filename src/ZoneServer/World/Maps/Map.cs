@@ -118,6 +118,44 @@ namespace Sabine.Zone.World.Maps
 		}
 
 		/// <summary>
+		/// Creates a runtime instance-clone of <paramref name="source"/>
+		/// with a new <paramref name="instanceId"/> and
+		/// <paramref name="instanceStringId"/>. The clone *shares*
+		/// static tile data (`MapCacheData`, `MapsData`) and pathfinder
+		/// with the source; only runtime state (NPC list, players,
+		/// items, skill units, cell-flag overlay) is per-instance.
+		/// Used by <see cref="Instances.InstanceManager"/> to back the
+		/// rAthena `instance_attachmap` semantics.
+		/// </summary>
+		public static Map CreateInstanceClone(Map source, int instanceId, string instanceStringId)
+		{
+			var clone = new Map(source.Data, instanceId, instanceStringId)
+			{
+				CacheData = source.CacheData,
+				PathFinder = source.PathFinder,
+				VisibleRange = source.VisibleRange,
+				Flags = source.Flags,
+			};
+			return clone;
+		}
+
+		/// <summary>
+		/// Internal constructor for instance clones — accepts an
+		/// override id+stringId without re-loading cache data. The
+		/// public path goes through <see cref="CreateInstanceClone"/>
+		/// to make the contract obvious.
+		/// </summary>
+		private Map(MapsData mapData, int overrideId, string overrideStringId)
+		{
+			this.Id = overrideId;
+			this.StringId = overrideStringId;
+			this.Data = mapData;
+			// CacheData and PathFinder are set by the caller after
+			// construction so the clone shares the source's static
+			// state without reloading from disk.
+		}
+
+		/// <summary>
 		/// Loads the map's data.
 		/// </summary>
 		protected virtual void LoadData()
