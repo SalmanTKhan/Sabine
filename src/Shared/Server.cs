@@ -200,6 +200,7 @@ namespace Sabine.Shared
 			this.LoadDataFile(this.Data.SkillTrees, "skill_trees.txt");
 			this.LoadDataFile(this.Data.Produce, "produce_db.txt");
 			this.LoadDataFile(this.Data.Instances, "instances.txt");
+			this.LoadDataFile(this.Data.Castles, "castles.txt");
 
 			// Refine numbers diverge between classic/pre-re and renewal
 			// (cap and bonuses); pick the file matching the active era.

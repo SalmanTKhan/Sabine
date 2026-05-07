@@ -72,6 +72,21 @@ namespace Sabine.Zone.World
 		public Groups.GuildManager Guilds => Groups.GuildManager.Instance;
 
 		/// <summary>
+		/// WoE castle ownership registry. Static templates live in
+		/// <c>system/data/castles.txt</c>; runtime state (owner,
+		/// economy/defense, triggers) is DB-backed via
+		/// <c>sql/updates/2026-05-03_003.sql</c>.
+		/// </summary>
+		public Woe.CastleManager Castles { get; } = new();
+
+		/// <summary>
+		/// Global WoE on/off lifecycle (Phase 9). Drives the
+		/// `Agit::OnAgitStart` / `OnAgitEnd` event fanout that
+		/// agit-related scripts subscribe to.
+		/// </summary>
+		public Woe.WoeService Woe { get; } = new();
+
+		/// <summary>
 		/// Returns the world's monster spawner collection.
 		/// </summary>
 		public Spawners Spawners { get; } = new Spawners();
@@ -100,7 +115,24 @@ namespace Sabine.Zone.World
 			this.LoadMaps();
 			this.LoadVars();
 			this.LoadGuilds();
+			this.LoadCastles();
 			this.SetupUpdates();
+		}
+
+		/// <summary>
+		/// Hydrates <see cref="Castles"/> from the `castle_state`
+		/// table.
+		/// </summary>
+		private void LoadCastles()
+		{
+			try
+			{
+				this.Castles.LoadAll();
+			}
+			catch (Exception ex)
+			{
+				Log.Error("WorldManager.LoadCastles: failed to load castles: {0}", ex);
+			}
 		}
 
 		/// <summary>

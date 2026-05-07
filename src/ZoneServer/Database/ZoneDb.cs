@@ -447,5 +447,63 @@ namespace Sabine.Zone.Database
 			cmd.AddParameter("@id", characterId);
 			cmd.ExecuteNonQuery();
 		}
+
+		// ----- Castle persistence (Phase 8) -----------------------------
+		// `LoadAllCastles` runs once at startup; `UpsertCastle` is
+		// called by `CastleManager` whenever a script mutates state
+		// via `SetCastleData`. The schema is in
+		// `sql/updates/2026-05-03_003.sql`.
+
+		/// <summary>
+		/// Returns every persisted castle-state row. Castles without
+		/// a row default to all-zero values when first touched.
+		/// </summary>
+		public List<World.Woe.CastleStateRow> LoadAllCastles()
+		{
+			var rows = new List<World.Woe.CastleStateRow>();
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand("SELECT * FROM `castle_state`", conn);
+			using var reader = cmd.ExecuteReader();
+			while (reader.Read())
+			{
+				rows.Add(new World.Woe.CastleStateRow
+				{
+					MapStringId = reader.GetStringSafe("mapStringId"),
+					OwnerGuildId = reader.GetInt32("ownerGuildId"),
+					Economy = reader.GetInt32("economy"),
+					Defense = reader.GetInt32("defense"),
+					TriggerE = reader.GetInt32("triggerE"),
+					TriggerD = reader.GetInt32("triggerD"),
+					TreasureFlags = reader.GetInt32("treasureFlags"),
+				});
+			}
+			return rows;
+		}
+
+		/// <summary>
+		/// Inserts or updates a castle row. Single-row upsert keyed
+		/// by <c>mapStringId</c>. Cheap enough to call on every
+		/// `SetCastleData` mutation.
+		/// </summary>
+		public void UpsertCastle(World.Woe.CastleStateRow row)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"INSERT INTO `castle_state` (`mapStringId`, `ownerGuildId`, `economy`, `defense`, `triggerE`, `triggerD`, `treasureFlags`) "
+				+ "VALUES (@mapStringId, @ownerGuildId, @economy, @defense, @triggerE, @triggerD, @treasureFlags) "
+				+ "ON DUPLICATE KEY UPDATE `ownerGuildId` = @ownerGuildId, `economy` = @economy, "
+				+ "`defense` = @defense, `triggerE` = @triggerE, `triggerD` = @triggerD, "
+				+ "`treasureFlags` = @treasureFlags",
+				conn);
+			cmd.AddParameter("@mapStringId", row.MapStringId);
+			cmd.AddParameter("@ownerGuildId", row.OwnerGuildId);
+			cmd.AddParameter("@economy", row.Economy);
+			cmd.AddParameter("@defense", row.Defense);
+			cmd.AddParameter("@triggerE", row.TriggerE);
+			cmd.AddParameter("@triggerD", row.TriggerD);
+			cmd.AddParameter("@treasureFlags", row.TreasureFlags);
+			cmd.ExecuteNonQuery();
+		}
+
 	}
 }

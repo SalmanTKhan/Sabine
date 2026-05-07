@@ -48,6 +48,13 @@ namespace Sabine.Shared.Data
 		public MonsterDb Monsters { get; } = new();
 
 		/// <summary>
+		/// db/castles.txt — WoE castle templates (map id, display
+		/// name, on-break event hook). Runtime ownership state lives
+		/// in <c>Sabine.Zone.World.Woe.CastleManager</c>.
+		/// </summary>
+		public CastleDb Castles { get; } = new();
+
+		/// <summary>
 		/// db/instances.txt — instance template definitions used by
 		/// the runtime <c>InstanceManager</c> to resolve
 		/// <c>instance_create("name")</c> back to a list of source
