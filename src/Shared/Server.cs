@@ -198,6 +198,7 @@ namespace Sabine.Shared
 			this.LoadDataFile(this.Data.Maps, "maps.txt");
 			this.LoadDataFile(this.Data.Skills, "skills.txt");
 			this.LoadDataFile(this.Data.SkillTrees, "skill_trees.txt");
+			this.LoadDataFile(this.Data.Produce, "produce_db.txt");
 
 			// Refine numbers diverge between classic/pre-re and renewal
 			// (cap and bonuses); pick the file matching the active era.

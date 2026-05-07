@@ -48,6 +48,11 @@ namespace Sabine.Shared.Data
 		public MonsterDb Monsters { get; } = new();
 
 		/// <summary>
+		/// db/produce_db.txt
+		/// </summary>
+		public ProduceDb Produce { get; } = new();
+
+		/// <summary>
 		/// db/refine_db.txt (or refine_db_renewal.txt when the Renewal
 		/// feature flag is on; selected at startup in Server.LoadData).
 		/// </summary>
