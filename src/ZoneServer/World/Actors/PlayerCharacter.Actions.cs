@@ -252,6 +252,15 @@ namespace Sabine.Zone.World.Actors
 			if (this.Storage.IsOpen)
 				return;
 
+			// Vending and trade hold inventory state that the storage
+			// window mustn't race against; eAthena rejects in both
+			// cases. Reject silently to mirror the existing pattern.
+			if (this.VendingShop?.IsOpen == true)
+				return;
+
+			if (ZoneServer.Instance.World.Trades.TryGetTrade(this, out _))
+				return;
+
 			var items = this.Storage.GetItems();
 			Send.ZC_STORE_NORMAL_ITEMLIST(this, items);
 			Send.ZC_STORE_EQUIPMENT_ITEMLIST(this, items);

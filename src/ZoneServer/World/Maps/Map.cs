@@ -237,6 +237,25 @@ namespace Sabine.Zone.World.Maps
 		}
 
 		/// <summary>
+		/// Returns all skill units on this map that were placed by the
+		/// given owner. Used by skills that cancel a caster's own auras
+		/// (e.g. Adaptation cancelling an active song / dance).
+		/// </summary>
+		public List<SkillUnits.SkillUnit> GetSkillUnitsByOwner(Character owner)
+		{
+			var result = new List<SkillUnits.SkillUnit>();
+			using (SlimLock.Read(_skillUnitsLock))
+			{
+				foreach (var unit in _skillUnits.Values)
+				{
+					if (unit.Owner == owner)
+						result.Add(unit);
+				}
+			}
+			return result;
+		}
+
+		/// <summary>
 		/// Returns all skill units within <paramref name="radius"/> cells
 		/// (inclusive, Chebyshev distance) of the center position.
 		/// </summary>
@@ -565,6 +584,11 @@ namespace Sabine.Zone.World.Maps
 				character.VendingShop = null;
 				character.SetMovementBlock(false);
 			}
+
+			// Quiesce the storage window so SaveCharacter persists from
+			// a clean state and the next session starts closed.
+			if (character.Storage.IsOpen)
+				character.CloseStorage();
 
 			// Remove the character from any chat room they might be in,
 			// so they get removed on disconnect, warp, etc.
@@ -1000,6 +1024,107 @@ namespace Sabine.Zone.World.Maps
 		public bool IsPassable(Position pos)
 		{
 			return this.CacheData.IsPassable(pos.X, pos.Y);
+		}
+
+		/// <summary>
+		/// Sets or clears a runtime cell override at (x, y). Mirrors
+		/// rAthena's <c>setcell</c> single-cell form. The mutation
+		/// flows through <see cref="MapCacheData.SetCell"/>, which the
+		/// pathfinder consults via <see cref="MapCacheData.IsUnpassable"/>,
+		/// so movement reflects the change immediately.
+		/// </summary>
+		public void SetCell(int x, int y, CellType type, bool value)
+			=> this.CacheData.SetCell(x, y, type, value);
+
+		/// <summary>
+		/// Sets or clears a runtime cell override on every cell in the
+		/// inclusive rectangle [x1..x2, y1..y2]. Mirrors rAthena's
+		/// <c>setcell "map", x1, y1, x2, y2, &lt;type&gt;, &lt;flag&gt;</c>.
+		/// </summary>
+		public void SetCellRect(int x1, int y1, int x2, int y2, CellType type, bool value)
+			=> this.CacheData.SetCellRect(x1, y1, x2, y2, type, value);
+
+		// Named-wall registry. Each wall stores the cell list so
+		// RemoveWall can restore the original (override-cleared) state
+		// without hunting through the cell map.
+		private readonly Dictionary<string, List<Position>> _walls = new();
+		private readonly object _wallsLock = new();
+
+		/// <summary>
+		/// Places a barrier of <paramref name="size"/> contiguous cells
+		/// starting at (x, y) and extending in <paramref name="dir"/>.
+		/// All wall cells become non-walkable; if
+		/// <paramref name="shootable"/> is false they also block
+		/// projectiles. Mirrors rAthena's
+		/// <c>setwall "map", x, y, size, dir, shootable, "name"</c>.
+		/// </summary>
+		/// <returns>True if the wall was registered (false if the name was already taken).</returns>
+		public bool SetWall(int x, int y, int size, Direction dir, bool shootable, string name)
+		{
+			if (size <= 0 || string.IsNullOrEmpty(name))
+				return false;
+
+			lock (_wallsLock)
+			{
+				if (_walls.ContainsKey(name))
+					return false;
+
+				var (dx, dy) = WallDelta(dir);
+				var cells = new List<Position>(size);
+				for (var i = 0; i < size; i++)
+				{
+					var cx = x + dx * i;
+					var cy = y + dy * i;
+					this.CacheData.SetCell(cx, cy, CellType.Walkable, false);
+					if (!shootable)
+						this.CacheData.SetCell(cx, cy, CellType.Shootable, false);
+					cells.Add(new Position(cx, cy));
+				}
+				_walls[name] = cells;
+				return true;
+			}
+		}
+
+		/// <summary>
+		/// Removes a wall previously placed by <see cref="SetWall"/>,
+		/// restoring each affected cell to walkable / shootable.
+		/// Mirrors rAthena's <c>delwall "name"</c>.
+		/// </summary>
+		/// <returns>True if a wall with that name was found and removed.</returns>
+		public bool RemoveWall(string name)
+		{
+			lock (_wallsLock)
+			{
+				if (!_walls.TryGetValue(name, out var cells))
+					return false;
+
+				_walls.Remove(name);
+				foreach (var pos in cells)
+				{
+					this.CacheData.SetCell(pos.X, pos.Y, CellType.Walkable, true);
+					this.CacheData.SetCell(pos.X, pos.Y, CellType.Shootable, true);
+				}
+				return true;
+			}
+		}
+
+		private static (int dx, int dy) WallDelta(Direction dir)
+		{
+			// Map each compass direction to a unit (dx, dy) step. Y
+			// grows northward in this engine, so North is +1 on Y;
+			// East is +1 on X. Diagonals combine the two cardinals.
+			switch (dir)
+			{
+				case Direction.North: return (0, 1);
+				case Direction.NorthEast: return (1, 1);
+				case Direction.East: return (1, 0);
+				case Direction.SouthEast: return (1, -1);
+				case Direction.South: return (0, -1);
+				case Direction.SouthWest: return (-1, -1);
+				case Direction.West: return (-1, 0);
+				case Direction.NorthWest: return (-1, 1);
+				default: return (0, 0);
+			}
 		}
 
 		/// <summary>
