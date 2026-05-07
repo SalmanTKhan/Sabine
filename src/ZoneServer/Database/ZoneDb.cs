@@ -697,6 +697,125 @@ namespace Sabine.Zone.Database
 			cmd.ExecuteNonQuery();
 		}
 
+		// ----- Mail persistence ----------------------------------------
+		// Inboxes are loaded lazily per receiver; mutations write
+		// through immediately. Schema: `sql/updates/2026-05-08_001.sql`.
+
+		/// <summary>
+		/// Returns the inbox of <paramref name="receiverId"/>, oldest
+		/// first. The receiver's <c>MailManager</c> caches and sorts.
+		/// </summary>
+		public List<World.Mail.MailMessage> LoadMailFor(int receiverId)
+		{
+			var list = new List<World.Mail.MailMessage>();
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"SELECT * FROM `mail_messages` WHERE `receiverId` = @id", conn);
+			cmd.AddParameter("@id", receiverId);
+			using var reader = cmd.ExecuteReader();
+			while (reader.Read())
+			{
+				list.Add(new World.Mail.MailMessage
+				{
+					Id = reader.GetInt32("mailId"),
+					SenderId = reader.GetInt32("senderId"),
+					SenderName = reader.GetStringSafe("senderName") ?? string.Empty,
+					ReceiverId = reader.GetInt32("receiverId"),
+					Title = reader.GetStringSafe("title") ?? string.Empty,
+					Body = reader.GetStringSafe("body") ?? string.Empty,
+					Zeny = reader.GetInt32("zeny"),
+					AttachedItemClassId = reader.GetInt32("itemClassId"),
+					AttachedItemAmount = (short)reader.GetInt32("itemAmount"),
+					AttachedItemRefine = (byte)reader.GetInt32("itemRefine"),
+					AttachedItemIdentified = reader.GetInt32("itemIdentified") != 0,
+					AttachedItemDamaged = reader.GetInt32("itemDamaged") != 0,
+					Read = reader.GetInt32("read") != 0,
+					AttachmentTaken = reader.GetInt32("attachmentTaken") != 0,
+					SentAt = reader.GetDateTime("sentAt"),
+				});
+			}
+			return list;
+		}
+
+		/// <summary>
+		/// Inserts a new mail row, assigning the auto-generated
+		/// <c>mailId</c> back onto <paramref name="msg"/>.
+		/// </summary>
+		public void InsertMail(World.Mail.MailMessage msg)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"INSERT INTO `mail_messages` "
+				+ "(`senderId`, `senderName`, `receiverId`, `title`, `body`, "
+				+ " `zeny`, `itemClassId`, `itemAmount`, `itemRefine`, "
+				+ " `itemIdentified`, `itemDamaged`, `sentAt`) "
+				+ "VALUES (@senderId, @senderName, @receiverId, @title, @body, "
+				+ " @zeny, @itemClassId, @itemAmount, @itemRefine, "
+				+ " @itemIdentified, @itemDamaged, @sentAt); "
+				+ "SELECT LAST_INSERT_ID();",
+				conn);
+			cmd.AddParameter("@senderId", msg.SenderId);
+			cmd.AddParameter("@senderName", msg.SenderName ?? string.Empty);
+			cmd.AddParameter("@receiverId", msg.ReceiverId);
+			cmd.AddParameter("@title", msg.Title ?? string.Empty);
+			cmd.AddParameter("@body", msg.Body ?? string.Empty);
+			cmd.AddParameter("@zeny", msg.Zeny);
+			cmd.AddParameter("@itemClassId", msg.AttachedItemClassId);
+			cmd.AddParameter("@itemAmount", (int)msg.AttachedItemAmount);
+			cmd.AddParameter("@itemRefine", (int)msg.AttachedItemRefine);
+			cmd.AddParameter("@itemIdentified", msg.AttachedItemIdentified ? 1 : 0);
+			cmd.AddParameter("@itemDamaged", msg.AttachedItemDamaged ? 1 : 0);
+			cmd.AddParameter("@sentAt", msg.SentAt);
+			msg.Id = Convert.ToInt32(cmd.ExecuteScalar());
+		}
+
+		/// <summary>Marks a message as read.</summary>
+		public void UpdateMailRead(int mailId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"UPDATE `mail_messages` SET `read` = 1 WHERE `mailId` = @id", conn);
+			cmd.AddParameter("@id", mailId);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Marks a message's attachment as picked up.</summary>
+		public void UpdateMailAttachmentTaken(int mailId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"UPDATE `mail_messages` SET `attachmentTaken` = 1 WHERE `mailId` = @id", conn);
+			cmd.AddParameter("@id", mailId);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Removes a mail row.</summary>
+		public void DeleteMail(int mailId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"DELETE FROM `mail_messages` WHERE `mailId` = @id", conn);
+			cmd.AddParameter("@id", mailId);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>
+		/// Resolves a character name to its id, or 0 if no match.
+		/// Used by mail send to validate the recipient.
+		/// </summary>
+		public int GetCharacterIdByName(string name)
+		{
+			if (string.IsNullOrEmpty(name))
+				return 0;
+
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"SELECT `characterId` FROM `characters` WHERE `name` = @name LIMIT 1", conn);
+			cmd.AddParameter("@name", name);
+			var result = cmd.ExecuteScalar();
+			return result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result);
+		}
+
 		// ----- Castle persistence (Phase 8) -----------------------------
 		// `LoadAllCastles` runs once at startup; `UpsertCastle` is
 		// called by `CastleManager` whenever a script mutates state

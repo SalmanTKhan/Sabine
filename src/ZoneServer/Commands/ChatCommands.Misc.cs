@@ -22,8 +22,17 @@ namespace Sabine.Zone.Commands
 		private CommandResult Mail(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
 			if (args.Count < 3) return CommandResult.InvalidArgument;
-			MailService.Instance.Send(sender.Name, args.Get(0), args.Get(1), args.Get(2));
-			sender.ServerMessage(Localization.Get("Mail queued."));
+
+			var result = ZoneServer.Instance.World.Mail.Send(
+				target, args.Get(0), args.Get(1), args.Get(2),
+				zeny: 0, itemClassId: 0, itemAmount: 0, itemRefine: 0,
+				itemIdentified: true, itemDamaged: false, out _);
+
+			if (result == World.Mail.MailManager.SendResult.ReceiverUnknown)
+				sender.ServerMessage(Localization.Get("Player '{0}' not found."), args.Get(0));
+			else
+				sender.ServerMessage(Localization.Get("Mail sent."));
+
 			return CommandResult.Okay;
 		}
 

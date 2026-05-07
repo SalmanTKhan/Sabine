@@ -52,6 +52,13 @@ namespace Sabine.Zone.World.Actors
 		public QuestList Quests { get; }
 
 		/// <summary>
+		/// In-progress outgoing mail. Built up by CZ_MAIL_ADD_ITEM /
+		/// reset by CZ_MAIL_RESET_ITEM, drained on CZ_MAIL_SEND.
+		/// In-memory only; lost on disconnect.
+		/// </summary>
+		public World.Mail.MailDraft MailDraft { get; } = new World.Mail.MailDraft();
+
+		/// <summary>
 		/// Equipment-flavored alias for <see cref="Inventory"/>. Lets converted
 		/// scripts read <c>player.Equipment.IsEquipped(...)</c> the way rAthena
 		/// expresses it without forcing a separate component.

@@ -175,6 +175,10 @@ namespace Sabine.Zone.Network
 			// persisted party (if any) and broadcast the roster.
 			ZoneServer.Instance.World.Parties.OnPlayerLogin(character);
 
+			// Hydrate the inbox cache and pop a "you have mail" if
+			// anything is unread.
+			ZoneServer.Instance.World.Mail.OnPlayerLogin(character);
+
 			// Send all stats/parameters to the client that it didn't
 			// get from the char server yet. Also send a few that
 			// might've changed during character loading.

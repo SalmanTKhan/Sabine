@@ -84,6 +84,14 @@ namespace Sabine.Zone.World
 		public Groups.PartyManager Parties => Groups.PartyManager.Instance;
 
 		/// <summary>
+		/// Active mail registry. Inboxes are loaded lazily per
+		/// receiver (on first login or first inbox open); mutations
+		/// write through to <c>mail_messages</c> immediately. Schema:
+		/// <c>sql/updates/2026-05-08_001.sql</c>.
+		/// </summary>
+		public global::Sabine.Zone.World.Mail.MailManager Mail => global::Sabine.Zone.World.Mail.MailManager.Instance;
+
+		/// <summary>
 		/// WoE castle ownership registry. Static templates live in
 		/// <c>system/data/castles.txt</c>; runtime state (owner,
 		/// economy/defense, triggers) is DB-backed via
