@@ -1,5 +1,7 @@
 using System;
 using Sabine.Shared.Const;
+using Sabine.Zone.Network;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Blacksmith
 {
@@ -10,6 +12,29 @@ namespace Sabine.Zone.Skills.Handlers.Blacksmith
 		// 150s baseline, party members benefit at reduced rate.
 		protected override StatusId StatusId => StatusId.AdrenalineRush;
 		protected override TimeSpan GetDuration(int level) => TimeSpan.FromSeconds(150);
+
+		// status.c:4818-4820 fails the SC_ADRENALINE start when the wielded
+		// weapon doesn't match BS_ADRENALINE's allowed types (Axe / Mace).
+		// Enforce it at cast time so the player gets a proper WrongWeapon
+		// fail packet instead of a silently wasted SP cost.
+		public override void Handle(UseSkillParams parameters)
+		{
+			if (parameters.Character is PlayerCharacter pc && !IsAxeOrMaceEquipped(pc))
+			{
+				Send.ZC_ACK_TOUSESKILL(pc, SkillId.BS_ADRENALINE, SkillUseResult.Fail, SkillFailType.WrongWeapon, SkillFailReason.SkillFailed);
+				return;
+			}
+
+			base.Handle(parameters);
+		}
+
+		private static bool IsAxeOrMaceEquipped(PlayerCharacter pc)
+		{
+			var weapon = pc.Inventory.RightHand?.Data.GetWeaponType() ?? WeaponType.Unknown;
+			return weapon == WeaponType.OneHandedAxe
+				|| weapon == WeaponType.TwoHandedAxe
+				|| weapon == WeaponType.Mace;
+		}
 	}
 
 	[SkillHandler(SkillId.BS_WEAPONPERFECT)]

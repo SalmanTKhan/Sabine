@@ -133,9 +133,20 @@ namespace Sabine.Zone.Battle
 				// includes refinement and mastery) then apply ratio.
 				// A small ±5% variance roll is applied on top to mirror
 				// eAthena's WATK randomisation.
-				var rolledAtk = rnd.Next(attacker.Parameters.AttackMin, attacker.Parameters.AttackMax + 1);
-				var variancePct = 95 + rnd.Next(11); // 95..105
-				rolledAtk = rolledAtk * variancePct / 100;
+				int rolledAtk;
+				if (attacker.StatusEffects?.Has(StatusId.PowerMaximize) == true)
+				{
+					// SC_MAXIMIZEPOWER (BS_MAXIMIZE): force max roll and skip
+					// the variance pass. Mirrors eAthena battle.c:846 which
+					// sets atkmin = atkmax for the duration of the buff.
+					rolledAtk = attacker.Parameters.AttackMax;
+				}
+				else
+				{
+					rolledAtk = rnd.Next(attacker.Parameters.AttackMin, attacker.Parameters.AttackMax + 1);
+					var variancePct = 95 + rnd.Next(11); // 95..105
+					rolledAtk = rolledAtk * variancePct / 100;
+				}
 				baseDamage = (int)Math.Floor(rolledAtk * ctx.SkillRatio);
 			}
 
@@ -157,7 +168,8 @@ namespace Sabine.Zone.Battle
 
 			var afterElement = ApplyElement(afterDef, attacker, attackElement, defenseElement, defenseLevel);
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
-			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
+			var afterOverThrust = ApplyOverThrust(afterBonuses, attacker, ctx);
+			var afterStatus = ApplyStatusMultipliers(afterOverThrust, target);
 			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
 			var afterEnergyCoat = ApplyEnergyCoatReduction(afterDefender, target);
 			var afterLexAeterna = ApplyLexAeterna(afterEnergyCoat, target);
@@ -331,6 +343,14 @@ namespace Sabine.Zone.Battle
 
 		private static int ApplySizePenalty(int damage, Character attacker, Character target)
 		{
+			// SC_WEAPONPERFECTION (BS_WEAPONPERFECT): bypass weapon-vs-size
+			// damage modifier entirely. eAthena battle.c:1371 passes flag
+			// bit 8 to battle_calc_base_damage which short-circuits the
+			// size table lookup; equivalent to returning the raw damage
+			// here.
+			if (attacker.StatusEffects?.Has(StatusId.WeaponPerfection) == true)
+				return damage;
+
 			var weaponType = WeaponType.Unknown;
 			if (attacker is PlayerCharacter pc)
 				weaponType = pc.Inventory.RightHand?.Data.GetWeaponType() ?? WeaponType.Unknown;
@@ -344,6 +364,30 @@ namespace Sabine.Zone.Battle
 				return damage;
 
 			return (int)Math.Floor(damage * pct / 100.0);
+		}
+
+		// SC_OVERTHRUST (BS_OVERTHRUST): linear +5% per level damage bonus
+		// added to the skill ratio. Mirrors eAthena battle.c:1413-1416 which
+		// adds val3 (= 5*level) to skillratio for any non-PA_SACRIFICE attack.
+		// Applied after element / bonus modifiers but before status multipliers
+		// (Sleep / Stone ×1.5) so it stacks linearly with other %-bonuses,
+		// matching eAthena's placement before ATK_RATE finalisation.
+		private static int ApplyOverThrust(int damage, Character attacker, AttackContext ctx)
+		{
+			if (attacker.StatusEffects == null)
+				return damage;
+
+			var effect = attacker.StatusEffects.Get(StatusId.OverThrust);
+			if (effect == null || effect.Val3 <= 0)
+				return damage;
+
+			// PA_SACRIFICE bypasses OverThrust in eAthena (battle.c:1413).
+			// Sabine has no Sacrifice handler yet; add the guard here so
+			// the parity holds when it lands.
+			if (ctx.SkillId == SkillId.PA_SACRIFICE)
+				return damage;
+
+			return damage * (100 + effect.Val3) / 100;
 		}
 
 		private static bool IsRangedWeapon(Character attacker)

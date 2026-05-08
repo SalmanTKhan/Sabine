@@ -21,7 +21,7 @@ namespace Sabine.Zone.Skills.Handlers
 		protected virtual (int v1, int v2, int v3, int v4) GetVals(int level)
 			=> (level, 0, 0, 0);
 
-		public void Handle(UseSkillParams parameters)
+		public virtual void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
 			var target = parameters.Target;
