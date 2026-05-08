@@ -81,6 +81,14 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (ratePct != 0)
 				amount = MathF.Floor(amount * (100 + ratePct) / 100f);
 
+			// SM_RECOVERY (Increase HP Recovery) — flat additive bonus that
+			// rides outside of bHPrecovRate, mirroring eAthena status.c:2616
+			// where it's seeded into the separate skill-regen bucket.
+			//   per tick = level*5 + level * MaxHp / 500
+			var hpRecov = this.Character.Skills?.GetLevel(SkillId.SM_RECOVERY) ?? 0;
+			if (hpRecov > 0)
+				amount += hpRecov * 5 + hpRecov * hpMax / 500f;
+
 			this.Character.HealHp((int)amount);
 		}
 
@@ -101,12 +109,27 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				amount += MathF.Floor(int_ / 2f - 56f);
 			}
 
+			// HP_MEDITATIO (Meditatio): +3% per level multiplicative bump
+			// on the natural SP regen tick. eAthena status.c:2607 applies
+			// it before any flat skill add and before bSPrecovRate, so
+			// pre-bake it into the natural amount.
+			var meditatio = this.Character.Skills?.GetLevel(SkillId.HP_MEDITATIO) ?? 0;
+			if (meditatio > 0)
+				amount = MathF.Floor(amount * (100 + 3 * meditatio) / 100f);
+
 			// eAthena bSPrecovRate: per-percent SP regen tick bonus. Cards
 			// (Vitata / Coco) and consumables write here through
 			// AddBonus(SpRecovRate, ...).
 			var ratePct = this.Character.Modifiers.BonusSpRecovRate;
 			if (ratePct != 0)
 				amount = MathF.Floor(amount * (100 + ratePct) / 100f);
+
+			// MG_SRECOVERY (Increase SP Recovery) — flat additive bonus
+			// independent of bSPrecovRate. Mirrors eAthena status.c:2621.
+			//   per tick = level*3 + level * MaxSp / 500
+			var spRecov = this.Character.Skills?.GetLevel(SkillId.MG_SRECOVERY) ?? 0;
+			if (spRecov > 0)
+				amount += spRecov * 3 + spRecov * spMax / 500f;
 
 			// SC_MAGNIFICAT (PR_MAGNIFICAT): SP regen rate doubled while
 			// active. eAthena status.c applies the multiplier on the
