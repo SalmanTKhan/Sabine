@@ -118,7 +118,31 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 		}
 	}
 
-	[SkillHandler(SkillId.SA_REVERSEORCISH)] public class ReverseOrcishHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Reverse Orcish"); }
+	/// <summary>
+	/// SA_REVERSEORCISH — replaces the target's display name with
+	/// "ORCISH" for ~90s. eAthena skill.c SA_REVERSEORCISH applies
+	/// SC_ORCISH and forces the client to re-fetch the name; the
+	/// vanish/re-entry inside the status handler kicks that refresh.
+	/// </summary>
+	[SkillHandler(SkillId.SA_REVERSEORCISH)]
+	public class ReverseOrcishHandler : ITargetedSkillHandler
+	{
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var target = parameters.Target ?? caster;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			if (target.IsDead) return;
+			if (HocusPocusTransform.IsActive(target)) return;
+
+			target.StatusEffects.Start(StatusId.ReverseOrcish, level, TimeSpan.FromSeconds(90), caster);
+		}
+	}
+
 	[SkillHandler(SkillId.SA_QUESTION)] public class QuestionHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Question"); }
 
 	/// <summary>

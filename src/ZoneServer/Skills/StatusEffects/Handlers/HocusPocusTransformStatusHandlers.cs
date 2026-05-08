@@ -7,6 +7,51 @@ using Yggdrasil.Util;
 namespace Sabine.Zone.Skills.StatusEffects.Handlers
 {
 	/// <summary>
+	/// SA_REVERSEORCISH — overrides the target's display name with
+	/// "ORCISH" for the duration. eAthena status.c SC_ORCISH stores
+	/// the override server-side and lets the client re-fetch via
+	/// CZ_REQNAME; we kick the refresh by sending a vanish + re-entry
+	/// pair so cached name labels invalidate. OnEnd repeats the kick
+	/// after restoring the original.
+	/// </summary>
+	[StatusEffectHandler(StatusId.ReverseOrcish)]
+	public class ReverseOrcishStatusHandler : IStatusEffectHandler
+	{
+		private const string OrcishName = "ORCISH";
+
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			effect.OriginalName = target.Name;
+			target.Name = OrcishName;
+
+			RefreshNameLabels(target);
+		}
+
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+			if (!string.IsNullOrEmpty(effect.OriginalName))
+				target.Name = effect.OriginalName;
+
+			RefreshNameLabels(target);
+		}
+
+		/// <summary>
+		/// Forces every nearby client to re-render the target by
+		/// vanishing and re-spawning the entity. The client will
+		/// re-issue CZ_REQNAME on the next mouse-over and pick up
+		/// the new value.
+		/// </summary>
+		private static void RefreshNameLabels(Character target)
+		{
+			if (target.Map == null || target.Map == Sabine.Zone.World.Maps.Map.Limbo)
+				return;
+
+			Send.ZC_NOTIFY_VANISH(target, DisappearType.Vanish);
+			Send.ZC_NOTIFY_NEWENTRY(target);
+		}
+	}
+
+	/// <summary>
 	/// SA_MONOCELL — disguises the target as a Poring (JT_PORING) for
 	/// the status duration. eAthena skill.c SA_MONOCELL: applies
 	/// SC_CHANGEUNDEAD-class sprite swap + drops HP to 1; the HP drop
