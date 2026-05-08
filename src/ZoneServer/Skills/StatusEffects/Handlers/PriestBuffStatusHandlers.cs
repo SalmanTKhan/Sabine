@@ -1,3 +1,4 @@
+using System;
 using Sabine.Shared.Const;
 using Sabine.Zone.World.Actors;
 
@@ -90,6 +91,28 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	public class MagnificatStatusHandler : IStatusEffectHandler
 	{
 		public void OnStart(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
+
+	/// <summary>
+	/// SC_KYRIE (PR_KYRIE) — damage shield that absorbs incoming weapon
+	/// damage. Capacity is snapshotted at start so refresh casts re-roll
+	/// it cleanly. Mirrors eAthena status.c SC_KYRIE init:
+	///   val2 = max_hp * (level*2 + 10) / 100  (HP capacity)
+	///   val3 = level / 2 + 5                  (hit capacity)
+	/// The actual damage absorption is performed in
+	/// <see cref="Sabine.Zone.Battle.BattleCalculator"/>.
+	/// </summary>
+	[StatusEffectHandler(StatusId.KyrieEleison)]
+	public class KyrieEleisonStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			var maxHp = Math.Max(1, target.Parameters.HpMax);
+			effect.Val2 = (int)((long)maxHp * (effect.Level * 2 + 10) / 100);
+			effect.Val3 = effect.Level / 2 + 5;
+		}
+
 		public void OnEnd(Character target, StatusEffect effect) { }
 	}
 }

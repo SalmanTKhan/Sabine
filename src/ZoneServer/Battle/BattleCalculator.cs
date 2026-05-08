@@ -161,8 +161,13 @@ namespace Sabine.Zone.Battle
 			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
 			var afterEnergyCoat = ApplyEnergyCoatReduction(afterDefender, target);
 			var afterLexAeterna = ApplyLexAeterna(afterEnergyCoat, target);
+			var afterKyrie = ApplyKyrieEleison(afterLexAeterna, target, isWeaponHit: true);
 
-			result.Damage = Math.Max(ctx.MinDamage > 0 ? ctx.MinDamage : 1, afterLexAeterna);
+			// Kyrie may legitimately drop damage to 0 — skip the +1 floor in
+			// that case so the shield can fully absorb the hit.
+			result.Damage = afterKyrie == 0
+				? 0
+				: Math.Max(ctx.MinDamage > 0 ? ctx.MinDamage : 1, afterKyrie);
 			result.DamagePerHit = (int)Math.Ceiling(result.Damage / (float)result.HitCount);
 			result.Damage = result.DamagePerHit * result.HitCount;
 
@@ -215,6 +220,33 @@ namespace Sabine.Zone.Battle
 
 			var reductionPct = 6 * (1 + per);
 			return damage * (100 - reductionPct) / 100;
+		}
+
+		// SC_KYRIE (PR_KYRIE): a holy barrier with both an HP pool (val2)
+		// and a hit counter (val3). Mirrors eAthena battle.c:492 — the HP
+		// pool is drained by every incoming hit, but only weapon attacks
+		// have their damage reduced; magic still drains but passes through.
+		// Holy Light ends the barrier outright. The barrier ends when val2
+		// or val3 runs out.
+		private static int ApplyKyrieEleison(int damage, Character target, bool isWeaponHit, SkillId skillId = SkillId.None)
+		{
+			if (damage <= 0 || target.StatusEffects == null)
+				return damage;
+
+			var effect = target.StatusEffects.Get(StatusId.KyrieEleison);
+			if (effect == null)
+				return damage;
+
+			effect.Val2 -= damage;
+			effect.Val3 -= 1;
+
+			if (isWeaponHit)
+				damage = effect.Val2 >= 0 ? 0 : -effect.Val2;
+
+			if (effect.Val2 <= 0 || effect.Val3 <= 0 || skillId == SkillId.AL_HOLYLIGHT)
+				target.StatusEffects.Stop(StatusId.KyrieEleison);
+
+			return damage;
 		}
 
 		// SC_LEXAETERNA (PR_LEXAETERNA): the next single hit on the
@@ -396,8 +428,9 @@ namespace Sabine.Zone.Battle
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
 			var afterLexAeterna = ApplyLexAeterna(afterStatus, target);
+			var afterKyrie = ApplyKyrieEleison(afterLexAeterna, target, isWeaponHit: false, ctx.SkillId);
 
-			result.Damage = Math.Max(1, afterLexAeterna);
+			result.Damage = Math.Max(1, afterKyrie);
 			result.DamagePerHit = (int)Math.Ceiling(result.Damage / (float)result.HitCount);
 			result.Damage = result.DamagePerHit * result.HitCount;
 
