@@ -99,6 +99,12 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var modifiers = 0;
 			amount = MathF.Floor(amount * (1 + modifiers * 0.01f));
 
+			// SC_MAGNIFICAT (PR_MAGNIFICAT): SP regen rate doubled while
+			// active. eAthena status.c applies the multiplier on the
+			// final tick amount.
+			if (this.Character.StatusEffects?.Has(StatusId.Magnificat) == true)
+				amount *= 2;
+
 			this.Character.HealSp((int)amount);
 		}
 	}

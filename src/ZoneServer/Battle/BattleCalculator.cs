@@ -157,8 +157,9 @@ namespace Sabine.Zone.Battle
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
 			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
+			var afterLexAeterna = ApplyLexAeterna(afterDefender, target);
 
-			result.Damage = Math.Max(ctx.MinDamage > 0 ? ctx.MinDamage : 1, afterDefender);
+			result.Damage = Math.Max(ctx.MinDamage > 0 ? ctx.MinDamage : 1, afterLexAeterna);
 			result.DamagePerHit = (int)Math.Ceiling(result.Damage / (float)result.HitCount);
 			result.Damage = result.DamagePerHit * result.HitCount;
 
@@ -181,6 +182,22 @@ namespace Sabine.Zone.Battle
 
 			var reduction = Math.Clamp(defender.Val2, 0, 100);
 			return damage * (100 - reduction) / 100;
+		}
+
+		// SC_LEXAETERNA (PR_LEXAETERNA): the next single hit on the
+		// target deals 2x damage, then the status is dispelled. Applies
+		// to physical and magical attacks alike. Mirrors eAthena
+		// battle.c — damage *= 2, status_change_end on consumption.
+		private static int ApplyLexAeterna(int damage, Character target)
+		{
+			if (target.StatusEffects == null)
+				return damage;
+
+			if (!target.StatusEffects.Has(StatusId.LexAeterna))
+				return damage;
+
+			target.StatusEffects.Stop(StatusId.LexAeterna);
+			return damage * 2;
 		}
 
 		// Sleeping/petrified targets take 1.5x damage. Mirrors eAthena
@@ -347,8 +364,9 @@ namespace Sabine.Zone.Battle
 			var afterElement = ApplyElement(afterDef, attackElement, defenseElement, defenseLevel);
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
+			var afterLexAeterna = ApplyLexAeterna(afterStatus, target);
 
-			result.Damage = Math.Max(1, afterStatus);
+			result.Damage = Math.Max(1, afterLexAeterna);
 			result.DamagePerHit = (int)Math.Ceiling(result.Damage / (float)result.HitCount);
 			result.Damage = result.DamagePerHit * result.HitCount;
 
@@ -427,6 +445,14 @@ namespace Sabine.Zone.Battle
 
 				if (isRanged && pc.Inventory.Ammo != null)
 					return pc.Inventory.Ammo.Data.Element;
+
+				// SC_ASPERSIO (PR_ASPERSIO): overrides melee weapon element
+				// to Holy. eAthena battle_get_atk_ele applies it after the
+				// ammo override, so bow shots only swap when no ammo is
+				// loaded. Skill-specified elements (handled at the top of
+				// this method) are not touched.
+				if (attacker.StatusEffects?.Has(StatusId.Aspersio) == true && ctx.Kind == AttackKind.Physical)
+					return ElementType.Holy;
 
 				return pc.Inventory.RightHand?.Data.Element ?? ElementType.Neutral;
 			}
