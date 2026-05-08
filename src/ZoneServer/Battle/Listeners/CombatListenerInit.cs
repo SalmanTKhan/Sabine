@@ -16,6 +16,7 @@ namespace Sabine.Zone.Battle.Listeners
 			PlagiarismListener.Subscribe();
 			TrickDeadListener.Subscribe();
 			BladeStopListener.Subscribe();
+			PoisonReactListener.Subscribe();
 		}
 	}
 }

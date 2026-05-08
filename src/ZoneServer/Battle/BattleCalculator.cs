@@ -642,6 +642,7 @@ namespace Sabine.Zone.Battle
 					if (sc.Has(StatusId.EndowWater)) return ElementType.Water;
 					if (sc.Has(StatusId.EndowEarth)) return ElementType.Earth;
 					if (sc.Has(StatusId.EndowWind)) return ElementType.Wind;
+					if (sc.Has(StatusId.EnchantPoison)) return ElementType.Poison;
 				}
 
 				return pc.Inventory.RightHand?.Data.Element ?? ElementType.Neutral;
