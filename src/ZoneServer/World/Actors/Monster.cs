@@ -34,6 +34,28 @@ namespace Sabine.Zone.World.Actors
 		public TimeSpan? Lifespan { get; set; }
 
 		/// <summary>
+		/// When &gt; 0, this monster behaves as a contact mine: it scans
+		/// for the first hostile character within this cell radius and
+		/// detonates, dealing AoE damage and removing itself.
+		/// </summary>
+		public int SelfDestructRadius { get; set; }
+
+		/// <summary>
+		/// Skill level cached on the summon — drives the detonation
+		/// damage formula. eAthena's AM_SPHEREMINE damage scales with
+		/// the original cast level.
+		/// </summary>
+		public int SelfDestructLevel { get; set; }
+
+		/// <summary>
+		/// Skill the mine reports when it explodes (cosmetic + battle
+		/// log). For Sphere Mines this is <see cref="SkillId.AM_SPHEREMINE"/>.
+		/// </summary>
+		public SkillId SelfDestructSkill { get; set; }
+
+		private bool _detonated;
+
+		/// <summary>
 		/// Drop-table indices already taken by Steal on this instance.
 		/// Prevents stealing the same drop slot twice from the same mob.
 		/// In-memory only; cleared implicitly on respawn.
@@ -319,15 +341,76 @@ namespace Sabine.Zone.World.Actors
 		{
 			base.Update(elapsed);
 
-			if (this.Lifespan == null || this.IsDead)
+			if (this.IsDead)
 				return;
 
 			_aliveTime += elapsed;
+
+			if (this.SelfDestructRadius > 0 && !_detonated)
+				this.TryDetonate();
+
+			if (this.Lifespan == null || _detonated)
+				return;
+
 			if (_aliveTime < this.Lifespan.Value)
 				return;
 
 			this.Lifespan = null;
 			this.Map?.RemoveNpc(this);
+		}
+
+		/// <summary>
+		/// Scans the local area for any hostile and, if one is in range,
+		/// detonates the mine: deals magic Fire damage to every hostile
+		/// inside the blast radius and removes the mine. Mirrors eAthena
+		/// <c>skill_castend_damage_id</c> for AM_SPHEREMINE — the sphere
+		/// itself is the hit center, not the original cast position.
+		/// </summary>
+		private void TryDetonate()
+		{
+			if (this.Master == null || this.Map == null)
+				return;
+
+			Character trigger = null;
+			foreach (var c in this.Map.GetCharactersInRange(this.Position, this.SelfDestructRadius))
+			{
+				if (c == this || c == this.Master || c.IsDead) continue;
+				if (!this.IsHostileTo(c)) continue;
+				trigger = c;
+				break;
+			}
+
+			if (trigger == null)
+				return;
+
+			_detonated = true;
+
+			var attacker = this.Master;
+			var level = Math.Max(1, this.SelfDestructLevel);
+			var ratio = 2.0f + 1.0f * level;
+
+			Send.ZC_NOTIFY_GROUNDSKILL(attacker, this.SelfDestructSkill, attacker.Handle, level, this.Position.X, this.Position.Y, 0);
+
+			foreach (var enemy in this.Map.GetCharactersInRange(this.Position, this.SelfDestructRadius))
+			{
+				if (enemy == this || enemy.IsDead) continue;
+				if (!this.IsHostileTo(enemy)) continue;
+
+				var ctx = new Sabine.Zone.Battle.AttackContext(attacker, enemy)
+				{
+					SkillId = this.SelfDestructSkill,
+					SkillLevel = level,
+					Kind = Sabine.Zone.Battle.AttackKind.Magic,
+					SkillRatio = ratio,
+					AttackElement = ElementType.Fire,
+					AlwaysHits = true,
+				};
+				var result = Sabine.Zone.Battle.BattleCalculator.Calc(ctx);
+				if (!result.IsMiss)
+					enemy.TakeDamage(result.Damage, attacker);
+			}
+
+			this.Map.RemoveNpc(this);
 		}
 
 		internal override bool IsHostileTo(Character target)

@@ -145,10 +145,10 @@ namespace Sabine.Zone.Skills.Handlers.Alchemist
 		// to skip the caster (and the caster's party).
 		public static readonly TimeSpan PlantLifespan = TimeSpan.FromSeconds(60);
 
-		public static void Spawn(PlayerCharacter master, IdentityId mobId, TimeSpan? lifespan)
+		public static Monster Spawn(PlayerCharacter master, IdentityId mobId, TimeSpan? lifespan)
 		{
 			if (!ZoneServer.Instance.Data.Monsters.Contains(mobId))
-				return;
+				return null;
 
 			var monster = new Monster(mobId)
 			{
@@ -156,6 +156,7 @@ namespace Sabine.Zone.Skills.Handlers.Alchemist
 				Lifespan = lifespan,
 			};
 			monster.Warp(master.MapId, master.Position.GetRandomInRange(2));
+			return monster;
 		}
 	}
 
@@ -194,9 +195,13 @@ namespace Sabine.Zone.Skills.Handlers.Alchemist
 	public class SphereMineHandler : ITargetedSkillHandler
 	{
 		// AM_SPHEREMINE summons a Marine Sphere (1142) tied to the
-		// caster. eAthena's full behaviour has it self-destruct on
-		// contact; we keep the spawn + auto-despawn path here, so the
-		// sphere acts as a hostile-to-non-allies turret for now.
+		// caster. The mine sits idle until any hostile enters its
+		// 2-cell contact range, then triggers a Fire-element magic
+		// blast (skill_castend_damage_id in eAthena). If nothing
+		// triggers it, it auto-despawns after the standard summon
+		// lifespan.
+		private const int ContactRadius = 2;
+
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
@@ -207,7 +212,13 @@ namespace Sabine.Zone.Skills.Handlers.Alchemist
 			if (caster is not PlayerCharacter pc)
 				return;
 
-			AlchemistSummon.Spawn(pc, IdentityId.JT_MARINE_SPHERE, AlchemistSummon.PlantLifespan);
+			var mine = AlchemistSummon.Spawn(pc, IdentityId.JT_MARINE_SPHERE, AlchemistSummon.PlantLifespan);
+			if (mine == null)
+				return;
+
+			mine.SelfDestructRadius = ContactRadius;
+			mine.SelfDestructLevel = level;
+			mine.SelfDestructSkill = SkillId.AM_SPHEREMINE;
 		}
 	}
 
@@ -330,8 +341,11 @@ namespace Sabine.Zone.Skills.Handlers.Alchemist
 		}
 	}
 
+	// AM_FLAMECONTROL is a passive in classic eAthena (skill_db marks it
+	// as a flag-only quest skill that gates higher Alchemist content);
+	// no runtime effect, so the handler is intentionally a no-op.
 	[SkillHandler(SkillId.AM_FLAMECONTROL)]
-	public class FlameControlHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Flame Control"); }
+	public class FlameControlHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
 
 	[SkillHandler(SkillId.AM_CALLHOMUN)]
 	public class CallHomunculusHandler : ITargetedSkillHandler
