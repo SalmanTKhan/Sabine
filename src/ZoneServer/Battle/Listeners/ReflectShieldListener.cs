@@ -21,7 +21,13 @@ namespace Sabine.Zone.Battle.Listeners
 		{
 			if (result.IsMiss || result.Damage <= 0) return;
 			if (ctx.Kind != AttackKind.Physical) return;
-			if (ctx.IsLongRange) return;
+
+			// eAthena reflects BF_WEAPON|BF_SHORT but allows
+			// short-range skills (Bowling Bash, Magnum Break) to be
+			// reflected even though they may carry BF_LONG. The real
+			// exclusion is bow/firearm hits, so check the weapon
+			// rather than the skill's range flag.
+			if (BattleHelpers.IsRangedWeapon(ctx.Attacker)) return;
 
 			var target = ctx.Target;
 			var attacker = ctx.Attacker;

@@ -1,4 +1,5 @@
 using Sabine.Shared.Const;
+using Sabine.Shared.Data.Databases;
 using Yggdrasil.Util;
 
 namespace Sabine.Zone.Battle.Listeners
@@ -21,6 +22,14 @@ namespace Sabine.Zone.Battle.Listeners
 			var target = ctx.Target;
 			if (target == null || target.StatusEffects == null) return;
 			if (!target.StatusEffects.TryGet(StatusId.AutoGuard, out var effect)) return;
+
+			// Skills flagged IgnoreAutoGuard pierce the buff entirely
+			// (e.g., MO_EXTREMITYFIST, ASC_BREAKER). Mirrors eAthena's
+			// is_attack_piercing / IgnoreAutoGuard skill_db check.
+			if (ctx.SkillId != SkillId.None
+				&& ZoneServer.Instance.Data.Skills.TryFind(ctx.SkillId, out var skillData)
+				&& skillData.PropertyFlags.HasFlag(SkillPropertyFlags.IgnoreAutoGuard))
+				return;
 
 			var blockChance = 5 * effect.Level;
 			if (RandomProvider.Get().Next(100) < blockChance)

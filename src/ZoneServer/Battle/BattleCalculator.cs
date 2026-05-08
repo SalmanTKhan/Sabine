@@ -276,21 +276,7 @@ namespace Sabine.Zone.Battle
 		}
 
 		private static bool IsRangedWeapon(Character attacker)
-		{
-			if (attacker is PlayerCharacter pc)
-			{
-				var type = pc.Inventory.RightHand?.Data.GetWeaponType() ?? WeaponType.Unknown;
-				return type == WeaponType.Bow
-					|| type == WeaponType.Revolver
-					|| type == WeaponType.Rifle
-					|| type == WeaponType.Shotgun
-					|| type == WeaponType.GatlingGun
-					|| type == WeaponType.GrenadeLauncher
-					|| type == WeaponType.Shuriken;
-			}
-
-			return false;
-		}
+			=> BattleHelpers.IsRangedWeapon(attacker);
 
 		// -----------------------------------------------------------------
 		// Magic
