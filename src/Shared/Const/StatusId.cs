@@ -128,6 +128,16 @@ namespace Sabine.Shared.Const
 		StripHelm = 214,
 		Plagiarism = 215,
 
+		// Alchemist (2-2) — Chemical Protection prevents the matching
+		// Rogue / Bard strip skill from landing for the duration.
+		CpWeapon = 230,
+		CpShield = 231,
+		CpArmor = 232,
+		CpHelm = 233,
+
+		// Sage Hocus Pocus — SA_FORTUNE outcome (caster LUK aura).
+		Fortune = 234,
+
 		// Bard / Dancer (2-2) — songs/dances apply per-tick auras
 		// while standing in the unit; the flag here is the in-aura
 		// marker so handlers can check membership.

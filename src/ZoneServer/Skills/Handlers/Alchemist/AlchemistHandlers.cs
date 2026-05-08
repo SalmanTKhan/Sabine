@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
@@ -140,17 +141,38 @@ namespace Sabine.Zone.Skills.Handlers.Alchemist
 	[SkillHandler(SkillId.AM_SPHEREMINE)]
 	public class SphereMineHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Sphere Mine summoning"); }
 
+	// Chemical Protection — eAthena skill_cast_db has a flat 30s/level
+	// duration on every AM_CP_* row (lvl 1 = 30s, lvl 5 = 150s). Buffs
+	// the targeted ally (defaults to self) and shields the matching slot
+	// from the corresponding Rogue strip skill while active.
+	public abstract class ChemicalProtectionHandler : BuffSkillHandler
+	{
+		protected override TimeSpan GetDuration(int level) => TimeSpan.FromSeconds(30 * level);
+	}
+
 	[SkillHandler(SkillId.AM_CP_WEAPON)]
-	public class ChemicalProtectionWeaponHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Chemical Protection Weapon"); }
+	public class ChemicalProtectionWeaponHandler : ChemicalProtectionHandler
+	{
+		protected override StatusId StatusId => StatusId.CpWeapon;
+	}
 
 	[SkillHandler(SkillId.AM_CP_SHIELD)]
-	public class ChemicalProtectionShieldHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Chemical Protection Shield"); }
+	public class ChemicalProtectionShieldHandler : ChemicalProtectionHandler
+	{
+		protected override StatusId StatusId => StatusId.CpShield;
+	}
 
 	[SkillHandler(SkillId.AM_CP_ARMOR)]
-	public class ChemicalProtectionArmorHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Chemical Protection Armor"); }
+	public class ChemicalProtectionArmorHandler : ChemicalProtectionHandler
+	{
+		protected override StatusId StatusId => StatusId.CpArmor;
+	}
 
 	[SkillHandler(SkillId.AM_CP_HELM)]
-	public class ChemicalProtectionHelmHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Chemical Protection Helm"); }
+	public class ChemicalProtectionHelmHandler : ChemicalProtectionHandler
+	{
+		protected override StatusId StatusId => StatusId.CpHelm;
+	}
 
 	[SkillHandler(SkillId.AM_BIOETHICS)]
 	public class BioethicsHandler : ITargetedSkillHandler { public void Handle(UseSkillParams parameters) { } }
