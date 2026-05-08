@@ -276,6 +276,12 @@ namespace Sabine.Zone.Battle
 			hardDef = hardDef * ratio / 100;
 			softDef = softDef * ratio / 100;
 
+			// Frozen / fully-petrified targets lose half of their hard DEF.
+			// Mirrors eAthena status.c:status_calc_def `def >>= 1` on
+			// SC_FREEZE / SC_STONE(opt1=OPT1_STONE). Soft DEF is untouched.
+			if (IsHardCcImmobilised(target))
+				hardDef /= 2;
+
 			if (IsRenewal())
 			{
 				var denom = 4000 + hardDef * 100;
@@ -395,6 +401,13 @@ namespace Sabine.Zone.Battle
 			var hardMdef = Math.Max(0, target.Parameters.MagicDefense);
 			var softMdef = Math.Max(0, target.Parameters.MagicDefenseBonus);
 
+			// Frozen / fully-petrified targets gain +25% hard MDEF. Mirrors
+			// eAthena status.c:status_calc_mdef `mdef += 25*mdef/100`. Soft
+			// MDEF is untouched. The bump applies before the renewal /
+			// pre-renewal split so both formulas pick it up.
+			if (IsHardCcImmobilised(target))
+				hardMdef += hardMdef * 25 / 100;
+
 			if (IsRenewal())
 			{
 				var denom = 1000 + hardMdef * 10;
@@ -493,6 +506,19 @@ namespace Sabine.Zone.Battle
 
 		private static ElementType ResolveDefenseElement(Character target)
 		{
+			// Frozen targets are treated as Water, fully-petrified ones as
+			// Earth, regardless of equipped armor or monster element.
+			// Mirrors eAthena status.c:status_calc_element. Petrifying
+			// (OPT1_STONEWAIT) does NOT trigger the override — only the
+			// active stone state does.
+			if (target.StatusEffects != null)
+			{
+				if (target.StatusEffects.Has(StatusId.Freeze))
+					return ElementType.Water;
+				if (target.StatusEffects.Has(StatusId.Stone) && target.BodyState == BodyState.Stone)
+					return ElementType.Earth;
+			}
+
 			if (target is Monster monster)
 				return monster.Data.Element;
 
@@ -512,10 +538,33 @@ namespace Sabine.Zone.Battle
 
 		private static int ResolveDefenseElementLevel(Character target)
 		{
+			// Frozen / Stone-active targets always resolve at element level 1,
+			// matching eAthena status.c:status_calc_element_lv. The level-1
+			// row of the element table holds the harshest multipliers (Fire
+			// vs Water 1 = 175% etc.).
+			if (IsHardCcImmobilised(target))
+				return 1;
+
 			if (target is Monster monster)
 				return monster.Data.ElementLevel <= 0 ? 1 : monster.Data.ElementLevel;
 
 			return 1;
+		}
+
+		// True when the target is in a hard-CC state that classic eAthena
+		// treats as "frozen-equivalent" for defense calc purposes: SC_FREEZE
+		// or SC_STONE with opt1 == OPT1_STONE (active petrification, not
+		// the OPT1_STONEWAIT countdown). Used by element override, DEF /2
+		// and MDEF +25%.
+		private static bool IsHardCcImmobilised(Character target)
+		{
+			if (target.StatusEffects == null)
+				return false;
+			if (target.StatusEffects.Has(StatusId.Freeze))
+				return true;
+			if (target.StatusEffects.Has(StatusId.Stone) && target.BodyState == BodyState.Stone)
+				return true;
+			return false;
 		}
 	}
 }

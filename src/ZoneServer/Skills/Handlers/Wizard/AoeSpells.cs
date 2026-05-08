@@ -154,6 +154,12 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 				if (enemy == caster) continue;
 				if (!enemy.IsHostileTo(caster)) continue;
 
+				// Already-frozen targets are immune to FrostNova / Stormgust.
+				// Mirrors eAthena status.c:status_check_skilluse — the skill
+				// short-circuits to 0 damage and does not re-roll freeze.
+				if (enemy.StatusEffects?.Has(StatusId.Freeze) == true)
+					continue;
+
 				var ctx = new AttackContext(caster, enemy)
 				{
 					SkillId = skill.Id,
@@ -246,6 +252,13 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 			foreach (var enemy in caster.Map.GetCharactersInRange(pos, 4))
 			{
 				if (!enemy.IsHostileTo(caster)) continue;
+
+				// Already-frozen targets take no damage from Stormgust.
+				// Mirrors eAthena status.c:status_check_skilluse — the
+				// classic 3-hit freeze counter is bypassed because the
+				// target is unaffected for the duration of the freeze.
+				if (enemy.StatusEffects?.Has(StatusId.Freeze) == true)
+					continue;
 
 				var ctx = new AttackContext(caster, enemy)
 				{
