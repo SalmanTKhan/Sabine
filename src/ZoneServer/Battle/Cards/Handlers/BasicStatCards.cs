@@ -442,4 +442,15 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 			character.Modifiers.AddBonus(ParameterType.SpMax, -50);
 		}
 	}
+
+	/// <summary>Archer Skeleton Card (4094): +10% damage on long-range / ranged hits.</summary>
+	[CardHandler(4094)]
+	public class ArcherSkeletonCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.LongAtkRate, 10);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.LongAtkRate, -10);
+	}
 }

@@ -118,6 +118,12 @@ namespace Sabine.Zone.Battle
 		/// <summary>Per-weapon-type percent MATK bonus (eAthena bWeaponMatkRate / SP_WEAPON_MATK_RATE).</summary>
 		public int[] WeaponMatkRate { get; }
 
+		/// <summary>Percent damage bonus on BF_LONG hits (eAthena bLongAtkRate / SP_LONG_ATK_RATE).</summary>
+		public int BonusLongAtkRate { get; set; }
+
+		/// <summary>Percent damage bonus on BF_SHORT (melee) hits (eAthena bShortAtkRate / SP_SHORT_ATK_RATE).</summary>
+		public int BonusShortAtkRate { get; set; }
+
 		public BonusModifiers()
 		{
 			this.AddRace = new int[(int)RaceType.All + 1];
@@ -158,6 +164,8 @@ namespace Sabine.Zone.Battle
 				case ParameterType.SpRecovRate: this.BonusSpRecovRate += amount; break;
 				case ParameterType.AtkRate: this.BonusAtkRate += amount; break;
 				case ParameterType.MagicAtkRate: this.BonusMatkRate += amount; break;
+				case ParameterType.LongAtkRate: this.BonusLongAtkRate += amount; break;
+				case ParameterType.ShortAtkRate: this.BonusShortAtkRate += amount; break;
 			}
 		}
 

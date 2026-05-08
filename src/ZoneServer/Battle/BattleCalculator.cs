@@ -176,7 +176,7 @@ namespace Sabine.Zone.Battle
 			var afterElement = ApplyElement(afterDef, attacker, attackElement, defenseElement, defenseLevel);
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterOverThrust = ApplyOverThrust(afterBonuses, attacker, ctx);
-			var afterAtkRate = ApplyAtkRate(afterOverThrust, attacker);
+			var afterAtkRate = ApplyAtkRate(afterOverThrust, attacker, ctx.IsLongRange || isRanged);
 			var afterStatus = ApplyStatusMultipliers(afterAtkRate, target);
 			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
 			var afterEnergyCoat = ApplyEnergyCoatReduction(afterDefender, target);
@@ -448,16 +448,21 @@ namespace Sabine.Zone.Battle
 			return damage * (100 + effect.Val3) / 100;
 		}
 
-		// SP_ATK_RATE + SP_WEAPON_ATK_RATE: percent damage scalar applied
-		// near the end of physical damage calc. eAthena battle.c:1397 adds
-		// `sd->atk_rate` via ATK_ADDRATE; battle.c:885 layers
-		// `sd->weapon_atk_rate[weapontype]` per right-hand weapon type. Both
-		// stack additively as a single percent term so a 10% atk_rate plus a
-		// 5% bow rate yields 1.15× damage.
-		private static int ApplyAtkRate(int damage, Character attacker)
+		// SP_ATK_RATE + SP_WEAPON_ATK_RATE + SP_LONG_ATK_RATE / SP_SHORT_ATK_RATE:
+		// percent damage scalar applied near the end of physical damage calc.
+		// eAthena battle.c:1397 adds `sd->atk_rate` via ATK_ADDRATE;
+		// battle.c:885 layers `sd->weapon_atk_rate[weapontype]` per
+		// right-hand weapon type; battle.c:2130 folds
+		// `sd->long_attack_atk_rate` when the hit is BF_LONG (ranged or
+		// flagged long-range skill). All four stack additively as a single
+		// percent term so a 10% atk_rate plus a 5% bow rate plus a 15%
+		// long-atk-rate yields 1.30× damage on a long-range bow shot.
+		private static int ApplyAtkRate(int damage, Character attacker, bool isLongRange)
 		{
-			var pct = attacker.Modifiers.BonusAtkRate
-				+ attacker.Modifiers.GetWeaponAtkRate(BattleHelpers.GetWeaponType(attacker));
+			var mods = attacker.Modifiers;
+			var pct = mods.BonusAtkRate
+				+ mods.GetWeaponAtkRate(BattleHelpers.GetWeaponType(attacker))
+				+ (isLongRange ? mods.BonusLongAtkRate : mods.BonusShortAtkRate);
 			if (pct == 0)
 				return damage;
 
