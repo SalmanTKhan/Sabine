@@ -46,23 +46,6 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 		}
 	}
 
-	internal static class HocusPocusStub
-	{
-		// SA_MONOCELL / SA_CLASSCHANGE / SA_REVERSEORCISH / SA_QUESTION /
-		// SA_GRAVITY still need name-override or job-swap infra Sabine
-		// doesn't expose yet, so they only emit the cast frame and tell
-		// the caster what was rolled.
-		public static void Run(UseSkillParams parameters, string effect)
-		{
-			var caster = parameters.Character;
-			var skill = parameters.Skill;
-			var level = parameters.SkillLevel;
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
-			if (caster is PlayerCharacter pc)
-				pc.ServerMessage($"Hocus Pocus: {effect} (not yet implemented).");
-		}
-	}
-
 	/// <summary>
 	/// SA_MONOCELL — turns a non-MVP target into a Poring for ~30s
 	/// and drops their HP to 1. eAthena skill.c SA_MONOCELL pairs the
@@ -143,7 +126,30 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 		}
 	}
 
-	[SkillHandler(SkillId.SA_QUESTION)] public class QuestionHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Question"); }
+	/// <summary>
+	/// SA_QUESTION — pops a "?" emote over the target. eAthena
+	/// skill.c SA_QUESTION just fires emotion 1; we route it through
+	/// a one-shot status so it follows the same Hocus Pocus stacking
+	/// rules as the other transform outcomes.
+	/// </summary>
+	[SkillHandler(SkillId.SA_QUESTION)]
+	public class QuestionHandler : ITargetedSkillHandler
+	{
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var target = parameters.Target ?? caster;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			if (target.IsDead) return;
+			if (HocusPocusTransform.IsActive(target)) return;
+
+			target.StatusEffects.Start(StatusId.Question, level, TimeSpan.FromSeconds(1), caster);
+		}
+	}
 
 	/// <summary>
 	/// Shared guard so the four Hocus Pocus transform outcomes don't

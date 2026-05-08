@@ -7,6 +7,25 @@ using Yggdrasil.Util;
 namespace Sabine.Zone.Skills.StatusEffects.Handlers
 {
 	/// <summary>
+	/// SA_QUESTION — pops a "?" emote over the target. eAthena
+	/// skill.c SA_QUESTION simply fires emotion 1 (e_question); the
+	/// status itself has no persistent state, but we keep a 1s
+	/// duration so the icon flashes for the bookkeeping pass.
+	/// </summary>
+	[StatusEffectHandler(StatusId.Question)]
+	public class QuestionStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			Send.ZC_EMOTION(target, EmotionId.QuestionMark);
+		}
+
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+		}
+	}
+
+	/// <summary>
 	/// SA_REVERSEORCISH — overrides the target's display name with
 	/// "ORCISH" for the duration. eAthena status.c SC_ORCISH stores
 	/// the override server-side and lets the client re-fetch via
