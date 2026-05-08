@@ -24,6 +24,7 @@ namespace Sabine.Zone.Commands
 			this.Add("iteminfo", "<id|name>", Localization.Get("Displays info about an item."), this.ItemInfo);
 			this.Add("whodrops", "<item>", Localization.Get("Lists monsters that drop an item."), this.WhoDrops);
 			this.Add("whereis", "<monster>", Localization.Get("Lists maps that spawn a monster."), this.WhereIs);
+			this.Add("whosells", "<item>", Localization.Get("Lists vending shops selling an item."), this.WhoSells);
 			this.Add("version", "", Localization.Get("Displays the server version."), this.Version);
 			this.Add("servertime", "", Localization.Get("Displays the current server time."), this.ServerTime);
 			this.Add("uptime", "", Localization.Get("Displays the server uptime."), this.Uptime);
@@ -170,6 +171,63 @@ namespace Sabine.Zone.Commands
 				}
 			});
 			sender.ServerMessage(Localization.Get("Maps with live spawns: {0}"), hits);
+			return CommandResult.Okay;
+		}
+
+		// /whosells <id|name|substring> — scans every open vending shop
+		// for entries that match the query. Mirrors the spirit of
+		// rAthena's whosell @-command: an explicit numeric id matches
+		// exactly, while a string is matched as a case-insensitive
+		// substring against the cached item name. Output is capped to
+		// keep chat usable on busy servers.
+		private CommandResult WhoSells(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (args.Count < 1) return CommandResult.InvalidArgument;
+
+			var ident = args.Get(0);
+			int? exactClassId = null;
+			string nameFilter = null;
+			if (int.TryParse(ident, out var idInt))
+				exactClassId = idInt;
+			else
+				nameFilter = ident.ToLowerInvariant();
+
+			var shops = ZoneServer.Instance.World.Vendings.GetAllOpen();
+			var hits = 0;
+			foreach (var shop in shops)
+			{
+				foreach (var entry in shop.GetItemsSnapshot())
+				{
+					if (entry.Amount <= 0) continue;
+					var item = entry.Item;
+					if (exactClassId.HasValue)
+					{
+						if (item.Data.ClassId != exactClassId.Value)
+							continue;
+					}
+					else
+					{
+						var name = item.StringId ?? item.Data.Name ?? string.Empty;
+						if (!name.ToLowerInvariant().Contains(nameFilter))
+							continue;
+					}
+
+					var owner = shop.Owner;
+					sender.ServerMessage("{0} @ {1} ({2},{3}): {4} x{5} for {6}z",
+						owner.Name, owner.Map?.StringId ?? "?",
+						owner.Position.X, owner.Position.Y,
+						item.StringId ?? item.Data.Name, entry.Amount, entry.Price);
+
+					if (++hits >= 25)
+					{
+						sender.ServerMessage("...");
+						sender.ServerMessage(Localization.Get("Vending hits: {0} (truncated)."), hits);
+						return CommandResult.Okay;
+					}
+				}
+			}
+
+			sender.ServerMessage(Localization.Get("Vending hits: {0}."), hits);
 			return CommandResult.Okay;
 		}
 

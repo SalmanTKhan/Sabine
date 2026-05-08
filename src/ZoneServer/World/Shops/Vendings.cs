@@ -46,5 +46,16 @@ namespace Sabine.Zone.World.Shops
 			lock (_syncLock)
 				return _byOwnerHandle.Values.Where(a => a.IsOpen && a.Owner.Map == map).ToList();
 		}
+
+		/// <summary>
+		/// Returns a snapshot of every open vending shop server-wide.
+		/// Used by item-search commands such as <c>/whosells</c> so they
+		/// don't have to walk the map list themselves.
+		/// </summary>
+		public List<VendingShop> GetAllOpen()
+		{
+			lock (_syncLock)
+				return _byOwnerHandle.Values.Where(a => a.IsOpen).ToList();
+		}
 	}
 }
