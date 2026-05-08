@@ -36,50 +36,58 @@ namespace Sabine.Zone.Battle
 		public int[] SubElement { get; }
 
 		// -------------------------------------------------------------
-		// Equip / card flat-stat bucket
+		// Flat substat bonus bucket (cards + status buffs)
 		// -------------------------------------------------------------
 		// PlayerCharacterParameters.RecalculateAll reassigns Attack /
 		// AttackMin / AttackMax / Hit / Flee / HpMax / SpMax / MagicAttack
-		// / MeleeDefense / MagicDefense from scratch on every equip change,
-		// which means a `Parameters.Modify(Attack, +5)` from a card was
-		// silently overwritten the moment another equip slot recalculated
-		// stats. These fields hold the additive deltas card / equip
-		// handlers contribute, and the Recalculate* methods fold them in
-		// at the end so the bonuses survive subsequent recalcs.
+		// / MeleeDefense / MeleeDefenseBonus / MagicDefense /
+		// MagicDefenseBonus from scratch on every equip change, so any
+		// `Parameters.Modify(Attack, +5)` was silently overwritten the
+		// moment another equip slot recalculated stats. Cards (equip-time)
+		// and status effects (runtime) both park their flat deltas in this
+		// bucket; the Recalculate* methods fold the bucket value in as the
+		// final additive term so bonuses survive subsequent recalcs.
 		//
-		// Status effects that mutate substats at runtime (e.g. Impositio
-		// Manus) still go through Parameters.Modify; the recalc-survival
-		// problem is acknowledged separately and not touched here.
+		// Status handlers go through <see cref="Sabine.Zone.World.Actors.Character.AddBonusStat"/>,
+		// which writes here for player targets and falls back to direct
+		// Parameters.Modify on monsters (whose RecalculateAll is a no-op,
+		// so the bucket would never be applied to them).
 
-		/// <summary>Flat ATK added by equipped items / cards on top of the recalc result.</summary>
-		public int EquipAttack { get; set; }
+		/// <summary>Flat ATK added on top of the recalc result.</summary>
+		public int BonusAttack { get; set; }
 
 		/// <summary>Flat AttackMin added on top of the recalc result.</summary>
-		public int EquipAttackMin { get; set; }
+		public int BonusAttackMin { get; set; }
 
 		/// <summary>Flat AttackMax added on top of the recalc result.</summary>
-		public int EquipAttackMax { get; set; }
+		public int BonusAttackMax { get; set; }
 
 		/// <summary>Flat MATK added on top of the recalc result.</summary>
-		public int EquipMagicAttack { get; set; }
+		public int BonusMagicAttack { get; set; }
 
 		/// <summary>Flat Hit added on top of the recalc result.</summary>
-		public int EquipHit { get; set; }
+		public int BonusHit { get; set; }
 
 		/// <summary>Flat Flee added on top of the recalc result.</summary>
-		public int EquipFlee { get; set; }
+		public int BonusFlee { get; set; }
 
 		/// <summary>Flat MaxHP added on top of the recalc result.</summary>
-		public int EquipMaxHp { get; set; }
+		public int BonusMaxHp { get; set; }
 
 		/// <summary>Flat MaxSP added on top of the recalc result.</summary>
-		public int EquipMaxSp { get; set; }
+		public int BonusMaxSp { get; set; }
 
 		/// <summary>Flat hard MeleeDefense added on top of the recalc result.</summary>
-		public int EquipMeleeDefense { get; set; }
+		public int BonusMeleeDefense { get; set; }
+
+		/// <summary>Flat soft MeleeDefenseBonus (def2) added on top of the recalc result.</summary>
+		public int BonusMeleeDefenseBonus { get; set; }
 
 		/// <summary>Flat hard MagicDefense added on top of the recalc result.</summary>
-		public int EquipMagicDefense { get; set; }
+		public int BonusMagicDefense { get; set; }
+
+		/// <summary>Flat soft MagicDefenseBonus (mdef2) added on top of the recalc result.</summary>
+		public int BonusMagicDefenseBonus { get; set; }
 
 		public BonusModifiers()
 		{
@@ -93,25 +101,28 @@ namespace Sabine.Zone.Battle
 
 		/// <summary>
 		/// Adds (or subtracts, with a negative <paramref name="amount"/>)
-		/// a flat bonus for the given parameter to the equip-bonus bucket.
-		/// Caller is responsible for triggering a recalc afterwards (cards
-		/// rely on Inventory.OnEquippedItem doing it; runtime callers must
-		/// invoke <c>Parameters.RecalculateAll()</c> themselves).
+		/// a flat bonus for the given parameter to the bucket. Caller is
+		/// responsible for triggering a recalc afterwards (cards rely on
+		/// Inventory.OnEquippedItem doing it; status handlers should call
+		/// <see cref="Sabine.Zone.World.Actors.Character.AddBonusStat"/>
+		/// instead, which handles the recalc and the monster fallback).
 		/// </summary>
-		public void AddEquipBonus(ParameterType type, int amount)
+		public void AddBonus(ParameterType type, int amount)
 		{
 			switch (type)
 			{
-				case ParameterType.Attack: this.EquipAttack += amount; break;
-				case ParameterType.AttackMin: this.EquipAttackMin += amount; break;
-				case ParameterType.AttackMax: this.EquipAttackMax += amount; break;
-				case ParameterType.MagicAttack: this.EquipMagicAttack += amount; break;
-				case ParameterType.Hit: this.EquipHit += amount; break;
-				case ParameterType.Flee: this.EquipFlee += amount; break;
-				case ParameterType.HpMax: this.EquipMaxHp += amount; break;
-				case ParameterType.SpMax: this.EquipMaxSp += amount; break;
-				case ParameterType.MeleeDefense: this.EquipMeleeDefense += amount; break;
-				case ParameterType.MagicDefense: this.EquipMagicDefense += amount; break;
+				case ParameterType.Attack: this.BonusAttack += amount; break;
+				case ParameterType.AttackMin: this.BonusAttackMin += amount; break;
+				case ParameterType.AttackMax: this.BonusAttackMax += amount; break;
+				case ParameterType.MagicAttack: this.BonusMagicAttack += amount; break;
+				case ParameterType.Hit: this.BonusHit += amount; break;
+				case ParameterType.Flee: this.BonusFlee += amount; break;
+				case ParameterType.HpMax: this.BonusMaxHp += amount; break;
+				case ParameterType.SpMax: this.BonusMaxSp += amount; break;
+				case ParameterType.MeleeDefense: this.BonusMeleeDefense += amount; break;
+				case ParameterType.MeleeDefenseBonus: this.BonusMeleeDefenseBonus += amount; break;
+				case ParameterType.MagicDefense: this.BonusMagicDefense += amount; break;
+				case ParameterType.MagicDefenseBonus: this.BonusMagicDefenseBonus += amount; break;
 			}
 		}
 

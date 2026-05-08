@@ -22,7 +22,7 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			target.Parameters.Modify(ParameterType.Str, statBonus);
 			target.Parameters.Modify(ParameterType.Int, statBonus);
 			target.Parameters.Modify(ParameterType.Dex, statBonus);
-			target.Parameters.Modify(ParameterType.Hit, hitBonus);
+			target.AddBonusStat(ParameterType.Hit, hitBonus);
 		}
 
 		public void OnEnd(Character target, StatusEffect effect)
@@ -30,7 +30,7 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			target.Parameters.Modify(ParameterType.Str, -effect.Val2);
 			target.Parameters.Modify(ParameterType.Int, -effect.Val2);
 			target.Parameters.Modify(ParameterType.Dex, -effect.Val2);
-			target.Parameters.Modify(ParameterType.Hit, -effect.Val3);
+			target.AddBonusStat(ParameterType.Hit, -effect.Val3);
 		}
 	}
 }

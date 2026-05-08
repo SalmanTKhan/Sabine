@@ -23,7 +23,7 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			effect.Val3 = delta;
 
 			if (delta != 0)
-				target.Parameters.Modify(ParameterType.MeleeDefenseBonus, delta);
+				target.AddBonusStat(ParameterType.MeleeDefenseBonus, delta);
 
 			target.SetHealthStateFlag(HealthState.Angelus, true);
 		}
@@ -31,7 +31,7 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 		public void OnEnd(Character target, StatusEffect effect)
 		{
 			if (effect.Val3 != 0)
-				target.Parameters.Modify(ParameterType.MeleeDefenseBonus, -effect.Val3);
+				target.AddBonusStat(ParameterType.MeleeDefenseBonus, -effect.Val3);
 
 			target.SetHealthStateFlag(HealthState.Angelus, false);
 		}

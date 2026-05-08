@@ -806,6 +806,17 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Routes a flat substat bonus through the recalc-survival bucket
+		/// and triggers a recalc so the bonus is folded into the next
+		/// derived value. See <see cref="Character.AddBonusStat"/>.
+		/// </summary>
+		public override void AddBonusStat(ParameterType type, int amount)
+		{
+			this.Modifiers.AddBonus(type, amount);
+			this.Parameters.RecalculateAll();
+		}
+
+		/// <summary>
 		/// Heals the given amount of SP.
 		/// </summary>
 		/// <param name="amount"></param>

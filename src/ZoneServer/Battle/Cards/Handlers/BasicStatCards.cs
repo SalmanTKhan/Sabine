@@ -15,7 +15,7 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 	//
 	// Bonuses that target stats re-derived on every equip (Attack, Hit,
 	// Flee, MaxHp, MaxSp, MagicAttack, MeleeDefense, MagicDefense) are
-	// applied through Modifiers.AddEquipBonus, which seeds the bucket the
+	// applied through Modifiers.AddBonus, which seeds the bucket the
 	// Recalculate* methods read at the end of their formulas. That keeps
 	// the bonus alive across subsequent equip changes.
 
@@ -84,13 +84,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Str, 1);
-			character.Modifiers.AddEquipBonus(ParameterType.Attack, 5);
+			character.Modifiers.AddBonus(ParameterType.Attack, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Str, -1);
-			character.Modifiers.AddEquipBonus(ParameterType.Attack, -5);
+			character.Modifiers.AddBonus(ParameterType.Attack, -5);
 		}
 	}
 
@@ -218,13 +218,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Dex, 1);
-			character.Modifiers.AddEquipBonus(ParameterType.Hit, 3);
+			character.Modifiers.AddBonus(ParameterType.Hit, 3);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Dex, -1);
-			character.Modifiers.AddEquipBonus(ParameterType.Hit, -3);
+			character.Modifiers.AddBonus(ParameterType.Hit, -3);
 		}
 	}
 
@@ -294,10 +294,10 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 	public class PupaCardHandler : ICardHandler
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
-			=> character.Modifiers.AddEquipBonus(ParameterType.HpMax, 700);
+			=> character.Modifiers.AddBonus(ParameterType.HpMax, 700);
 
 		public void OnUnequip(Character character, World.Actors.Item item)
-			=> character.Modifiers.AddEquipBonus(ParameterType.HpMax, -700);
+			=> character.Modifiers.AddBonus(ParameterType.HpMax, -700);
 	}
 
 	/// <summary>Roda Frog Card (4020): +50 MaxHP, +10 MaxSP.</summary>
@@ -306,14 +306,14 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
-			character.Modifiers.AddEquipBonus(ParameterType.HpMax, 50);
-			character.Modifiers.AddEquipBonus(ParameterType.SpMax, 10);
+			character.Modifiers.AddBonus(ParameterType.HpMax, 50);
+			character.Modifiers.AddBonus(ParameterType.SpMax, 10);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
-			character.Modifiers.AddEquipBonus(ParameterType.HpMax, -50);
-			character.Modifiers.AddEquipBonus(ParameterType.SpMax, -10);
+			character.Modifiers.AddBonus(ParameterType.HpMax, -50);
+			character.Modifiers.AddBonus(ParameterType.SpMax, -10);
 		}
 	}
 
@@ -323,13 +323,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
-			character.Modifiers.AddEquipBonus(ParameterType.Attack, 15);
+			character.Modifiers.AddBonus(ParameterType.Attack, 15);
 			character.Parameters.Modify(ParameterType.Critical, 1);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
-			character.Modifiers.AddEquipBonus(ParameterType.Attack, -15);
+			character.Modifiers.AddBonus(ParameterType.Attack, -15);
 			character.Parameters.Modify(ParameterType.Critical, -1);
 		}
 	}
@@ -339,10 +339,10 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 	public class FamiliarCardHandler : ICardHandler
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
-			=> character.Modifiers.AddEquipBonus(ParameterType.Attack, 5);
+			=> character.Modifiers.AddBonus(ParameterType.Attack, 5);
 
 		public void OnUnequip(Character character, World.Actors.Item item)
-			=> character.Modifiers.AddEquipBonus(ParameterType.Attack, -5);
+			=> character.Modifiers.AddBonus(ParameterType.Attack, -5);
 	}
 
 	/// <summary>Vitata Card (4128): +1 INT, -50 MaxSP. (SP recovery rate skipped.)</summary>
@@ -352,13 +352,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Int, 1);
-			character.Modifiers.AddEquipBonus(ParameterType.SpMax, -50);
+			character.Modifiers.AddBonus(ParameterType.SpMax, -50);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Int, -1);
-			character.Modifiers.AddEquipBonus(ParameterType.SpMax, 50);
+			character.Modifiers.AddBonus(ParameterType.SpMax, 50);
 		}
 	}
 
@@ -367,10 +367,10 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 	public class EarthwormCardHandler : ICardHandler
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
-			=> character.Modifiers.AddEquipBonus(ParameterType.MagicDefense, 25);
+			=> character.Modifiers.AddBonus(ParameterType.MagicDefense, 25);
 
 		public void OnUnequip(Character character, World.Actors.Item item)
-			=> character.Modifiers.AddEquipBonus(ParameterType.MagicDefense, -25);
+			=> character.Modifiers.AddBonus(ParameterType.MagicDefense, -25);
 	}
 
 	/// <summary>Khalitzburg Card (4099): +1 MeleeDefense.</summary>
@@ -378,10 +378,10 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 	public class KhalitzburgCardHandler : ICardHandler
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
-			=> character.Modifiers.AddEquipBonus(ParameterType.MeleeDefense, 1);
+			=> character.Modifiers.AddBonus(ParameterType.MeleeDefense, 1);
 
 		public void OnUnequip(Character character, World.Actors.Item item)
-			=> character.Modifiers.AddEquipBonus(ParameterType.MeleeDefense, -1);
+			=> character.Modifiers.AddBonus(ParameterType.MeleeDefense, -1);
 	}
 
 	/// <summary>Picky Egg Card (4012): +1 VIT, +10 MaxHP.</summary>
@@ -391,13 +391,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Vit, 1);
-			character.Modifiers.AddEquipBonus(ParameterType.HpMax, 10);
+			character.Modifiers.AddBonus(ParameterType.HpMax, 10);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Vit, -1);
-			character.Modifiers.AddEquipBonus(ParameterType.HpMax, -10);
+			character.Modifiers.AddBonus(ParameterType.HpMax, -10);
 		}
 	}
 
@@ -408,13 +408,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Vit, 1);
-			character.Modifiers.AddEquipBonus(ParameterType.HpMax, 100);
+			character.Modifiers.AddBonus(ParameterType.HpMax, 100);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Vit, -1);
-			character.Modifiers.AddEquipBonus(ParameterType.HpMax, -100);
+			character.Modifiers.AddBonus(ParameterType.HpMax, -100);
 		}
 	}
 
@@ -425,13 +425,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Int, 1);
-			character.Modifiers.AddEquipBonus(ParameterType.SpMax, 50);
+			character.Modifiers.AddBonus(ParameterType.SpMax, 50);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Int, -1);
-			character.Modifiers.AddEquipBonus(ParameterType.SpMax, -50);
+			character.Modifiers.AddBonus(ParameterType.SpMax, -50);
 		}
 	}
 }

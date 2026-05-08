@@ -17,13 +17,13 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 		{
 			var bonus = 5 * effect.Level;
 			effect.Val2 = bonus;
-			target.Parameters.Modify(ParameterType.Attack, bonus);
+			target.AddBonusStat(ParameterType.Attack, bonus);
 		}
 
 		public void OnEnd(Character target, StatusEffect effect)
 		{
 			if (effect.Val2 != 0)
-				target.Parameters.Modify(ParameterType.Attack, -effect.Val2);
+				target.AddBonusStat(ParameterType.Attack, -effect.Val2);
 		}
 	}
 

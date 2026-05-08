@@ -29,7 +29,7 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			if (atkDelta != 0)
 				target.Parameters.Modify(ParameterType.AttackBonus, atkDelta);
 			if (defDelta != 0)
-				target.Parameters.Modify(ParameterType.MeleeDefenseBonus, -defDelta);
+				target.AddBonusStat(ParameterType.MeleeDefenseBonus, -defDelta);
 		}
 
 		public void OnEnd(Character target, StatusEffect effect)
@@ -37,7 +37,7 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			if (effect.Val2 != 0)
 				target.Parameters.Modify(ParameterType.AttackBonus, -effect.Val2);
 			if (effect.Val3 != 0)
-				target.Parameters.Modify(ParameterType.MeleeDefenseBonus, effect.Val3);
+				target.AddBonusStat(ParameterType.MeleeDefenseBonus, effect.Val3);
 		}
 	}
 
@@ -202,13 +202,13 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			var defDelta = target.Parameters.MeleeDefenseBonus * defPct / 100;
 			effect.Val3 = defDelta;
 			if (defDelta != 0)
-				target.Parameters.Modify(ParameterType.MeleeDefenseBonus, -defDelta);
+				target.AddBonusStat(ParameterType.MeleeDefenseBonus, -defDelta);
 		}
 
 		public void OnEnd(Character target, StatusEffect effect)
 		{
 			if (effect.Val3 != 0)
-				target.Parameters.Modify(ParameterType.MeleeDefenseBonus, effect.Val3);
+				target.AddBonusStat(ParameterType.MeleeDefenseBonus, effect.Val3);
 		}
 	}
 }

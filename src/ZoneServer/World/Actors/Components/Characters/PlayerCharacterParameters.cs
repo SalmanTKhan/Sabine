@@ -87,7 +87,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var sigmaOfBaseLevel = RoMath.Sigma(this.BaseLevel - 1);
 
 			this.HpMax = (int)Math.Floor((Math.Floor((baseVal + this.BaseLevel * statMultiplier + sigmaOfBaseLevel * statFactor) * (1 + this.Vit / 100f)) + statAdditions) * itemStatMultipliers);
-			this.HpMax += this.Character.Modifiers.EquipMaxHp;
+			this.HpMax += this.Character.Modifiers.BonusMaxHp;
 			if (this.HpMax < 1) this.HpMax = 1;
 
 			// I'll admit, I'm getting lazy by this point. Figuring out
@@ -120,7 +120,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 			this.SpMax = (int)Math.Floor((Math.Floor((baseVal + this.BaseLevel * statFactor) * (1 + this.Vit / 100f)) + statAdditions) * itemStatMultiplier);
 			this.SpMax *= 2;
-			this.SpMax += this.Character.Modifiers.EquipMaxSp;
+			this.SpMax += this.Character.Modifiers.BonusMaxSp;
 			if (this.SpMax < 1) this.SpMax = 1;
 
 			if (this.Sp > this.SpMax)
@@ -178,9 +178,9 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var masteryBonus = this.CalculateMasteryAtk(weapon);
 			this.MasteryAtk = masteryBonus;
 
-			var equipAtk = this.Character.Modifiers.EquipAttack;
-			var equipAtkMin = this.Character.Modifiers.EquipAttackMin;
-			var equipAtkMax = this.Character.Modifiers.EquipAttackMax;
+			var equipAtk = this.Character.Modifiers.BonusAttack;
+			var equipAtkMin = this.Character.Modifiers.BonusAttackMin;
+			var equipAtkMax = this.Character.Modifiers.BonusAttackMax;
 
 			this.Attack = fromStats + fromWeapon + refineBonus + masteryBonus + equipAtk;
 			this.AttackMin = fromStatsMin + fromWeaponMin + refineBonus + masteryBonus + equipAtk + equipAtkMin;
@@ -237,7 +237,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// <returns></returns>
 		public void RecalculateMagicAttack()
 		{
-			var equipMatk = this.Character.Modifiers.EquipMagicAttack;
+			var equipMatk = this.Character.Modifiers.BonusMagicAttack;
 			this.MagicAttack = (int)(this.Int + Math.Pow(this.Int / 10, 2)) / 2 + equipMatk;
 			this.MagicAttackMin = (int)(this.Int + Math.Pow(this.Int / 7, 2)) + equipMatk;
 			this.MagicAttackMax = (int)(this.Int + Math.Pow(this.Int / 5, 2)) + equipMatk;
@@ -273,7 +273,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			// however, and doesn't mix with the point-based VIT
 			// defense bonus. Is that bonus maybe not displayed?
 			// Did it not exist? Did it play into the percentage?
-			this.Defense = fromEquip + this.Character.Modifiers.EquipMeleeDefense;
+			this.Defense = fromEquip + this.Character.Modifiers.BonusMeleeDefense;
 
 			// Update: Based on screen shots, we can see that either
 			// equip had different defense stats, or that VIT did play
@@ -298,8 +298,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var fromBonuses = 0;
 			var fromBonusRates = 100;
 
-			this.MeleeDefense = fromEquip + this.Character.Modifiers.EquipMeleeDefense;
-			this.MeleeDefenseBonus = (int)((fromStat + fromBonuses) * (1 + fromBonusRates / 100f));
+			this.MeleeDefense = fromEquip + this.Character.Modifiers.BonusMeleeDefense;
+			this.MeleeDefenseBonus = (int)((fromStat + fromBonuses) * (1 + fromBonusRates / 100f)) + this.Character.Modifiers.BonusMeleeDefenseBonus;
 
 			this.UpdateClient(ParameterType.Defense, ParameterType.MeleeDefense, ParameterType.MeleeDefenseBonus);
 		}
@@ -320,8 +320,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var fromBonuses = 0;
 			var fromBonusRates = 100;
 
-			this.MagicDefense = fromEquip + this.Character.Modifiers.EquipMagicDefense;
-			this.MagicDefenseBonus = (int)((fromStat + fromBonuses) * (1 + fromBonusRates / 100f));
+			this.MagicDefense = fromEquip + this.Character.Modifiers.BonusMagicDefense;
+			this.MagicDefenseBonus = (int)((fromStat + fromBonuses) * (1 + fromBonusRates / 100f)) + this.Character.Modifiers.BonusMagicDefenseBonus;
 
 			this.UpdateClient(ParameterType.MagicDefense, ParameterType.MagicDefenseBonus);
 		}
@@ -343,7 +343,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// </summary>
 		public void RecalculateHit()
 		{
-			this.Hit = this.BaseLevel + this.Dex + this.Character.Modifiers.EquipHit;
+			this.Hit = this.BaseLevel + this.Dex + this.Character.Modifiers.BonusHit;
 			//this.UpdateClient(ParameterType.Hit);
 		}
 
@@ -352,7 +352,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// </summary>
 		public void RecalculateFlee()
 		{
-			this.Flee = this.BaseLevel + this.Agi + this.Character.Modifiers.EquipFlee;
+			this.Flee = this.BaseLevel + this.Agi + this.Character.Modifiers.BonusFlee;
 			this.UpdateClient(ParameterType.Flee);
 		}
 

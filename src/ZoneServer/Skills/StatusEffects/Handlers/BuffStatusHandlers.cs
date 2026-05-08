@@ -28,12 +28,13 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 		{
 			var hitBonus = 3 * effect.Level;
 			effect.Val2 = hitBonus;
-			target.Parameters.Modify(ParameterType.Hit, hitBonus);
+			target.AddBonusStat(ParameterType.Hit, hitBonus);
 		}
 
 		public void OnEnd(Character target, StatusEffect effect)
 		{
-			target.Parameters.Modify(ParameterType.Hit, -effect.Val2);
+			if (effect.Val2 != 0)
+				target.AddBonusStat(ParameterType.Hit, -effect.Val2);
 		}
 	}
 

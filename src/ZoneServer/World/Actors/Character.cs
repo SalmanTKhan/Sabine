@@ -184,6 +184,30 @@ namespace Sabine.Zone.World.Actors
 		/// </summary>
 		public Sabine.Zone.Battle.BonusModifiers Modifiers { get; } = new Sabine.Zone.Battle.BonusModifiers();
 
+		/// <summary>
+		/// Adds (or subtracts) a flat bonus to a substat in a way that
+		/// survives parameter recalcs. Used by status-effect handlers that
+		/// need to bump Attack / Hit / MeleeDefenseBonus / etc. — those
+		/// substats are reassigned from base values inside
+		/// <see cref="Sabine.Zone.World.Actors.Components.Characters.PlayerCharacterParameters.RecalculateAll"/>,
+		/// so a plain <c>Parameters.Modify</c> on them is silently wiped
+		/// the next time the player equips an item.
+		/// </summary>
+		/// <remarks>
+		/// Default implementation calls <c>Parameters.Modify</c> directly,
+		/// which is correct for monsters (no recalc ever runs on them so
+		/// the value sticks). <see cref="PlayerCharacter"/> overrides this
+		/// to write into <see cref="Sabine.Zone.Battle.BonusModifiers"/>
+		/// and trigger a RecalculateAll, so the bonus is folded into the
+		/// recalc result and persists across subsequent equip changes.
+		/// Pass the same <paramref name="amount"/> with a flipped sign on
+		/// status-effect end to symmetrically revert.
+		/// </remarks>
+		public virtual void AddBonusStat(ParameterType type, int amount)
+		{
+			this.Parameters.Modify(type, amount);
+		}
+
 		/// <summary>True if Hiding (TF_HIDING) is active on the character.</summary>
 		public bool IsHidden => this.StatusEffects?.Has(StatusId.Hiding) == true;
 

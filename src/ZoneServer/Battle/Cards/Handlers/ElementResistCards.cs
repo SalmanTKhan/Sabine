@@ -16,13 +16,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Undead] += 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, 5);
+			character.Modifiers.AddBonus(ParameterType.Flee, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Undead] -= 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, -5);
+			character.Modifiers.AddBonus(ParameterType.Flee, -5);
 		}
 	}
 
@@ -33,13 +33,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Earth] += 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, 5);
+			character.Modifiers.AddBonus(ParameterType.Flee, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Earth] -= 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, -5);
+			character.Modifiers.AddBonus(ParameterType.Flee, -5);
 		}
 	}
 
@@ -50,13 +50,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Water] += 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, 5);
+			character.Modifiers.AddBonus(ParameterType.Flee, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Water] -= 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, -5);
+			character.Modifiers.AddBonus(ParameterType.Flee, -5);
 		}
 	}
 
@@ -67,13 +67,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Poison] += 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, 5);
+			character.Modifiers.AddBonus(ParameterType.Flee, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Poison] -= 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, -5);
+			character.Modifiers.AddBonus(ParameterType.Flee, -5);
 		}
 	}
 
@@ -84,13 +84,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Fire] += 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, 5);
+			character.Modifiers.AddBonus(ParameterType.Flee, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Fire] -= 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, -5);
+			character.Modifiers.AddBonus(ParameterType.Flee, -5);
 		}
 	}
 
@@ -101,13 +101,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Ghost] += 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, 5);
+			character.Modifiers.AddBonus(ParameterType.Flee, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Ghost] -= 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, -5);
+			character.Modifiers.AddBonus(ParameterType.Flee, -5);
 		}
 	}
 
@@ -118,13 +118,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Dark] += 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, 5);
+			character.Modifiers.AddBonus(ParameterType.Flee, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Dark] -= 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, -5);
+			character.Modifiers.AddBonus(ParameterType.Flee, -5);
 		}
 	}
 
@@ -135,13 +135,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Wind] += 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, 5);
+			character.Modifiers.AddBonus(ParameterType.Flee, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.SubElement[(int)ElementType.Wind] -= 30;
-			character.Modifiers.AddEquipBonus(ParameterType.Flee, -5);
+			character.Modifiers.AddBonus(ParameterType.Flee, -5);
 		}
 	}
 
