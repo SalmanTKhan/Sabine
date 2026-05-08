@@ -106,4 +106,17 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 				target.AddBonusStat(ParameterType.Luk, -effect.Val2);
 		}
 	}
+
+	/// <summary>
+	/// SC_GRAVITATION — Sage Hocus Pocus "Gravity" outcome anchors the
+	/// target so it can't move or act. <see cref="Character.IsImmobilized"/>
+	/// reads the flag — no body-state opt1 entry exists for gravity, so
+	/// no <c>SetBodyState</c> call here. eAthena status.c SC_GRAVITATION.
+	/// </summary>
+	[StatusEffectHandler(StatusId.Gravity)]
+	public class GravityStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
 }

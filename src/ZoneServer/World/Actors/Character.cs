@@ -232,7 +232,8 @@ namespace Sabine.Zone.World.Actors
 				this.StatusEffects.Has(StatusId.Stone)
 				|| this.StatusEffects.Has(StatusId.Freeze)
 				|| this.StatusEffects.Has(StatusId.Sleep)
-				|| this.StatusEffects.Has(StatusId.Stun));
+				|| this.StatusEffects.Has(StatusId.Stun)
+				|| this.StatusEffects.Has(StatusId.Gravity));
 
 		/// <summary>True while Silence is active — can't cast skills.</summary>
 		public bool IsSilenced => this.StatusEffects?.Has(StatusId.Silence) == true;

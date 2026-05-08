@@ -67,7 +67,26 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 	[SkillHandler(SkillId.SA_CLASSCHANGE)] public class ClassChangeHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Class Change"); }
 	[SkillHandler(SkillId.SA_REVERSEORCISH)] public class ReverseOrcishHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Reverse Orcish"); }
 	[SkillHandler(SkillId.SA_QUESTION)] public class QuestionHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Question"); }
-	[SkillHandler(SkillId.SA_GRAVITY)] public class GravityHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Gravity"); }
+
+	/// <summary>SA_GRAVITY — locks the target in place for a few seconds.</summary>
+	[SkillHandler(SkillId.SA_GRAVITY)]
+	public class GravityHandler : ITargetedSkillHandler
+	{
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var target = parameters.Target ?? caster;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			if (target.IsDead) return;
+
+			// eAthena classic: SC_GRAVITATION ranges 4-12s by skill level.
+			target.StatusEffects.Start(StatusId.Gravity, level, TimeSpan.FromSeconds(4 + 2 * level), caster);
+		}
+	}
 
 	/// <summary>SA_DEATH — instakill on a non-MVP target.</summary>
 	[SkillHandler(SkillId.SA_DEATH)]

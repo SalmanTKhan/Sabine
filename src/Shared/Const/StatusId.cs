@@ -138,6 +138,10 @@ namespace Sabine.Shared.Const
 		// Sage Hocus Pocus — SA_FORTUNE outcome (caster LUK aura).
 		Fortune = 234,
 
+		// Sage Hocus Pocus — SA_GRAVITY outcome. Immobilizes the
+		// target for the duration. eAthena status.c SC_GRAVITATION.
+		Gravity = 235,
+
 		// Bard / Dancer (2-2) — songs/dances apply per-tick auras
 		// while standing in the unit; the flag here is the in-aura
 		// marker so handlers can check membership.
