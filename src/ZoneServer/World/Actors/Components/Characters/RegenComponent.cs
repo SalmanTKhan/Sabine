@@ -73,8 +73,13 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var amount = MathF.Max(1, MathF.Floor(hpMax / 200f));
 			amount += MathF.Floor(vit / 5f);
 
-			var modifiers = 0;
-			amount = MathF.Floor(amount * (1 + modifiers * 0.01f));
+			// eAthena bHPrecovRate (item / card scripts): adds a flat percent
+			// to the natural HP regen tick. Magnificat / Increase HP Recovery
+			// don't go through this bucket — they're applied as separate
+			// multipliers below — so a +5% card stacks additively with them.
+			var ratePct = this.Character.Modifiers.BonusHpRecovRate;
+			if (ratePct != 0)
+				amount = MathF.Floor(amount * (100 + ratePct) / 100f);
 
 			this.Character.HealHp((int)amount);
 		}
@@ -96,8 +101,12 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				amount += MathF.Floor(int_ / 2f - 56f);
 			}
 
-			var modifiers = 0;
-			amount = MathF.Floor(amount * (1 + modifiers * 0.01f));
+			// eAthena bSPrecovRate: per-percent SP regen tick bonus. Cards
+			// (Vitata / Coco) and consumables write here through
+			// AddBonus(SpRecovRate, ...).
+			var ratePct = this.Character.Modifiers.BonusSpRecovRate;
+			if (ratePct != 0)
+				amount = MathF.Floor(amount * (100 + ratePct) / 100f);
 
 			// SC_MAGNIFICAT (PR_MAGNIFICAT): SP regen rate doubled while
 			// active. eAthena status.c applies the multiplier on the

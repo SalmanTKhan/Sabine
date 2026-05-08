@@ -116,15 +116,21 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 			=> character.Parameters.Modify(ParameterType.Dex, -2);
 	}
 
-	/// <summary>Coco Card (4036): +1 VIT. (SP recovery rate skipped.)</summary>
+	/// <summary>Coco Card (4036): +1 VIT, +5% SP recovery rate.</summary>
 	[CardHandler(4036)]
 	public class CocoCardHandler : ICardHandler
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
-			=> character.Parameters.Modify(ParameterType.Vit, 1);
+		{
+			character.Parameters.Modify(ParameterType.Vit, 1);
+			character.Modifiers.AddBonus(ParameterType.SpRecovRate, 5);
+		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
-			=> character.Parameters.Modify(ParameterType.Vit, -1);
+		{
+			character.Parameters.Modify(ParameterType.Vit, -1);
+			character.Modifiers.AddBonus(ParameterType.SpRecovRate, -5);
+		}
 	}
 
 	/// <summary>Steel Chonchon Card (4044): +1 AGI, +10% Wind resist.</summary>
@@ -345,7 +351,7 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 			=> character.Modifiers.AddBonus(ParameterType.Attack, -5);
 	}
 
-	/// <summary>Vitata Card (4128): +1 INT, -50 MaxSP. (SP recovery rate skipped.)</summary>
+	/// <summary>Vitata Card (4128): +1 INT, -50 MaxSP, +5% SP recovery rate.</summary>
 	[CardHandler(4128)]
 	public class VitataCardHandler : ICardHandler
 	{
@@ -353,12 +359,14 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		{
 			character.Parameters.Modify(ParameterType.Int, 1);
 			character.Modifiers.AddBonus(ParameterType.SpMax, -50);
+			character.Modifiers.AddBonus(ParameterType.SpRecovRate, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Parameters.Modify(ParameterType.Int, -1);
 			character.Modifiers.AddBonus(ParameterType.SpMax, 50);
+			character.Modifiers.AddBonus(ParameterType.SpRecovRate, -5);
 		}
 	}
 

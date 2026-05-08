@@ -89,6 +89,12 @@ namespace Sabine.Zone.Battle
 		/// <summary>Flat soft MagicDefenseBonus (mdef2) added on top of the recalc result.</summary>
 		public int BonusMagicDefenseBonus { get; set; }
 
+		/// <summary>Percent HP regen rate bonus (eAthena bHPrecovRate). Read by the regen tick.</summary>
+		public int BonusHpRecovRate { get; set; }
+
+		/// <summary>Percent SP regen rate bonus (eAthena bSPrecovRate). Read by the regen tick.</summary>
+		public int BonusSpRecovRate { get; set; }
+
 		public BonusModifiers()
 		{
 			this.AddRace = new int[(int)RaceType.All + 1];
@@ -123,6 +129,8 @@ namespace Sabine.Zone.Battle
 				case ParameterType.MeleeDefenseBonus: this.BonusMeleeDefenseBonus += amount; break;
 				case ParameterType.MagicDefense: this.BonusMagicDefense += amount; break;
 				case ParameterType.MagicDefenseBonus: this.BonusMagicDefenseBonus += amount; break;
+				case ParameterType.HpRecovRate: this.BonusHpRecovRate += amount; break;
+				case ParameterType.SpRecovRate: this.BonusSpRecovRate += amount; break;
 			}
 		}
 
