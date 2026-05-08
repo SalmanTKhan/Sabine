@@ -157,7 +157,8 @@ namespace Sabine.Zone.Battle
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
 			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
-			var afterLexAeterna = ApplyLexAeterna(afterDefender, target);
+			var afterEnergyCoat = ApplyEnergyCoatReduction(afterDefender, target);
+			var afterLexAeterna = ApplyLexAeterna(afterEnergyCoat, target);
 
 			result.Damage = Math.Max(ctx.MinDamage > 0 ? ctx.MinDamage : 1, afterLexAeterna);
 			result.DamagePerHit = (int)Math.Ceiling(result.Damage / (float)result.HitCount);
@@ -182,6 +183,36 @@ namespace Sabine.Zone.Battle
 
 			var reduction = Math.Clamp(defender.Val2, 0, 100);
 			return damage * (100 - reduction) / 100;
+		}
+
+		// SC_ENERGYCOAT (MG_ENERGYCOAT): physical-weapon damage taken
+		// is reduced 6%/12%/18%/24%/30% based on current SP%, charging
+		// 1%/1.5%/2%/2.5%/3% MaxSP per hit. Mirrors eAthena
+		// battle.c:460 — per = 100*sp/maxsp - 1, bucketed by 20%, so
+		// 100% SP gives the highest 30% reduction. The SC ends if SP
+		// can't cover the upkeep cost.
+		private static int ApplyEnergyCoatReduction(int damage, Character target)
+		{
+			if (target.StatusEffects?.Has(StatusId.EnergyCoat) != true)
+				return damage;
+
+			var maxSp = target.Parameters.SpMax;
+			if (maxSp <= 0)
+				return damage;
+
+			var per = (100 * target.Parameters.Sp / maxSp - 1) / 20;
+			if (per < 0) per = 0;
+			if (per > 4) per = 4;
+
+			var cost = (10 + 5 * per) * maxSp / 1000;
+			if (!target.TrySpendSp(cost))
+			{
+				target.StatusEffects.Stop(StatusId.EnergyCoat);
+				return damage;
+			}
+
+			var reductionPct = 6 * (1 + per);
+			return damage * (100 - reductionPct) / 100;
 		}
 
 		// SC_LEXAETERNA (PR_LEXAETERNA): the next single hit on the
