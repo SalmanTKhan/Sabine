@@ -117,6 +117,12 @@ namespace Sabine.Zone.Battle
 			var renewal = IsRenewal();
 			int baseDamage;
 
+			// Race-mastery flat ATK bonus from passive skills against
+			// matching enemy types (DemonBane vs Demon/Undead, BeastBane
+			// vs Brute/Insect). eAthena battle.c:719-729 stacks these into
+			// the base damage *before* skill ratio is applied.
+			var raceMastery = GetRaceMasteryBonus(attacker, target);
+
 			if (renewal)
 			{
 				// Renewal: WeaponATK * skillRatio + StatusATK + MasteryATK.
@@ -124,7 +130,7 @@ namespace Sabine.Zone.Battle
 				if (weaponAtk == 0) weaponAtk = attacker.Parameters.Attack;
 
 				var statusAtk = attacker.Parameters.StatusAtk;
-				var masteryAtk = attacker.Parameters.MasteryAtk;
+				var masteryAtk = attacker.Parameters.MasteryAtk + raceMastery;
 				baseDamage = (int)Math.Floor(weaponAtk * ctx.SkillRatio) + statusAtk + masteryAtk;
 			}
 			else
@@ -147,6 +153,7 @@ namespace Sabine.Zone.Battle
 					var variancePct = 95 + rnd.Next(11); // 95..105
 					rolledAtk = rolledAtk * variancePct / 100;
 				}
+				rolledAtk += raceMastery;
 				baseDamage = (int)Math.Floor(rolledAtk * ctx.SkillRatio);
 			}
 
@@ -364,6 +371,56 @@ namespace Sabine.Zone.Battle
 				return damage;
 
 			return (int)Math.Floor(damage * pct / 100.0);
+		}
+
+		// Flat ATK bonus from passive race-bane skills, applied before
+		// skill ratio. Mirrors eAthena battle.c:719-729 (battle_addmastery):
+		//   AL_DEMONBANE — vs Demon race or Undead-element targets:
+		//     +level * (3 + (BaseLv + 1) * 0.05)
+		//   HT_BEASTBANE — vs Brute / Insect race targets:
+		//     +level * 4
+		// Mob-only check on DemonBane mirrors eAthena's BL_MOB guard so
+		// PvP against another player's Demon-statted character isn't
+		// double-amplified.
+		private static int GetRaceMasteryBonus(Character attacker, Character target)
+		{
+			if (attacker is not PlayerCharacter pc || pc.Skills == null)
+				return 0;
+
+			RaceType targetRace;
+			ElementType targetDefenseElement;
+			bool targetIsMob;
+
+			if (target is Monster monster)
+			{
+				targetRace = monster.Data.Race;
+				targetDefenseElement = monster.Data.Element;
+				targetIsMob = true;
+			}
+			else
+			{
+				targetRace = RaceType.PlayerHuman;
+				targetDefenseElement = ResolveDefenseElement(target);
+				targetIsMob = false;
+			}
+
+			var bonus = 0;
+
+			if (targetIsMob)
+			{
+				var demonBane = pc.Skills.GetLevel(SkillId.AL_DEMONBANE);
+				if (demonBane > 0 && (targetRace == RaceType.Demon || targetDefenseElement == ElementType.Undead))
+				{
+					var baseLevel = pc.Parameters.BaseLevel;
+					bonus += (int)(demonBane * (3 + (baseLevel + 1) * 0.05));
+				}
+			}
+
+			var beastBane = pc.Skills.GetLevel(SkillId.HT_BEASTBANE);
+			if (beastBane > 0 && (targetRace == RaceType.Brute || targetRace == RaceType.Insect))
+				bonus += beastBane * 4;
+
+			return bonus;
 		}
 
 		// SC_OVERTHRUST (BS_OVERTHRUST): linear +5% per level damage bonus
