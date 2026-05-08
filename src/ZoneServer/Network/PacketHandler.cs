@@ -1218,7 +1218,7 @@ namespace Sabine.Zone.Network
 				}
 
 				buyItems[item] = amount;
-				zenyCost += item.Price * amount;
+				zenyCost += Sabine.Zone.Skills.MerchantPricing.GetBuyPrice(character, item.Price) * amount;
 			}
 
 			if (character.Parameters.Zeny < zenyCost)
@@ -1337,7 +1337,7 @@ namespace Sabine.Zone.Network
 				var amount = entry.Value;
 
 				character.Inventory.DecrementItem(item, amount);
-				gainZeny += (long)item.Data.SellPrice * amount;
+				gainZeny += (long)Sabine.Zone.Skills.MerchantPricing.GetSellPrice(character, item.Data.SellPrice) * amount;
 			}
 
 			var clamped = (int)Math.Min(gainZeny, Sabine.Zone.World.Actors.Components.Characters.Parameters.MaxZeny);

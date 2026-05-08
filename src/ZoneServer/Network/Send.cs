@@ -1058,7 +1058,7 @@ namespace Sabine.Zone.Network
 				packet.PutInt(item.Price);
 
 				if (Game.Version >= Versions.Beta1)
-					packet.PutInt(item.Price); // Skill-bonus adjusted price
+					packet.PutInt(Sabine.Zone.Skills.MerchantPricing.GetBuyPrice(character, item.Price));
 
 				packet.PutByte(0);
 
@@ -1098,7 +1098,7 @@ namespace Sabine.Zone.Network
 				packet.PutInt(sellPrice);
 
 				if (Game.Version >= Versions.Beta1)
-					packet.PutInt(sellPrice); // Skill-bonus adjusted price
+					packet.PutInt(Sabine.Zone.Skills.MerchantPricing.GetSellPrice(character, sellPrice));
 			}
 
 			character.Connection.Send(packet);

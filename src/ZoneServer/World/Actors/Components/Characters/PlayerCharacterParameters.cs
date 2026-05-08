@@ -370,6 +370,15 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (!ZoneServer.Instance.Data.Features.IsEnabled(FeatureId.HigherMaxWeight))
 				this.WeightMax /= 5;
 
+			// MC_INCCARRY (Enlarge Weight Limit): +200 max weight per
+			// skill level. eAthena pc.c folds this in via skill_check
+			// inside pc_calc_weight. Applied after the alpha-era /5
+			// scaling so a 1-point capacity Merchant still sees a
+			// recognisable +200 / level on a +HigherMaxWeight server.
+			var enlargeLevel = this.Character.Skills?.GetLevel(SkillId.MC_INCCARRY) ?? 0;
+			if (enlargeLevel > 0)
+				this.WeightMax += 200 * enlargeLevel;
+
 			this.UpdateClient(ParameterType.Weight, ParameterType.WeightMax);
 		}
 
