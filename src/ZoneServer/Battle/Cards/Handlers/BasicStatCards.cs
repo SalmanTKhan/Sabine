@@ -256,6 +256,34 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 			=> character.Parameters.Modify(ParameterType.Str, -3);
 	}
 
+	/// <summary>
+	/// Hunter Fly Card (4115): 3% chance to drain 15% of inflicted damage as HP.
+	/// Mirrors eAthena <c>bonus2 bHpDrainRate, 30, 15</c>.
+	/// </summary>
+	[CardHandler(4115)]
+	public class HunterFlyCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddHpDrain(30, 15);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddHpDrain(-30, -15);
+	}
+
+	/// <summary>
+	/// Dracula Card (4134): 10% chance to drain 5% of inflicted damage as SP.
+	/// Mirrors eAthena <c>bonus2 bSpDrainRate, 100, 5</c>.
+	/// </summary>
+	[CardHandler(4134)]
+	public class DraculaCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddSpDrain(100, 5);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddSpDrain(-100, -5);
+	}
+
 	/// <summary>Sohee Card (4096): +3 INT.</summary>
 	[CardHandler(4096)]
 	public class SoheeCardHandler : ICardHandler

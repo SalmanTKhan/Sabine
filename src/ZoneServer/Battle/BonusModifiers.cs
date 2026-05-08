@@ -124,6 +124,35 @@ namespace Sabine.Zone.Battle
 		/// <summary>Percent damage bonus on BF_SHORT (melee) hits (eAthena bShortAtkRate / SP_SHORT_ATK_RATE).</summary>
 		public int BonusShortAtkRate { get; set; }
 
+		// -------------------------------------------------------------
+		// HP / SP drain bucket (lifesteal on physical hit)
+		// -------------------------------------------------------------
+		// eAthena battle.c:battle_drain rolls drain on every player weapon
+		// hit: a flat <c>value</c> is added unconditionally, plus a
+		// <c>damage * percent / 100</c> term when a per-1000 <c>rate</c>
+		// roll succeeds (battle.c:691, battle_calc_drain). Sabine keeps
+		// the four scalars separate; card handlers set rate+percent
+		// together to mirror eAthena's <c>bonus2 bHpDrainRate, rate,
+		// per</c> syntax.
+
+		/// <summary>Flat HP healed on every basic-attack hit (eAthena bHpDrainValue).</summary>
+		public int BonusHpDrainValue { get; set; }
+
+		/// <summary>Per-1000 chance to roll the HP drain percent (eAthena bHpDrainRate first arg).</summary>
+		public int BonusHpDrainRate { get; set; }
+
+		/// <summary>Percent of damage healed when the HP drain rate roll succeeds (eAthena bHpDrainRate second arg).</summary>
+		public int BonusHpDrainPercent { get; set; }
+
+		/// <summary>Flat SP recovered on every basic-attack hit (eAthena bSpDrainValue).</summary>
+		public int BonusSpDrainValue { get; set; }
+
+		/// <summary>Per-1000 chance to roll the SP drain percent (eAthena bSpDrainRate first arg).</summary>
+		public int BonusSpDrainRate { get; set; }
+
+		/// <summary>Percent of damage recovered when the SP drain rate roll succeeds (eAthena bSpDrainRate second arg).</summary>
+		public int BonusSpDrainPercent { get; set; }
+
 		public BonusModifiers()
 		{
 			this.AddRace = new int[(int)RaceType.All + 1];
@@ -166,7 +195,30 @@ namespace Sabine.Zone.Battle
 				case ParameterType.MagicAtkRate: this.BonusMatkRate += amount; break;
 				case ParameterType.LongAtkRate: this.BonusLongAtkRate += amount; break;
 				case ParameterType.ShortAtkRate: this.BonusShortAtkRate += amount; break;
+				case ParameterType.HpDrainValue: this.BonusHpDrainValue += amount; break;
+				case ParameterType.SpDrainValue: this.BonusSpDrainValue += amount; break;
 			}
+		}
+
+		/// <summary>
+		/// Adds an HP-drain rate (per-1000 chance) and percent-of-damage
+		/// pair, mirroring eAthena's two-arg <c>bonus2 bHpDrainRate,
+		/// rate, per</c>. Caller passes negative values on unequip to
+		/// revert. Combining rate+percent in one helper keeps card
+		/// handlers symmetrical and prevents a desynced revert when only
+		/// one half is touched.
+		/// </summary>
+		public void AddHpDrain(int rate, int percent)
+		{
+			this.BonusHpDrainRate += rate;
+			this.BonusHpDrainPercent += percent;
+		}
+
+		/// <summary>SP counterpart of <see cref="AddHpDrain"/>.</summary>
+		public void AddSpDrain(int rate, int percent)
+		{
+			this.BonusSpDrainRate += rate;
+			this.BonusSpDrainPercent += percent;
 		}
 
 		/// <summary>
