@@ -30,6 +30,7 @@ public class KafraScript : GeneralScript
 
 		var response = await dialog.Select(
 			Option("Use Storage", "storage"),
+			Option("Use Guild Storage", "guildstorage"),
 			Option("Cancel", "cancel"));
 
 		switch (response)
@@ -46,6 +47,33 @@ public class KafraScript : GeneralScript
 				dialog.Msg("[Kafra Employee]");
 				dialog.Msg("Thank you. Please come again.");
 				OpenStorage(player);
+				break;
+			}
+			case "guildstorage":
+			{
+				// v1 gate: master-only. Per-position permission UI is
+				// out of scope for now; the `GuildPermission.Storage`
+				// flag is reserved for the follow-up that exposes
+				// position-level grants.
+				if (player.Guild == null)
+				{
+					dialog.Msg("[Kafra Employee]");
+					dialog.Msg("I'm sorry, but you must belong to a guild to access guild storage.");
+					player.ServerMessage("Guild Storage: you are not in a guild.");
+					return;
+				}
+
+				if (player.Id != player.Guild.MasterCharId)
+				{
+					dialog.Msg("[Kafra Employee]");
+					dialog.Msg("Only the guild master may access the guild storage at this time.");
+					player.ServerMessage("Guild Storage: master-only access (v1).");
+					return;
+				}
+
+				dialog.Msg("[Kafra Employee]");
+				dialog.Msg("Opening your guild's storage. Please come again.");
+				OpenGuildStorage(player);
 				break;
 			}
 			case "cancel":
