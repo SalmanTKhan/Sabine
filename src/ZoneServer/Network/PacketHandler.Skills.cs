@@ -59,7 +59,9 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Request to move an item from inventory into account storage.
+		/// Request to move an item from inventory into the storage that
+		/// is currently active for the player (personal or guild),
+		/// selected by <see cref="PlayerCharacter.ActiveStorage"/>.
 		/// </summary>
 		[PacketHandler(Op.CZ_MOVE_ITEM_FROM_BODY_TO_STORE)]
 		public void CZ_MOVE_ITEM_FROM_BODY_TO_STORE(ZoneConnection conn, Packet packet)
@@ -68,8 +70,6 @@ namespace Sabine.Zone.Network
 			var amount = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
-			if (!character.Storage.IsOpen)
-				return;
 
 			var item = character.Inventory.GetItem(itemIndex);
 			if (item == null)
@@ -81,18 +81,39 @@ namespace Sabine.Zone.Network
 			if (item.IsEquipped)
 				return;
 
-			var added = character.Storage.AddFrom(item, amount);
-			if (added == null)
+			if (character.ActiveStorage == StorageType.GuildStorage)
+			{
+				if (character.Guild?.Storage == null)
+					return;
+
+				var added = character.Guild.Storage.AddFrom(item, amount);
+				if (added == null)
+					return;
+
+				Send.ZC_ADD_ITEM_TO_STORE(character, added);
+				Send.ZC_NOTIFY_STOREITEM_COUNTINFO(character, character.Guild.Storage.ItemCount, GuildStorage.MaxSlots);
+
+				character.Inventory.DecrementItem(item, amount);
+				return;
+			}
+
+			if (!character.Storage.IsOpen)
 				return;
 
-			Send.ZC_ADD_ITEM_TO_STORE(character, added);
+			var addedPersonal = character.Storage.AddFrom(item, amount);
+			if (addedPersonal == null)
+				return;
+
+			Send.ZC_ADD_ITEM_TO_STORE(character, addedPersonal);
 			Send.ZC_NOTIFY_STOREITEM_COUNTINFO(character, character.Storage.ItemCount, Sabine.Zone.World.Actors.Components.Characters.Storage.MaxSlots);
 
 			character.Inventory.DecrementItem(item, amount);
 		}
 
 		/// <summary>
-		/// Request to move an item from account storage back to inventory.
+		/// Request to move an item from the active storage back into
+		/// inventory. Routes through <see cref="PlayerCharacter.ActiveStorage"/>
+		/// so the same opcode covers personal and guild storage.
 		/// </summary>
 		[PacketHandler(Op.CZ_MOVE_ITEM_FROM_STORE_TO_BODY)]
 		public void CZ_MOVE_ITEM_FROM_STORE_TO_BODY(ZoneConnection conn, Packet packet)
@@ -101,10 +122,40 @@ namespace Sabine.Zone.Network
 			var amount = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
-			if (!character.Storage.IsOpen)
-				return;
 
 			if (amount <= 0)
+				return;
+
+			if (character.ActiveStorage == StorageType.GuildStorage)
+			{
+				if (character.Guild?.Storage == null)
+					return;
+
+				var gEntry = character.Guild.Storage.GetItem(itemIndex);
+				if (gEntry == null)
+					return;
+
+				var gWeightAdd = gEntry.Data.Weight * amount;
+				if (character.Parameters.Weight + gWeightAdd > character.Parameters.WeightMax)
+					return;
+
+				var gNeedsSlot = gEntry.Data.Type.IsEquip()
+					? amount
+					: (character.Inventory.Contains(gEntry.Data.ClassId) ? 0 : 1);
+
+				if (character.Inventory.ItemCount + gNeedsSlot > Sabine.Zone.World.Actors.Components.Characters.Inventory.MaxSlots)
+					return;
+
+				var gDetached = character.Guild.Storage.RemoveByIndex(itemIndex, amount);
+				if (gDetached == null)
+					return;
+
+				Send.ZC_DELETE_ITEM_FROM_STORE(character, itemIndex, amount);
+				character.Inventory.AddItem(gDetached);
+				return;
+			}
+
+			if (!character.Storage.IsOpen)
 				return;
 
 			var entry = character.Storage.GetItem(itemIndex);

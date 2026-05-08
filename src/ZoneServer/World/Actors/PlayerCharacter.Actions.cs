@@ -1,6 +1,7 @@
 ﻿using System.Threading;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
+using Sabine.Zone.World.Groups;
 
 namespace Sabine.Zone.World.Actors
 {
@@ -267,17 +268,63 @@ namespace Sabine.Zone.World.Actors
 			Send.ZC_NOTIFY_STOREITEM_COUNTINFO(this, this.Storage.ItemCount, Sabine.Zone.World.Actors.Components.Characters.Storage.MaxSlots);
 
 			this.Storage.IsOpen = true;
+			this.ActiveStorage = StorageType.Storage;
 		}
 
 		/// <summary>
-		/// Closes the storage window on the client and clears the open flag.
+		/// Opens the shared guild storage window. Reuses the personal
+		/// storage packets but routes mutations to <see cref="Guild.Storage"/>
+		/// via <see cref="ActiveStorage"/>. Caller must have verified
+		/// `Guild != null` and the master-only permission gate.
+		/// </summary>
+		public void OpenGuildStorage()
+		{
+			if (this.Guild == null || this.Guild.Storage == null)
+				return;
+
+			// Same anti-race guards as personal storage. Also refuse
+			// if the personal storage window is already open -- the
+			// client only renders one storage window at a time.
+			if (this.Storage.IsOpen)
+				return;
+
+			if (this.VendingShop?.IsOpen == true)
+				return;
+
+			if (ZoneServer.Instance.World.Trades.TryGetTrade(this, out _))
+				return;
+
+			var items = this.Guild.Storage.GetItems();
+			Send.ZC_STORE_NORMAL_ITEMLIST(this, items);
+			Send.ZC_STORE_EQUIPMENT_ITEMLIST(this, items);
+			Send.ZC_NOTIFY_STOREITEM_COUNTINFO(this, this.Guild.Storage.ItemCount, GuildStorage.MaxSlots);
+
+			this.ActiveStorage = StorageType.GuildStorage;
+		}
+
+		/// <summary>
+		/// Closes whichever storage window is currently open and resets
+		/// <see cref="ActiveStorage"/> to the personal-storage default
+		/// so the next open routes correctly.
 		/// </summary>
 		public void CloseStorage()
 		{
+			if (this.ActiveStorage == StorageType.GuildStorage)
+			{
+				// Flush guild storage on close so a member's deposit
+				// survives a crash before the next roster mutation.
+				ZoneServer.Instance.World.Guilds.SaveStorage(this.Guild);
+
+				this.ActiveStorage = StorageType.Storage;
+				Send.ZC_CLOSE_STORE(this);
+				return;
+			}
+
 			if (!this.Storage.IsOpen)
 				return;
 
 			this.Storage.IsOpen = false;
+			this.ActiveStorage = StorageType.Storage;
 			Send.ZC_CLOSE_STORE(this);
 		}
 	}
