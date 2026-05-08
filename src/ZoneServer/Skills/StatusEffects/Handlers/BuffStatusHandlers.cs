@@ -83,4 +83,27 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 		public void OnStart(Character target, StatusEffect effect) { }
 		public void OnEnd(Character target, StatusEffect effect) { }
 	}
+
+	/// <summary>
+	/// SC_FORTUNE — Sage Hocus Pocus "Fortune" outcome grants the caster
+	/// a flat LUK aura. eAthena status.c uses SCB_LUK with val2 = 20 for
+	/// a flat 60s window (skill.c SA_FORTUNE).
+	/// </summary>
+	[StatusEffectHandler(StatusId.Fortune)]
+	public class FortuneStatusHandler : IStatusEffectHandler
+	{
+		private const int LukBonus = 20;
+
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			effect.Val2 = LukBonus;
+			target.AddBonusStat(ParameterType.Luk, LukBonus);
+		}
+
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+			if (effect.Val2 != 0)
+				target.AddBonusStat(ParameterType.Luk, -effect.Val2);
+		}
+	}
 }
