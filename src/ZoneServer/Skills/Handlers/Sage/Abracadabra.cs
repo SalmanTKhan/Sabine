@@ -22,13 +22,27 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
-			var skill = parameters.Skill;
 			var level = parameters.SkillLevel;
 
 			var pick = Outcomes[RandomProvider.Get().Next(Outcomes.Length)];
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, pick, level, 0, 0, 0, ActionType.Skill);
 			if (caster is PlayerCharacter pc)
 				pc.ServerMessage($"Abracadabra rolled: {pick}");
+
+			// Dispatch to the rolled outcome's handler so the random
+			// pick actually fires. eAthena's SA_ABRACADABRA recasts the
+			// rolled skill on the caster's existing target — we keep
+			// that contract by reusing parameters.Target. When the
+			// rolled skill has no handler or no data row we fall back
+			// to a bare cast frame so the client still sees something.
+			if (!ZoneServer.Instance.Data.Skills.TryFind(pick, out _) ||
+				!ZoneServer.Instance.SkillHandlers.TryGetHandler<ITargetedSkillHandler>(pick, out var handler))
+			{
+				Send.ZC_NOTIFY_SKILL(caster, caster.Handle, pick, level, 0, 0, 0, ActionType.Skill);
+				return;
+			}
+
+			var rolledSkill = new Skill(caster, pick, level);
+			handler.Handle(new UseSkillParams(caster, parameters.Target, rolledSkill, level));
 		}
 	}
 
