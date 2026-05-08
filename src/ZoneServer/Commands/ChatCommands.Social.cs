@@ -1,4 +1,6 @@
+using Sabine.Shared.Const;
 using Sabine.Shared.Util;
+using Sabine.Zone.Network;
 using Sabine.Zone.World;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Chats;
@@ -181,8 +183,69 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult Reset(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Reset is not implemented (would zero stats and refund points)."));
+			var refundedStats = ResetStats(target);
+			var refundedSkills = ResetSkills(target);
+
+			target.Parameters.RecalculateAll();
+			target.Skills.RefreshClient();
+
+			sender.ServerMessage(Localization.Get("Reset: refunded {0} stat point(s) and {1} skill point(s)."), refundedStats, refundedSkills);
+			if (sender != target)
+				target.ServerMessage(Localization.Get("Your stats and skills have been reset by {0}."), sender.Name);
+
 			return CommandResult.Okay;
+		}
+
+		// eAthena pc_resetstate: stat points spent on a stat from base 1
+		// to N equal sum_{i=1..N-1} (1 + (i+9)/10), so we walk that here
+		// to refund accurately. Stats settle back to 1 after the refund.
+		private static int ResetStats(PlayerCharacter target)
+		{
+			var p = target.Parameters;
+			var refund = StatRefund(p.Str) + StatRefund(p.Agi) + StatRefund(p.Vit)
+				+ StatRefund(p.Int) + StatRefund(p.Dex) + StatRefund(p.Luk);
+
+			p.Set(ParameterType.Str, 1); Send.ZC_PAR_CHANGE(target, ParameterType.Str);
+			p.Set(ParameterType.Agi, 1); Send.ZC_PAR_CHANGE(target, ParameterType.Agi);
+			p.Set(ParameterType.Vit, 1); Send.ZC_PAR_CHANGE(target, ParameterType.Vit);
+			p.Set(ParameterType.Int, 1); Send.ZC_PAR_CHANGE(target, ParameterType.Int);
+			p.Set(ParameterType.Dex, 1); Send.ZC_PAR_CHANGE(target, ParameterType.Dex);
+			p.Set(ParameterType.Luk, 1); Send.ZC_PAR_CHANGE(target, ParameterType.Luk);
+
+			p.Modify(ParameterType.StatPoints, refund);
+			return refund;
+		}
+
+		private static int StatRefund(int currentValue)
+		{
+			var spent = 0;
+			for (var i = 1; i < currentValue; i++)
+				spent += 1 + (i + 9) / 10;
+			return spent;
+		}
+
+		// eAthena pc_resetskill: zero every tree skill the player has
+		// learned and refund one skill point per consumed level. Quest
+		// skills outside the class tree are left alone.
+		private static int ResetSkills(PlayerCharacter target)
+		{
+			if (!ZoneServer.Instance.Data.SkillTrees.TryFind(target.JobId, out var treeData))
+				return 0;
+
+			var refund = 0;
+			foreach (var entry in treeData.Skills)
+			{
+				if (!target.Skills.TryGet(entry.SkillId, out var skill) || skill.Level <= 0)
+					continue;
+
+				refund += skill.Level;
+				skill.Level = 0;
+			}
+
+			if (refund > 0)
+				target.Parameters.Modify(ParameterType.SkillPoints, refund);
+
+			return refund;
 		}
 
 		private CommandResult Trade(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
