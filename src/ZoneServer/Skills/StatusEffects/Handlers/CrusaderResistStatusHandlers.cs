@@ -55,4 +55,19 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			target.Modifiers.SubRace[(int)RaceType.Demon] -= effect.Val2;
 		}
 	}
+
+	/// <summary>
+	/// SC_AUTOGUARD (CR_AUTOGUARD) — marker registration. The block
+	/// roll lives in <see cref="Sabine.Zone.Battle.Listeners.AutoGuardListener"/>,
+	/// which reads the status's <c>Level</c> directly off the
+	/// <c>StatusEffects</c> bag, so no OnStart/OnEnd state work is
+	/// needed. Having the explicit handler closes the dispatch table
+	/// and gives a hook for future shield-icon / cooldown work.
+	/// </summary>
+	[StatusEffectHandler(StatusId.AutoGuard)]
+	public class AutoGuardStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
 }
