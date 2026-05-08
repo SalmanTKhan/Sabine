@@ -39,6 +39,7 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 					HitCount = hits,
 					AttackElement = ElementType.Wind,
 					AlwaysHits = true,
+					IsAreaOfEffect = true,
 				};
 				var result = BattleCalculator.Calc(ctx);
 				if (!result.IsMiss)
@@ -85,6 +86,7 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 					SkillRatio = ratio,
 					AttackElement = ElementType.Earth,
 					AlwaysHits = true,
+					IsAreaOfEffect = true,
 				};
 				var result = BattleCalculator.Calc(ctx);
 				if (!result.IsMiss)
@@ -124,6 +126,7 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 					HitCount = 2,
 					AttackElement = ElementType.Fire,
 					AlwaysHits = true,
+					IsAreaOfEffect = true,
 				};
 				var result = BattleCalculator.Calc(ctx);
 				if (!result.IsMiss)
@@ -269,6 +272,7 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 					HitCount = 3,
 					AttackElement = ElementType.Water,
 					AlwaysHits = true,
+					IsAreaOfEffect = true,
 				};
 				var result = BattleCalculator.Calc(ctx);
 				if (!result.IsMiss)

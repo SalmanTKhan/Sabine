@@ -108,6 +108,15 @@ namespace Sabine.Zone.Battle
 		/// </summary>
 		public int SplashRange { get; set; }
 
+		/// <summary>
+		/// Set by skills whose damage source is detached from the caster
+		/// (ground-spawned timers like Storm Gust, Lord of Vermilion,
+		/// Meteor Storm, Heaven Drive). Mirrors eAthena's <c>src != dsrc</c>
+		/// branch — Magic Rod can only absorb hits where the caster is the
+		/// direct source, so AoE ground spells bypass the absorb.
+		/// </summary>
+		public bool IsAreaOfEffect { get; set; }
+
 		public AttackContext(Character attacker, Character target)
 		{
 			this.Attacker = attacker;

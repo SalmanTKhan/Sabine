@@ -1,6 +1,7 @@
 using System;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data.Databases;
+using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Util;
 
@@ -343,6 +344,12 @@ namespace Sabine.Zone.Battle
 				return result;
 			}
 
+			if (TryAbsorbWithMagicRod(ctx))
+			{
+				result.IsMiss = true;
+				return result;
+			}
+
 			var renewal = IsRenewal();
 
 			// Renewal magic flee: small INT-based dodge. Pre-renewal magic
@@ -394,6 +401,40 @@ namespace Sabine.Zone.Battle
 			result.Damage = result.DamagePerHit * result.HitCount;
 
 			return result;
+		}
+
+		// SC_MAGICROD (SA_MAGICROD): nullifies a single direct magic hit and
+		// converts the skill's SP cost into SP for the rod-bearer. Mirrors
+		// eAthena skill.c:1660 — gated on `src == dsrc` so ground-spawned
+		// AoE timers (Storm Gust, LoV, Meteor, Heaven Drive) bypass it.
+		// SP returned is `skill.SpCost * (level * 20) / 100`. Returns true
+		// when the hit was absorbed.
+		private static bool TryAbsorbWithMagicRod(AttackContext ctx)
+		{
+			if (ctx.IsAreaOfEffect)
+				return false;
+
+			var target = ctx.Target;
+			if (target.StatusEffects == null || !target.StatusEffects.Has(StatusId.MagicRod))
+				return false;
+
+			if (target is not PlayerCharacter pc)
+				return false;
+
+			var effect = target.StatusEffects.Get(StatusId.MagicRod);
+			if (effect == null)
+				return false;
+
+			var sp = 0;
+			if (ZoneServer.Instance.Data.Skills.TryFind(ctx.SkillId, out var skillData))
+				sp = skillData.GetSpCost(ctx.SkillLevel);
+
+			sp = sp * (effect.Level * 20) / 100;
+			if (sp > 0)
+				pc.HealSp(sp);
+
+			Send.ZC_NOTIFY_SKILL(target, target.Handle, SkillId.SA_MAGICROD, effect.Level, 0, 0, 0, ActionType.Skill);
+			return true;
 		}
 
 		private static int ApplyMagicDefense(int damage, Character target)
