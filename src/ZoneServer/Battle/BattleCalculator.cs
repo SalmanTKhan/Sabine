@@ -432,13 +432,24 @@ namespace Sabine.Zone.Battle
 				if (isRanged && pc.Inventory.Ammo != null)
 					return pc.Inventory.Ammo.Data.Element;
 
-				// SC_ASPERSIO (PR_ASPERSIO): overrides melee weapon element
-				// to Holy. eAthena battle_get_atk_ele applies it after the
-				// ammo override, so bow shots only swap when no ammo is
-				// loaded. Skill-specified elements (handled at the top of
-				// this method) are not touched.
-				if (attacker.StatusEffects?.Has(StatusId.Aspersio) == true && ctx.Kind == AttackKind.Physical)
-					return ElementType.Holy;
+				// SC_ASPERSIO (PR_ASPERSIO) and the Sage weapon-enchants
+				// (SA_FLAMELAUNCHER / FROSTWEAPON / SEISMICWEAPON /
+				// LIGHTNINGLOADER) override the wearer's weapon element.
+				// eAthena battle_get_atk_ele applies them after the ammo
+				// override, so bow shots only swap when no ammo is loaded.
+				// Skill-specified elements (handled at the top of this
+				// method) are not touched. eAthena lets all of these be
+				// mutually exclusive at cast time, so checking any-one-
+				// matches in priority order is safe.
+				if (ctx.Kind == AttackKind.Physical && attacker.StatusEffects != null)
+				{
+					var sc = attacker.StatusEffects;
+					if (sc.Has(StatusId.Aspersio)) return ElementType.Holy;
+					if (sc.Has(StatusId.EndowFire)) return ElementType.Fire;
+					if (sc.Has(StatusId.EndowWater)) return ElementType.Water;
+					if (sc.Has(StatusId.EndowEarth)) return ElementType.Earth;
+					if (sc.Has(StatusId.EndowWind)) return ElementType.Wind;
+				}
 
 				return pc.Inventory.RightHand?.Data.Element ?? ElementType.Neutral;
 			}
