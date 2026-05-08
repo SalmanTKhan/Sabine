@@ -16,6 +16,22 @@ namespace Sabine.Zone.World.Actors
 	public class Monster : Npc
 	{
 		private readonly List<Item> _dropItems = new();
+		private TimeSpan _aliveTime = TimeSpan.Zero;
+
+		/// <summary>
+		/// Character that summoned this monster, if any. Friendly to the
+		/// master and the master's party — see <see cref="IsHostileTo"/>.
+		/// Mirrors eAthena's <c>md->master_id</c> on summoned mobs (e.g.
+		/// AM_CANNIBALIZE plants, AM_SPHEREMINE Marine Spheres).
+		/// </summary>
+		public Character Master { get; set; }
+
+		/// <summary>
+		/// Optional auto-despawn duration. When set, the monster removes
+		/// itself from the map after this much wall time, like eAthena's
+		/// <c>mob_setdelayspawn</c> on summon mobs.
+		/// </summary>
+		public TimeSpan? Lifespan { get; set; }
 
 		/// <summary>
 		/// Drop-table indices already taken by Steal on this instance.
@@ -291,6 +307,44 @@ namespace Sabine.Zone.World.Actors
 		{
 			lock (_dropItems)
 				_dropItems.Add(item);
+		}
+
+		/// <summary>
+		/// Drives lifespan expiry on summoned mobs. Owned summons silently
+		/// vanish without giving EXP/loot, matching eAthena's behaviour
+		/// for AM_CANNIBALIZE plants and AM_SPHEREMINE mines that time
+		/// out without exploding.
+		/// </summary>
+		public override void Update(TimeSpan elapsed)
+		{
+			base.Update(elapsed);
+
+			if (this.Lifespan == null || this.IsDead)
+				return;
+
+			_aliveTime += elapsed;
+			if (_aliveTime < this.Lifespan.Value)
+				return;
+
+			this.Lifespan = null;
+			this.Map?.RemoveNpc(this);
+		}
+
+		internal override bool IsHostileTo(Character target)
+		{
+			if (this.Master != null)
+			{
+				if (target == this.Master)
+					return false;
+
+				if (this.Master is PlayerCharacter masterPc && target is PlayerCharacter targetPc)
+				{
+					if (masterPc.Party != null && targetPc.Party == masterPc.Party)
+						return false;
+				}
+			}
+
+			return base.IsHostileTo(target);
 		}
 	}
 }

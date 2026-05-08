@@ -4,6 +4,7 @@ using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Skills.Handlers.Alchemist
 {
@@ -135,11 +136,80 @@ namespace Sabine.Zone.Skills.Handlers.Alchemist
 		}
 	}
 
+	internal static class AlchemistSummon
+	{
+		// eAthena skill_unit_db rows for AM_CANNIBALIZE / AM_SPHEREMINE
+		// give the summon a 60s lifetime regardless of skill level. The
+		// master_id field on the spawned mob tags it as a friendly
+		// summon — Sabine's <see cref="Monster.IsHostileTo"/> reads it
+		// to skip the caster (and the caster's party).
+		public static readonly TimeSpan PlantLifespan = TimeSpan.FromSeconds(60);
+
+		public static void Spawn(PlayerCharacter master, IdentityId mobId, TimeSpan? lifespan)
+		{
+			if (!ZoneServer.Instance.Data.Monsters.Contains(mobId))
+				return;
+
+			var monster = new Monster(mobId)
+			{
+				Master = master,
+				Lifespan = lifespan,
+			};
+			monster.Warp(master.MapId, master.Position.GetRandomInRange(2));
+		}
+	}
+
 	[SkillHandler(SkillId.AM_CANNIBALIZE)]
-	public class CannibalizeHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Plant summoning"); }
+	public class CannibalizeHandler : ITargetedSkillHandler
+	{
+		// AM_CANNIBALIZE summons a plant scaled to skill level. eAthena
+		// skill.c uses the standard plant family: Flora → Hydra →
+		// Mandragora → Geographer (capped, since Sabine doesn't always
+		// stock the renewal-only Parasite at lvl 5).
+		private static readonly IdentityId[] PlantsByLevel = new[]
+		{
+			IdentityId.JT_FLORA,
+			IdentityId.JT_HYDRA,
+			IdentityId.JT_MANDRAGORA,
+			IdentityId.JT_GEOGRAPHER,
+			IdentityId.JT_GEOGRAPHER,
+		};
+
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+			if (caster is not PlayerCharacter pc)
+				return;
+
+			var idx = Math.Clamp(level - 1, 0, PlantsByLevel.Length - 1);
+			AlchemistSummon.Spawn(pc, PlantsByLevel[idx], AlchemistSummon.PlantLifespan);
+		}
+	}
 
 	[SkillHandler(SkillId.AM_SPHEREMINE)]
-	public class SphereMineHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Sphere Mine summoning"); }
+	public class SphereMineHandler : ITargetedSkillHandler
+	{
+		// AM_SPHEREMINE summons a Marine Sphere (1142) tied to the
+		// caster. eAthena's full behaviour has it self-destruct on
+		// contact; we keep the spawn + auto-despawn path here, so the
+		// sphere acts as a hostile-to-non-allies turret for now.
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+			if (caster is not PlayerCharacter pc)
+				return;
+
+			AlchemistSummon.Spawn(pc, IdentityId.JT_MARINE_SPHERE, AlchemistSummon.PlantLifespan);
+		}
+	}
 
 	// Chemical Protection — eAthena skill_cast_db has a flat 30s/level
 	// duration on every AM_CP_* row (lvl 1 = 30s, lvl 5 = 150s). Buffs
@@ -234,7 +304,31 @@ namespace Sabine.Zone.Skills.Handlers.Alchemist
 	}
 
 	[SkillHandler(SkillId.AM_CULTIVATION)]
-	public class CultivationHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Plant cultivation"); }
+	public class CultivationHandler : ITargetedSkillHandler
+	{
+		// AM_CULTIVATION grows a wild plant with no master tag. eAthena
+		// classic skill_cast_db: lvl 1 spawns a mushroom (random Black
+		// or Red), lvl 2 spawns a Red Plant. The mob is wild — it
+		// behaves like a regular spawn and stays around as terrain.
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+			if (caster is not PlayerCharacter pc)
+				return;
+
+			IdentityId mobId;
+			if (level <= 1)
+				mobId = RandomProvider.Get().Next(2) == 0 ? IdentityId.JT_BLACK_MUSHROOM : IdentityId.JT_RED_MUSHROOM;
+			else
+				mobId = IdentityId.JT_RED_PLANT;
+
+			AlchemistSummon.Spawn(pc, mobId, lifespan: null);
+		}
+	}
 
 	[SkillHandler(SkillId.AM_FLAMECONTROL)]
 	public class FlameControlHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => AlchemyStub.Run(p, "Flame Control"); }
