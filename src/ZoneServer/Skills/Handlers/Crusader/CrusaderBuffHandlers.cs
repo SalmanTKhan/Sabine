@@ -33,8 +33,8 @@ namespace Sabine.Zone.Skills.Handlers.Crusader
 	[SkillHandler(SkillId.CR_PROVIDENCE)]
 	public class ProvidenceHandler : BuffSkillHandler
 	{
-		// eAthena CR_PROVIDENCE: +5% Demi-Human / Holy resist per
-		// level. 90s + 30s/level.
+		// eAthena CR_PROVIDENCE: +5% Holy / Demon resist per level
+		// (status.c:5335 + 2415-2416). 90s + 30s/level.
 		protected override StatusId StatusId => StatusId.Providence;
 		protected override TimeSpan GetDuration(int level) => TimeSpan.FromSeconds(90 + 30 * level);
 	}
