@@ -44,6 +44,19 @@ namespace Sabine.Zone.World.Groups
 				foreach (var row in rows)
 				{
 					var guild = new Guild(row);
+					guild.EnsureStorage();
+
+					try
+					{
+						var stored = ZoneServer.Instance.Database.LoadGuildStorage(guild.Id);
+						foreach (var item in stored)
+							guild.Storage.AddItemInit(item);
+					}
+					catch (Exception ex)
+					{
+						Log.Error("GuildManager.LoadAll: failed to load storage for guild {0}: {1}", guild.Id, ex);
+					}
+
 					_guilds[guild.Id] = guild;
 					_guildsByName[guild.Name] = guild;
 					foreach (var m in guild.Members)
@@ -72,6 +85,8 @@ namespace Sabine.Zone.World.Groups
 					guild.EmblemId, guild.Notice);
 				ZoneServer.Instance.Database.InsertGuildMember(
 					guild.Id, master.Id, isMaster: true, position: string.Empty);
+
+				guild.EnsureStorage();
 
 				_guilds[guild.Id] = guild;
 				_guildsByName[name] = guild;
@@ -133,6 +148,8 @@ namespace Sabine.Zone.World.Groups
 				ZoneServer.Instance.Database.InsertGuildMember(
 					guildId, player.Id, isMaster: false, position: string.Empty);
 				_guildsByMember[player.Id] = guild;
+
+				this.SaveStorage(guild);
 				return true;
 			}
 		}
@@ -149,6 +166,8 @@ namespace Sabine.Zone.World.Groups
 
 				ZoneServer.Instance.Database.DeleteGuildMember(characterId);
 				_guildsByMember.Remove(characterId);
+
+				this.SaveStorage(guild);
 				return true;
 			}
 		}
@@ -223,6 +242,46 @@ namespace Sabine.Zone.World.Groups
 				guild.Id, guild.Name, guild.MasterCharId,
 				guild.Level, guild.ExpCurrent, guild.EmblemId,
 				guild.Notice ?? string.Empty);
+		}
+
+		/// <summary>
+		/// Flushes a single guild's shared storage to the DB. Called
+		/// on roster changes (so a leaving member can't leave the
+		/// guild stash in an unflushed state) and from
+		/// <see cref="SaveAllStorages"/> on map-server stop. Failures
+		/// are logged but never thrown -- a transient DB error must
+		/// not abort the calling membership mutation.
+		/// </summary>
+		public void SaveStorage(Guild guild)
+		{
+			if (guild == null || guild.Id == 0 || guild.Storage == null)
+				return;
+
+			try
+			{
+				ZoneServer.Instance.Database.SaveGuildStorage(
+					guild.Id, guild.Storage.GetItems());
+			}
+			catch (Exception ex)
+			{
+				Log.Error("GuildManager.SaveStorage: failed to save storage for guild {0}: {1}", guild.Id, ex);
+			}
+		}
+
+		/// <summary>
+		/// Flushes every loaded guild's shared storage to the DB.
+		/// Wired into the map-server shutdown hook so guild storage
+		/// always survives a clean stop -- personal storage waits
+		/// for logout, but guild storage outlives any single member.
+		/// </summary>
+		public void SaveAllStorages()
+		{
+			List<Guild> snapshot;
+			lock (_guilds)
+				snapshot = _guilds.Values.ToList();
+
+			foreach (var guild in snapshot)
+				this.SaveStorage(guild);
 		}
 	}
 }
