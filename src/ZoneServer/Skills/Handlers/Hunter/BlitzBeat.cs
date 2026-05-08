@@ -23,8 +23,21 @@ namespace Sabine.Zone.Skills.Handlers.Hunter
 				return;
 			}
 
+			Cast(caster, target, level, autocast: false);
+		}
+
+		/// <summary>
+		/// Resolves a Blitz Beat hit on <paramref name="target"/>, splashing
+		/// to adjacent hostiles. Shared with the auto-Blitz listener so the
+		/// damage path stays single-source. Mirrors eAthena battle.c:2728:
+		/// damage = (dex/10 + int/2 + steelcrow*3 + 40) * 2.
+		/// </summary>
+		public static void Cast(Character caster, Character target, int level, bool autocast)
+		{
 			var dex = caster.Parameters.Dex;
-			var damage = (dex / 10) * (dex / 10) + dex / 2 + 40 + 20 * level;
+			var int_ = caster.Parameters.Int;
+			var steelcrow = caster.Skills?.GetLevel(SkillId.HT_STEELCROW) ?? 0;
+			var damage = (dex / 10 + int_ / 2 + steelcrow * 3 + 40) * 2;
 
 			foreach (var enemy in caster.Map.GetCharactersInRange(target.Position, 1))
 			{
@@ -32,7 +45,7 @@ namespace Sabine.Zone.Skills.Handlers.Hunter
 
 				var ctx = new AttackContext(caster, enemy)
 				{
-					SkillId = skill.Id,
+					SkillId = SkillId.HT_BLITZBEAT,
 					SkillLevel = level,
 					Kind = AttackKind.Magic,
 					SkillRatio = 1.0f,
@@ -45,7 +58,7 @@ namespace Sabine.Zone.Skills.Handlers.Hunter
 				if (dmg > 0) enemy.TakeDamage(dmg, caster);
 			}
 
-			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, damage, 0, 1, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, SkillId.HT_BLITZBEAT, level, damage, 0, 1, ActionType.Skill);
 		}
 	}
 }
