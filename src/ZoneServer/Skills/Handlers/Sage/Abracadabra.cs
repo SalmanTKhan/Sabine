@@ -63,10 +63,81 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 		}
 	}
 
-	[SkillHandler(SkillId.SA_MONOCELL)] public class MonocellHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Monocell"); }
-	[SkillHandler(SkillId.SA_CLASSCHANGE)] public class ClassChangeHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Class Change"); }
+	/// <summary>
+	/// SA_MONOCELL — turns a non-MVP target into a Poring for ~30s
+	/// and drops their HP to 1. eAthena skill.c SA_MONOCELL pairs the
+	/// SC sprite swap with a status_kill-style HP slam; we mirror
+	/// both. Refuses to land if any other Hocus Pocus transform is
+	/// already active so two effects don't fight over DisplayClassId.
+	/// </summary>
+	[SkillHandler(SkillId.SA_MONOCELL)]
+	public class MonocellHandler : ITargetedSkillHandler
+	{
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var target = parameters.Target ?? caster;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			if (target.IsDead) return;
+			if (target is Monster m && m.Data.MvpExp > 0) return;
+			if (HocusPocusTransform.IsActive(target)) return;
+
+			var damage = target.Parameters.Hp - 1;
+			if (damage > 0)
+				target.TakeDamage(damage, caster);
+
+			target.StatusEffects.Start(StatusId.Monocell, level, TimeSpan.FromSeconds(30), caster);
+		}
+	}
+
+	/// <summary>
+	/// SA_CLASSCHANGE — disguises a non-MVP target as a random
+	/// low-tier mob for ~30s. eAthena skill.c SA_CLASSCHANGE.
+	/// </summary>
+	[SkillHandler(SkillId.SA_CLASSCHANGE)]
+	public class ClassChangeHandler : ITargetedSkillHandler
+	{
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var target = parameters.Target ?? caster;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			if (target.IsDead) return;
+			if (target is Monster m && m.Data.MvpExp > 0) return;
+			if (HocusPocusTransform.IsActive(target)) return;
+
+			target.StatusEffects.Start(StatusId.ClassChange, level, TimeSpan.FromSeconds(30), caster);
+		}
+	}
+
 	[SkillHandler(SkillId.SA_REVERSEORCISH)] public class ReverseOrcishHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Reverse Orcish"); }
 	[SkillHandler(SkillId.SA_QUESTION)] public class QuestionHandler : ITargetedSkillHandler { public void Handle(UseSkillParams p) => HocusPocusStub.Run(p, "Question"); }
+
+	/// <summary>
+	/// Shared guard so the four Hocus Pocus transform outcomes don't
+	/// stack on the same target. eAthena resolves a clash by ending
+	/// the previous status; we instead refuse the new application
+	/// since Sabine's StatusEffects.Start would otherwise restart the
+	/// effect and double-broadcast the sprite swap.
+	/// </summary>
+	internal static class HocusPocusTransform
+	{
+		public static bool IsActive(Character target)
+		{
+			return target.StatusEffects.Has(StatusId.Monocell)
+				|| target.StatusEffects.Has(StatusId.ClassChange)
+				|| target.StatusEffects.Has(StatusId.ReverseOrcish)
+				|| target.StatusEffects.Has(StatusId.Question);
+		}
+	}
 
 	/// <summary>SA_GRAVITY — locks the target in place for a few seconds.</summary>
 	[SkillHandler(SkillId.SA_GRAVITY)]
