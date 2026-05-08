@@ -37,7 +37,7 @@ namespace Sabine.Zone.Ais.Impl
 				(targetHandle: _targetCharacterHandle, origin: Character.Position, range: chaseRange),
 				static (state, p) =>
 				{
-					if (p.IsDead || p.IsHidden)
+					if (p.IsDead || p.IsAggroInvisible)
 						return false;
 
 					if (p.Handle == state.targetHandle) // Not the current target

@@ -12,9 +12,9 @@ namespace Sabine.Zone.Skills.Handlers.Novice
 		// and HP/SP regen pauses. Single-level skill in classic.
 		// Break-on-move is wired in MovementController.MoveTo,
 		// break-on-damage in Character.TakeDamage, and
-		// break-on-attack/skill in TrickDeadListener.
-		// TODO: monster aggro suppression while status is active
-		// (separate AI hook).
+		// break-on-attack/skill in TrickDeadListener. Mob aggro
+		// suppression is wired through Character.IsAggroInvisible,
+		// which the AI target filter consults.
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;

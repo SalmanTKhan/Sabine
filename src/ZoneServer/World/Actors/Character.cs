@@ -187,6 +187,20 @@ namespace Sabine.Zone.World.Actors
 		/// <summary>True if Hiding (TF_HIDING) is active on the character.</summary>
 		public bool IsHidden => this.StatusEffects?.Has(StatusId.Hiding) == true;
 
+		/// <summary>
+		/// True when monster AI must skip this character during aggro
+		/// acquisition. Mirrors eAthena mob.c's mob_ai_sub_hard target
+		/// filter, which excludes Hiding, Cloaking, and TrickDead. Hides
+		/// the character from passive scans only — once aggro is locked
+		/// (or damage is taken), TrickDead breaks via the existing
+		/// listeners and Hiding/Cloaking are revealed by Sight/Ruwach.
+		/// </summary>
+		public bool IsAggroInvisible
+			=> this.StatusEffects != null && (
+				this.StatusEffects.Has(StatusId.Hiding)
+				|| this.StatusEffects.Has(StatusId.Cloaking)
+				|| this.StatusEffects.Has(StatusId.TrickDead));
+
 		/// <summary>True if the character is petrified, frozen, asleep, or stunned — i.e. cannot act.</summary>
 		public bool IsImmobilized
 			=> this.StatusEffects != null && (

@@ -36,7 +36,7 @@ namespace Sabine.Zone.Ais.Impl
 				(origin: Character.Position, range: chaseRange, guildId: myGuildId),
 				static (state, p) =>
 				{
-					if (p.IsDead || p.IsHidden)
+					if (p.IsDead || p.IsAggroInvisible)
 						return false;
 
 					if (p.GuildId == state.guildId)

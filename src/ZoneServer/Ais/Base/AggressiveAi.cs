@@ -35,11 +35,7 @@ namespace Sabine.Zone.Ais.Base
 				(origin: Character.Position, range: chaseRange),
 				static (state, p) =>
 				{
-					if (p.IsDead || p.IsHidden)
-						return false;
-
-					// NV_TRICKDEAD suppresses aggro acquisition.
-					if (p.StatusEffects?.Has(Sabine.Shared.Const.StatusId.TrickDead) == true)
+					if (p.IsDead || p.IsAggroInvisible)
 						return false;
 
 					if (!p.Position.InRange(state.origin, state.range))

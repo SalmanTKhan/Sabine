@@ -36,7 +36,7 @@ namespace Sabine.Zone.Ais.Impl
 				(origin: Character.Position, range: chaseRange, level: myLevel, diff: LevelDifference),
 				static (state, p) =>
 				{
-					if (p.IsDead || p.IsHidden)
+					if (p.IsDead || p.IsAggroInvisible)
 						return false;
 
 					if (p.Parameters.BaseLevel > state.level - state.diff)
