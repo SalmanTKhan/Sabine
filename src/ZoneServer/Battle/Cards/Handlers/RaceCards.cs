@@ -86,4 +86,48 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Modifiers.AddRace[(int)RaceType.Dragon] -= 20;
 	}
+
+	/// <summary>Hydra Card (4054): +20% damage vs DemiHuman race.</summary>
+	[CardHandler(4054)]
+	public class HydraCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddRace[(int)RaceType.DemiHuman] += 20;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddRace[(int)RaceType.DemiHuman] -= 20;
+	}
+
+	/// <summary>Skeleton Worker Card variant — Andre Card (4042): +20% damage vs Insect race.</summary>
+	[CardHandler(4042)]
+	public class AndreCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddRace[(int)RaceType.Insect] += 20;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddRace[(int)RaceType.Insect] -= 20;
+	}
+
+	/// <summary>Santa Poring Card (4150): +20% damage vs Undead race.</summary>
+	[CardHandler(4150)]
+	public class SantaPoringCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddRace[(int)RaceType.Undead] += 20;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddRace[(int)RaceType.Undead] -= 20;
+	}
+
+	/// <summary>Hode Worm Card (4034): +20% damage vs Angel race.</summary>
+	[CardHandler(4034)]
+	public class AngelRaceCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddRace[(int)RaceType.Angel] += 20;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddRace[(int)RaceType.Angel] -= 20;
+	}
 }
