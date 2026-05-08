@@ -15,13 +15,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.AddSize[(int)SizeType.Small] += 15;
-			character.Parameters.Modify(ParameterType.Attack, 5);
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.AddSize[(int)SizeType.Small] -= 15;
-			character.Parameters.Modify(ParameterType.Attack, -5);
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, -5);
 		}
 	}
 
@@ -32,13 +32,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.AddSize[(int)SizeType.Medium] += 15;
-			character.Parameters.Modify(ParameterType.Attack, 5);
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.AddSize[(int)SizeType.Medium] -= 15;
-			character.Parameters.Modify(ParameterType.Attack, -5);
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, -5);
 		}
 	}
 
@@ -49,13 +49,13 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnEquip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.AddSize[(int)SizeType.Large] += 15;
-			character.Parameters.Modify(ParameterType.Attack, 5);
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, 5);
 		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 		{
 			character.Modifiers.AddSize[(int)SizeType.Large] -= 15;
-			character.Parameters.Modify(ParameterType.Attack, -5);
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, -5);
 		}
 	}
 }

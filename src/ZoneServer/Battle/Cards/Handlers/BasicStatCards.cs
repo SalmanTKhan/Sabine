@@ -13,11 +13,11 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 	// - Critical and Flee2 (perfect dodge) aren't touched by recalc, so
 	//   flat additions persist correctly.
 	//
-	// Bonuses that target stats *re-derived* on every equip (Attack, Hit,
-	// Flee, MaxHp, MaxSp, MagicDefense, etc.) are intentionally skipped
-	// here — they would be silently overwritten by RecalculateAll. Those
-	// require a follow-up pass that gives the equip-bonus pipeline its own
-	// add-on bucket the way Modifiers.AddRace already does.
+	// Bonuses that target stats re-derived on every equip (Attack, Hit,
+	// Flee, MaxHp, MaxSp, MagicAttack, MeleeDefense, MagicDefense) are
+	// applied through Modifiers.AddEquipBonus, which seeds the bucket the
+	// Recalculate* methods read at the end of their formulas. That keeps
+	// the bonus alive across subsequent equip changes.
 
 	/// <summary>Poring Card (4001): +2 LUK, +1 Perfect Dodge, +10% Neutral resist.</summary>
 	[CardHandler(4001)]
@@ -77,15 +77,21 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 			=> character.Parameters.Modify(ParameterType.Str, -1);
 	}
 
-	/// <summary>Andre Egg Card (4017): +1 STR.</summary>
+	/// <summary>Andre Egg Card (4017): +1 STR, +5 ATK.</summary>
 	[CardHandler(4017)]
 	public class AndreEggCardHandler : ICardHandler
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
-			=> character.Parameters.Modify(ParameterType.Str, 1);
+		{
+			character.Parameters.Modify(ParameterType.Str, 1);
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, 5);
+		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
-			=> character.Parameters.Modify(ParameterType.Str, -1);
+		{
+			character.Parameters.Modify(ParameterType.Str, -1);
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, -5);
+		}
 	}
 
 	/// <summary>Andre Larva Card (4123): +2 INT.</summary>
@@ -205,15 +211,21 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		}
 	}
 
-	/// <summary>Drops Card (4004): +1 DEX. (Hit bonus skipped — recomputed on equip.)</summary>
+	/// <summary>Drops Card (4004): +1 DEX, +3 Hit.</summary>
 	[CardHandler(4004)]
 	public class DropsCardHandler : ICardHandler
 	{
 		public void OnEquip(Character character, World.Actors.Item item)
-			=> character.Parameters.Modify(ParameterType.Dex, 1);
+		{
+			character.Parameters.Modify(ParameterType.Dex, 1);
+			character.Modifiers.AddEquipBonus(ParameterType.Hit, 3);
+		}
 
 		public void OnUnequip(Character character, World.Actors.Item item)
-			=> character.Parameters.Modify(ParameterType.Dex, -1);
+		{
+			character.Parameters.Modify(ParameterType.Dex, -1);
+			character.Modifiers.AddEquipBonus(ParameterType.Hit, -3);
+		}
 	}
 
 	/// <summary>Zerom Card (4145): +3 DEX.</summary>
@@ -275,5 +287,151 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Parameters.Modify(ParameterType.Str, -3);
+	}
+
+	/// <summary>Pupa Card (4003): +700 MaxHP.</summary>
+	[CardHandler(4003)]
+	public class PupaCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddEquipBonus(ParameterType.HpMax, 700);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddEquipBonus(ParameterType.HpMax, -700);
+	}
+
+	/// <summary>Roda Frog Card (4020): +50 MaxHP, +10 MaxSP.</summary>
+	[CardHandler(4020)]
+	public class RodaFrogCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Modifiers.AddEquipBonus(ParameterType.HpMax, 50);
+			character.Modifiers.AddEquipBonus(ParameterType.SpMax, 10);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Modifiers.AddEquipBonus(ParameterType.HpMax, -50);
+			character.Modifiers.AddEquipBonus(ParameterType.SpMax, -10);
+		}
+	}
+
+	/// <summary>Wolf Card (4018): +15 ATK, +1 Critical.</summary>
+	[CardHandler(4018)]
+	public class WolfCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, 15);
+			character.Parameters.Modify(ParameterType.Critical, 1);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Modifiers.AddEquipBonus(ParameterType.Attack, -15);
+			character.Parameters.Modify(ParameterType.Critical, -1);
+		}
+	}
+
+	/// <summary>Familiar Card (4019): +5 ATK. (Stun-on-hit autobonus skipped.)</summary>
+	[CardHandler(4019)]
+	public class FamiliarCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddEquipBonus(ParameterType.Attack, 5);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddEquipBonus(ParameterType.Attack, -5);
+	}
+
+	/// <summary>Vitata Card (4128): +1 INT, -50 MaxSP. (SP recovery rate skipped.)</summary>
+	[CardHandler(4128)]
+	public class VitataCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Int, 1);
+			character.Modifiers.AddEquipBonus(ParameterType.SpMax, -50);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Int, -1);
+			character.Modifiers.AddEquipBonus(ParameterType.SpMax, 50);
+		}
+	}
+
+	/// <summary>Earthworm Card (4039): +25 MDEF.</summary>
+	[CardHandler(4039)]
+	public class EarthwormCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddEquipBonus(ParameterType.MagicDefense, 25);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddEquipBonus(ParameterType.MagicDefense, -25);
+	}
+
+	/// <summary>Khalitzburg Card (4099): +1 MeleeDefense.</summary>
+	[CardHandler(4099)]
+	public class KhalitzburgCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddEquipBonus(ParameterType.MeleeDefense, 1);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddEquipBonus(ParameterType.MeleeDefense, -1);
+	}
+
+	/// <summary>Picky Egg Card (4012): +1 VIT, +10 MaxHP.</summary>
+	[CardHandler(4012)]
+	public class PickyEggCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Vit, 1);
+			character.Modifiers.AddEquipBonus(ParameterType.HpMax, 10);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Vit, -1);
+			character.Modifiers.AddEquipBonus(ParameterType.HpMax, -10);
+		}
+	}
+
+	/// <summary>Fabre Larva Card (4014): +1 VIT, +100 MaxHP.</summary>
+	[CardHandler(4014)]
+	public class FabreLarvaCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Vit, 1);
+			character.Modifiers.AddEquipBonus(ParameterType.HpMax, 100);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Vit, -1);
+			character.Modifiers.AddEquipBonus(ParameterType.HpMax, -100);
+		}
+	}
+
+	/// <summary>Plankton Card (4131): +1 INT, +50 MaxSP.</summary>
+	[CardHandler(4131)]
+	public class PlanktonCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Int, 1);
+			character.Modifiers.AddEquipBonus(ParameterType.SpMax, 50);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Int, -1);
+			character.Modifiers.AddEquipBonus(ParameterType.SpMax, -50);
+		}
 	}
 }

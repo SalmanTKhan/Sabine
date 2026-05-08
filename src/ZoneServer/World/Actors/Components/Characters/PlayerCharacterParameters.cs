@@ -87,6 +87,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var sigmaOfBaseLevel = RoMath.Sigma(this.BaseLevel - 1);
 
 			this.HpMax = (int)Math.Floor((Math.Floor((baseVal + this.BaseLevel * statMultiplier + sigmaOfBaseLevel * statFactor) * (1 + this.Vit / 100f)) + statAdditions) * itemStatMultipliers);
+			this.HpMax += this.Character.Modifiers.EquipMaxHp;
+			if (this.HpMax < 1) this.HpMax = 1;
 
 			// I'll admit, I'm getting lazy by this point. Figuring out
 			// formulas isn't my strong suit. Half HP and double SP don't
@@ -118,6 +120,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 			this.SpMax = (int)Math.Floor((Math.Floor((baseVal + this.BaseLevel * statFactor) * (1 + this.Vit / 100f)) + statAdditions) * itemStatMultiplier);
 			this.SpMax *= 2;
+			this.SpMax += this.Character.Modifiers.EquipMaxSp;
+			if (this.SpMax < 1) this.SpMax = 1;
 
 			if (this.Sp > this.SpMax)
 				this.Sp = this.SpMax;
@@ -174,9 +178,13 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var masteryBonus = this.CalculateMasteryAtk(weapon);
 			this.MasteryAtk = masteryBonus;
 
-			this.Attack = fromStats + fromWeapon + refineBonus + masteryBonus;
-			this.AttackMin = fromStatsMin + fromWeaponMin + refineBonus + masteryBonus;
-			this.AttackMax = fromStatsMax + fromWeaponMax + refineBonus + masteryBonus;
+			var equipAtk = this.Character.Modifiers.EquipAttack;
+			var equipAtkMin = this.Character.Modifiers.EquipAttackMin;
+			var equipAtkMax = this.Character.Modifiers.EquipAttackMax;
+
+			this.Attack = fromStats + fromWeapon + refineBonus + masteryBonus + equipAtk;
+			this.AttackMin = fromStatsMin + fromWeaponMin + refineBonus + masteryBonus + equipAtk + equipAtkMin;
+			this.AttackMax = fromStatsMax + fromWeaponMax + refineBonus + masteryBonus + equipAtk + equipAtkMax;
 
 			// Renewal status/weapon-ATK split. These mirror rAthena
 			// status_base_atk and are populated even when renewal is
@@ -229,9 +237,10 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// <returns></returns>
 		public void RecalculateMagicAttack()
 		{
-			this.MagicAttack = (int)(this.Int + Math.Pow(this.Int / 10, 2)) / 2;
-			this.MagicAttackMin = (int)(this.Int + Math.Pow(this.Int / 7, 2));
-			this.MagicAttackMax = (int)(this.Int + Math.Pow(this.Int / 5, 2));
+			var equipMatk = this.Character.Modifiers.EquipMagicAttack;
+			this.MagicAttack = (int)(this.Int + Math.Pow(this.Int / 10, 2)) / 2 + equipMatk;
+			this.MagicAttackMin = (int)(this.Int + Math.Pow(this.Int / 7, 2)) + equipMatk;
+			this.MagicAttackMax = (int)(this.Int + Math.Pow(this.Int / 5, 2)) + equipMatk;
 
 			// Renewal status/weapon-MATK split (rAthena status_base_matk).
 			// sMATK trait stat (Spl) is added 1:1 for 4th-job characters.
@@ -264,7 +273,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			// however, and doesn't mix with the point-based VIT
 			// defense bonus. Is that bonus maybe not displayed?
 			// Did it not exist? Did it play into the percentage?
-			this.Defense = fromEquip;
+			this.Defense = fromEquip + this.Character.Modifiers.EquipMeleeDefense;
 
 			// Update: Based on screen shots, we can see that either
 			// equip had different defense stats, or that VIT did play
@@ -289,7 +298,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var fromBonuses = 0;
 			var fromBonusRates = 100;
 
-			this.MeleeDefense = fromEquip;
+			this.MeleeDefense = fromEquip + this.Character.Modifiers.EquipMeleeDefense;
 			this.MeleeDefenseBonus = (int)((fromStat + fromBonuses) * (1 + fromBonusRates / 100f));
 
 			this.UpdateClient(ParameterType.Defense, ParameterType.MeleeDefense, ParameterType.MeleeDefenseBonus);
@@ -311,7 +320,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var fromBonuses = 0;
 			var fromBonusRates = 100;
 
-			this.MagicDefense = fromEquip;
+			this.MagicDefense = fromEquip + this.Character.Modifiers.EquipMagicDefense;
 			this.MagicDefenseBonus = (int)((fromStat + fromBonuses) * (1 + fromBonusRates / 100f));
 
 			this.UpdateClient(ParameterType.MagicDefense, ParameterType.MagicDefenseBonus);
@@ -334,7 +343,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// </summary>
 		public void RecalculateHit()
 		{
-			this.Hit = this.BaseLevel + this.Dex;
+			this.Hit = this.BaseLevel + this.Dex + this.Character.Modifiers.EquipHit;
 			//this.UpdateClient(ParameterType.Hit);
 		}
 
@@ -343,7 +352,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// </summary>
 		public void RecalculateFlee()
 		{
-			this.Flee = this.BaseLevel + this.Agi;
+			this.Flee = this.BaseLevel + this.Agi + this.Character.Modifiers.EquipFlee;
 			this.UpdateClient(ParameterType.Flee);
 		}
 
