@@ -5,9 +5,11 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 {
 	/// <summary>
 	/// SC_PROVOKE — +ATK% / -DEF2% on the target. eAthena: Val2 = 2 + 3*level
-	/// (% ATK gain), Val3 = 5 + 5*level (% DEF reduction). Implemented
-	/// here as flat additive deltas computed off the target's current
-	/// values and snapshotted on the effect for symmetric revert.
+	/// (% ATK gain), Val3 = 5 + 5*level (% DEF reduction). The ATK gain
+	/// rides the <see cref="BonusModifiers.BonusAtkRate"/> bucket so it
+	/// scales any base ATK roll evenly (eAthena's status_calc_str/atk
+	/// flow), while the DEF reduction stays a snapshotted flat delta so
+	/// overlapping casts revert cleanly.
 	/// </summary>
 	[StatusEffectHandler(StatusId.Provoke)]
 	public class ProvokeStatusHandler : IStatusEffectHandler
@@ -17,17 +19,12 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 			var atkPct = 2 + 3 * effect.Level;
 			var defPct = 5 + 5 * effect.Level;
 
-			var atkDelta = target.Parameters.AttackBonus * atkPct / 100;
-			if (atkDelta == 0)
-				atkDelta = atkPct; // ensure visible bump even with 0 base
-
 			var defDelta = target.Parameters.MeleeDefenseBonus * defPct / 100;
 
-			effect.Val2 = atkDelta;
+			effect.Val2 = atkPct;
 			effect.Val3 = defDelta;
 
-			if (atkDelta != 0)
-				target.Parameters.Modify(ParameterType.AttackBonus, atkDelta);
+			target.Modifiers.BonusAtkRate += atkPct;
 			if (defDelta != 0)
 				target.AddBonusStat(ParameterType.MeleeDefenseBonus, -defDelta);
 		}
@@ -35,7 +32,7 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 		public void OnEnd(Character target, StatusEffect effect)
 		{
 			if (effect.Val2 != 0)
-				target.Parameters.Modify(ParameterType.AttackBonus, -effect.Val2);
+				target.Modifiers.BonusAtkRate -= effect.Val2;
 			if (effect.Val3 != 0)
 				target.AddBonusStat(ParameterType.MeleeDefenseBonus, effect.Val3);
 		}

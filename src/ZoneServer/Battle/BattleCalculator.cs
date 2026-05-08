@@ -176,7 +176,8 @@ namespace Sabine.Zone.Battle
 			var afterElement = ApplyElement(afterDef, attacker, attackElement, defenseElement, defenseLevel);
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterOverThrust = ApplyOverThrust(afterBonuses, attacker, ctx);
-			var afterStatus = ApplyStatusMultipliers(afterOverThrust, target);
+			var afterAtkRate = ApplyAtkRate(afterOverThrust, attacker);
+			var afterStatus = ApplyStatusMultipliers(afterAtkRate, target);
 			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
 			var afterEnergyCoat = ApplyEnergyCoatReduction(afterDefender, target);
 			var afterLexAeterna = ApplyLexAeterna(afterEnergyCoat, target);
@@ -447,6 +448,37 @@ namespace Sabine.Zone.Battle
 			return damage * (100 + effect.Val3) / 100;
 		}
 
+		// SP_ATK_RATE + SP_WEAPON_ATK_RATE: percent damage scalar applied
+		// near the end of physical damage calc. eAthena battle.c:1397 adds
+		// `sd->atk_rate` via ATK_ADDRATE; battle.c:885 layers
+		// `sd->weapon_atk_rate[weapontype]` per right-hand weapon type. Both
+		// stack additively as a single percent term so a 10% atk_rate plus a
+		// 5% bow rate yields 1.15× damage.
+		private static int ApplyAtkRate(int damage, Character attacker)
+		{
+			var pct = attacker.Modifiers.BonusAtkRate
+				+ attacker.Modifiers.GetWeaponAtkRate(BattleHelpers.GetWeaponType(attacker));
+			if (pct == 0)
+				return damage;
+
+			return damage * (100 + pct) / 100;
+		}
+
+		// SP_MATK_RATE + SP_WEAPON_MATK_RATE: magical counterpart of
+		// ApplyAtkRate. eAthena pc.c:2125 routes SP_MATK_RATE into
+		// `sd->matk_rate`; weapon_matk_rate is the symmetric per-weapon
+		// accumulator. Applied after element / bonus modifiers in
+		// CalcMagic, before status (Sleep / Stone) multipliers.
+		private static int ApplyMatkRate(int damage, Character attacker)
+		{
+			var pct = attacker.Modifiers.BonusMatkRate
+				+ attacker.Modifiers.GetWeaponMatkRate(BattleHelpers.GetWeaponType(attacker));
+			if (pct == 0)
+				return damage;
+
+			return damage * (100 + pct) / 100;
+		}
+
 		private static bool IsRangedWeapon(Character attacker)
 			=> BattleHelpers.IsRangedWeapon(attacker);
 
@@ -527,7 +559,8 @@ namespace Sabine.Zone.Battle
 
 			var afterElement = ApplyElement(afterDef, attacker, attackElement, defenseElement, defenseLevel);
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
-			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
+			var afterMatkRate = ApplyMatkRate(afterBonuses, attacker);
+			var afterStatus = ApplyStatusMultipliers(afterMatkRate, target);
 			var afterLexAeterna = ApplyLexAeterna(afterStatus, target);
 			var afterKyrie = ApplyKyrieEleison(afterLexAeterna, target, isWeaponHit: false, ctx.SkillId);
 

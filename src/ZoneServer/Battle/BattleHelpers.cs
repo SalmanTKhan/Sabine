@@ -20,10 +20,7 @@ namespace Sabine.Zone.Battle
 		/// </summary>
 		public static bool IsRangedWeapon(Character attacker)
 		{
-			if (attacker is not PlayerCharacter pc)
-				return false;
-
-			var type = pc.Inventory.RightHand?.Data.GetWeaponType() ?? WeaponType.Unknown;
+			var type = GetWeaponType(attacker);
 			return type == WeaponType.Bow
 				|| type == WeaponType.Revolver
 				|| type == WeaponType.Rifle
@@ -31,6 +28,20 @@ namespace Sabine.Zone.Battle
 				|| type == WeaponType.GatlingGun
 				|| type == WeaponType.GrenadeLauncher
 				|| type == WeaponType.Shuriken;
+		}
+
+		/// <summary>
+		/// Returns the right-hand weapon type for a player attacker, or
+		/// <see cref="WeaponType.Unknown"/> for monsters / unarmed players.
+		/// Mirrors eAthena's <c>sstatus->rhw.weapontype</c> read used by
+		/// per-weapon ATK rate / size table lookups.
+		/// </summary>
+		public static WeaponType GetWeaponType(Character attacker)
+		{
+			if (attacker is not PlayerCharacter pc)
+				return WeaponType.Unknown;
+
+			return pc.Inventory.RightHand?.Data.GetWeaponType() ?? WeaponType.Unknown;
 		}
 	}
 }

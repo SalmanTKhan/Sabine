@@ -95,6 +95,29 @@ namespace Sabine.Zone.Battle
 		/// <summary>Percent SP regen rate bonus (eAthena bSPrecovRate). Read by the regen tick.</summary>
 		public int BonusSpRecovRate { get; set; }
 
+		// -------------------------------------------------------------
+		// Damage rate bucket (cards + status buffs that scale damage)
+		// -------------------------------------------------------------
+		// eAthena keeps these as flat percent accumulators on
+		// <c>map_session_data</c>: <c>sd->atk_rate</c> /
+		// <c>sd->matk_rate</c> / <c>sd->weapon_atk_rate[wt]</c> /
+		// <c>sd->weapon_matk_rate[wt]</c>. The calculator folds them in as
+		// the final damage multiplier (battle.c:1397, 875, pc.c:2125).
+		// Provoke writes here too — its eAthena equivalent flips the same
+		// atk_rate accumulator on the target via status_calc_str/atk.
+
+		/// <summary>Percent ATK bonus applied to outgoing physical damage (eAthena bAtkRate / SP_ATK_RATE).</summary>
+		public int BonusAtkRate { get; set; }
+
+		/// <summary>Percent MATK bonus applied to outgoing magic damage (eAthena bMatkRate / SP_MATK_RATE).</summary>
+		public int BonusMatkRate { get; set; }
+
+		/// <summary>Per-weapon-type percent ATK bonus (eAthena bWeaponAtkRate / SP_WEAPON_ATK_RATE).</summary>
+		public int[] WeaponAtkRate { get; }
+
+		/// <summary>Per-weapon-type percent MATK bonus (eAthena bWeaponMatkRate / SP_WEAPON_MATK_RATE).</summary>
+		public int[] WeaponMatkRate { get; }
+
 		public BonusModifiers()
 		{
 			this.AddRace = new int[(int)RaceType.All + 1];
@@ -103,6 +126,8 @@ namespace Sabine.Zone.Battle
 			this.SubSize = new int[3];
 			this.AddElement = new int[10];
 			this.SubElement = new int[10];
+			this.WeaponAtkRate = new int[(int)WeaponType.Shuriken + 1];
+			this.WeaponMatkRate = new int[(int)WeaponType.Shuriken + 1];
 		}
 
 		/// <summary>
@@ -131,7 +156,30 @@ namespace Sabine.Zone.Battle
 				case ParameterType.MagicDefenseBonus: this.BonusMagicDefenseBonus += amount; break;
 				case ParameterType.HpRecovRate: this.BonusHpRecovRate += amount; break;
 				case ParameterType.SpRecovRate: this.BonusSpRecovRate += amount; break;
+				case ParameterType.AtkRate: this.BonusAtkRate += amount; break;
+				case ParameterType.MagicAtkRate: this.BonusMatkRate += amount; break;
 			}
+		}
+
+		/// <summary>
+		/// Returns the per-weapon-type ATK rate bonus the attacker has
+		/// accumulated for the given weapon (eAthena
+		/// <c>sd->weapon_atk_rate[wt]</c>). Out-of-range types map to 0.
+		/// </summary>
+		public int GetWeaponAtkRate(WeaponType weaponType)
+		{
+			var idx = (int)weaponType;
+			return idx >= 0 && idx < this.WeaponAtkRate.Length ? this.WeaponAtkRate[idx] : 0;
+		}
+
+		/// <summary>
+		/// Returns the per-weapon-type MATK rate bonus (eAthena
+		/// <c>sd->weapon_matk_rate[wt]</c>).
+		/// </summary>
+		public int GetWeaponMatkRate(WeaponType weaponType)
+		{
+			var idx = (int)weaponType;
+			return idx >= 0 && idx < this.WeaponMatkRate.Length ? this.WeaponMatkRate[idx] : 0;
 		}
 
 		/// <summary>
