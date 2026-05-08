@@ -45,6 +45,7 @@ namespace Sabine.Zone.World.Actors
 		public BodyState BodyState { get; protected set; }
 		public EffectState EffectState { get; protected set; }
 		public HealthState HealthState { get; protected set; }
+		public OptionState OptionState { get; protected set; }
 
 		public virtual int OwnerHandle { get; protected set; } = 0;
 		public virtual int TargetHandle { get; protected set; } = 0;
@@ -303,6 +304,22 @@ namespace Sabine.Zone.World.Actors
 				return;
 
 			this.EffectState = newState;
+			Send.ZC_STATE_CHANGE(this);
+		}
+
+		/// <summary>
+		/// Toggles an OptionState (opt0) flag and broadcasts the new state
+		/// to nearby clients via ZC_STATE_CHANGE. Used for the falcon /
+		/// peco / cart / hide / cloak visuals that the alpha / beta1
+		/// client renders from this field. Mirrors eAthena pc_setoption.
+		/// </summary>
+		internal void SetOptionFlag(OptionState flag, bool on)
+		{
+			var newState = on ? (this.OptionState | flag) : (this.OptionState & ~flag);
+			if (newState == this.OptionState)
+				return;
+
+			this.OptionState = newState;
 			Send.ZC_STATE_CHANGE(this);
 		}
 

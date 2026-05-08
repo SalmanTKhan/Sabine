@@ -70,7 +70,11 @@ namespace Sabine.Zone.Network
 			packet.PutInt(character.Handle);
 			packet.PutShort((short)character.BodyState);
 			packet.PutShort((short)character.HealthState);
-			packet.PutShort((short)character.EffectState);
+			// Third short is opt0 (option) for the alpha / beta1 client —
+			// falcon, peco-peco, cart, hide, cloak. EffectState (opt3)
+			// belongs to a separate slot on newer client packets that
+			// Sabine doesn't yet emit.
+			packet.PutShort((short)character.OptionState);
 			packet.PutByte(0); // isPKModeOn
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);

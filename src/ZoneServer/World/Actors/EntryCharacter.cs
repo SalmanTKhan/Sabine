@@ -80,5 +80,13 @@ namespace Sabine.Zone.World.Actors
 		/// Returns a character's current state.
 		/// </summary>
 		CharacterState State { get; }
+
+		/// <summary>
+		/// Returns the visual / mount option flags (opt0 — falcon, peco,
+		/// cart, hide, cloak) the alpha / beta1 client renders from
+		/// spawn / move / state-change packets. Implementations that
+		/// don't carry these bits return <see cref="OptionState.None"/>.
+		/// </summary>
+		OptionState OptionState { get; }
 	}
 }

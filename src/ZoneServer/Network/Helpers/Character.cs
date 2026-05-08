@@ -28,8 +28,8 @@ namespace Sabine.Zone.Network.Helpers
 				{
 					packet.PutShort(0);
 					packet.PutShort(0);
-					packet.PutShort(0); // Status Effects?
-					packet.PutByte(0);  // Status Effects?
+					packet.PutShort((short)character.OptionState); // opt0 — falcon / peco / hide / cloak
+					packet.PutByte(0);
 				}
 
 				packet.PutByte((byte)character.IdentityId.ToNetwork());
@@ -89,8 +89,8 @@ namespace Sabine.Zone.Network.Helpers
 				{
 					packet.PutShort(0);
 					packet.PutShort(0);
-					packet.PutShort(0); // Status Effects?
-					packet.PutByte(0);  // Status Effects?
+					packet.PutShort((short)character.OptionState); // opt0 — falcon / peco / hide / cloak
+					packet.PutByte(0);
 				}
 
 				packet.PutByte((byte)character.IdentityId.ToNetwork());
@@ -141,8 +141,8 @@ namespace Sabine.Zone.Network.Helpers
 				{
 					packet.PutShort(0);
 					packet.PutShort(0);
-					packet.PutShort(0); // Status Effects?
-					packet.PutByte(0);  // Status Effects?
+					packet.PutShort((short)character.OptionState); // opt0 — falcon / peco / hide / cloak
+					packet.PutByte(0);
 				}
 
 				packet.PutByte((byte)character.IdentityId.ToNetwork());
@@ -202,7 +202,7 @@ namespace Sabine.Zone.Network.Helpers
 				{
 					packet.PutShort(0);
 					packet.PutShort(0);
-					packet.PutShort(0);
+					packet.PutShort((short)character.OptionState); // opt0 — falcon / peco / hide / cloak
 					packet.PutByte(0);
 				}
 
