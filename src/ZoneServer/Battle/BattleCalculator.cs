@@ -2,6 +2,7 @@ using System;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data.Databases;
 using Sabine.Zone.Network;
+using Sabine.Zone.Skills.StatusEffects;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Util;
 
@@ -154,7 +155,7 @@ namespace Sabine.Zone.Battle
 				? baseDamage
 				: ApplyPhysicalDefense(baseDamage, target, ctx.DefRatio);
 
-			var afterElement = ApplyElement(afterDef, attackElement, defenseElement, defenseLevel);
+			var afterElement = ApplyElement(afterDef, attacker, attackElement, defenseElement, defenseLevel);
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
 			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
@@ -391,7 +392,7 @@ namespace Sabine.Zone.Battle
 				? baseDamage
 				: ApplyMagicDefense(baseDamage, target);
 
-			var afterElement = ApplyElement(afterDef, attackElement, defenseElement, defenseLevel);
+			var afterElement = ApplyElement(afterDef, attacker, attackElement, defenseElement, defenseLevel);
 			var afterBonuses = ApplyBonusModifiers(afterElement, attacker, target, attackElement);
 			var afterStatus = ApplyStatusMultipliers(afterBonuses, target);
 			var afterLexAeterna = ApplyLexAeterna(afterStatus, target);
@@ -466,13 +467,43 @@ namespace Sabine.Zone.Battle
 		// Element / target / bonuses
 		// -----------------------------------------------------------------
 
-		private static int ApplyElement(int damage, ElementType atk, ElementType def, int defLevel)
+		// eAthena enchant_eff lookup for SA_VOLCANO / SA_DELUGE / SA_VIOLENTGALE
+		// elemental field bonuses (skill.c:198). Indexed by skill level - 1.
+		private static readonly int[] EnchantEff = { 10, 14, 17, 19, 20 };
+
+		private static int ApplyElement(int damage, Character attacker, ElementType atk, ElementType def, int defLevel)
 		{
 			var pct = ElementTable.GetModifier(atk, def, defLevel);
+			pct += GetElementalFieldBonus(attacker, atk);
+
 			if (pct == 100)
 				return damage;
 
 			return (int)Math.Floor(damage * pct / 100.0);
+		}
+
+		// SA_VOLCANO / SA_DELUGE / SA_VIOLENTGALE: while the attacker stands
+		// in the matching elemental field, fire / water / wind attacks gain
+		// `enchant_eff[level-1]`% extra elemental ratio. Mirrors eAthena
+		// battle.c:254 — applied on top of the base element multiplier.
+		private static int GetElementalFieldBonus(Character attacker, ElementType atk)
+		{
+			if (attacker.StatusEffects == null)
+				return 0;
+
+			StatusEffect effect = atk switch
+			{
+				ElementType.Fire => attacker.StatusEffects.Get(StatusId.Volcano),
+				ElementType.Water => attacker.StatusEffects.Get(StatusId.Deluge),
+				ElementType.Wind => attacker.StatusEffects.Get(StatusId.Whirlwind),
+				_ => null,
+			};
+
+			if (effect == null)
+				return 0;
+
+			var index = Math.Clamp(effect.Level - 1, 0, EnchantEff.Length - 1);
+			return EnchantEff[index];
 		}
 
 		private static int ApplyBonusModifiers(int damage, Character attacker, Character target, ElementType attackElement)
