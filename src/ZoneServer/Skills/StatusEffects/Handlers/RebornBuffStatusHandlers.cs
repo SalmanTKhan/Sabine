@@ -5,8 +5,10 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 {
 	/// <summary>
 	/// SC_AURABLADE (LK_AURABLADE) — +10*level flat ATK on hits.
-	/// Marker today; the flat-ATK addition lives in the damage
-	/// pipeline (eAthena battle.c) and isn't wired in Sabine yet.
+	/// The flat-ATK addition is read by
+	/// <c>BattleCalculator.GetAuraBladeBonus</c> from the buff's
+	/// level, so this handler stays a marker — it just registers the
+	/// status in the dispatch table.
 	/// </summary>
 	[StatusEffectHandler(StatusId.AuraBlade)]
 	public class AuraBladeStatusHandler : IStatusEffectHandler
@@ -50,10 +52,9 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 
 	/// <summary>
 	/// SC_ASSUMPTIO (HP_ASSUMPTIO) — halves physical damage taken on
-	/// the target. eAthena reads the status in the damage pipeline
-	/// (battle.c); marker-only until that hook lands in
-	/// BattleCalculator. Registering it explicitly keeps the
-	/// dispatch table complete.
+	/// the target. The 50% reduction is now consumed in
+	/// <c>BattleCalculator.ApplyAssumptioReduction</c>, so the
+	/// handler stays a marker.
 	/// </summary>
 	[StatusEffectHandler(StatusId.Assumptio)]
 	public class AssumptioStatusHandler : IStatusEffectHandler

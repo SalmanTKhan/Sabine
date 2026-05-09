@@ -123,6 +123,14 @@ namespace Sabine.Zone.Battle
 			// the base damage *before* skill ratio is applied.
 			var raceMastery = GetRaceMasteryBonus(attacker, target);
 
+			// SC_AURABLADE (LK_AURABLADE) adds a flat level*10 ATK to
+			// every physical hit while the buff is active, applied in
+			// the same pre-skill-ratio band as race mastery. Mirrors
+			// eAthena battle.c:battle_calc_misc_attack — `dmg += 20*level`
+			// on the rhw branch (some forks use 10/20 depending on era;
+			// classic = 10*level).
+			raceMastery += GetAuraBladeBonus(attacker);
+
 			if (renewal)
 			{
 				// Renewal: WeaponATK * skillRatio + StatusATK + MasteryATK.
@@ -180,7 +188,8 @@ namespace Sabine.Zone.Battle
 			var afterStatus = ApplyStatusMultipliers(afterAtkRate, target);
 			var afterDefender = ApplyDefenderReduction(afterStatus, target, ctx.IsLongRange || isRanged);
 			var afterEnergyCoat = ApplyEnergyCoatReduction(afterDefender, target);
-			var afterLexAeterna = ApplyLexAeterna(afterEnergyCoat, target);
+			var afterAssumptio = ApplyAssumptioReduction(afterEnergyCoat, target);
+			var afterLexAeterna = ApplyLexAeterna(afterAssumptio, target);
 			var afterKyrie = ApplyKyrieEleison(afterLexAeterna, target, isWeaponHit: true);
 
 			// Kyrie may legitimately drop damage to 0 — skip the +1 floor in
@@ -210,6 +219,36 @@ namespace Sabine.Zone.Battle
 
 			var reduction = Math.Clamp(defender.Val2, 0, 100);
 			return damage * (100 - reduction) / 100;
+		}
+
+		// SC_AURABLADE (LK_AURABLADE): adds level*10 flat ATK to every
+		// physical hit while the buff is active. eAthena classic
+		// stacks it on top of base damage in the pre-skill-ratio band
+		// (the same band as race-mastery), so we surface it from
+		// CalcPhysical via raceMastery accumulation.
+		private static int GetAuraBladeBonus(Character attacker)
+		{
+			if (attacker.StatusEffects == null)
+				return 0;
+
+			var effect = attacker.StatusEffects.Get(StatusId.AuraBlade);
+			if (effect == null)
+				return 0;
+
+			return effect.Level * 10;
+		}
+
+		// SC_ASSUMPTIO (HP_ASSUMPTIO): halves physical damage taken
+		// on the target. Mirrors eAthena status.c — the reduction
+		// lives on the BL_PC defense path. Placed after EnergyCoat
+		// (which can drain the SC entirely on overflow) and before
+		// LexAeterna so the 2x doubling still amplifies what's left.
+		private static int ApplyAssumptioReduction(int damage, Character target)
+		{
+			if (target.StatusEffects?.Has(StatusId.Assumptio) != true)
+				return damage;
+
+			return damage / 2;
 		}
 
 		// SC_ENERGYCOAT (MG_ENERGYCOAT): physical-weapon damage taken
