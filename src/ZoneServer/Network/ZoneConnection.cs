@@ -65,6 +65,9 @@ namespace Sabine.Zone.Network
 				if (character.Pet?.IsActive == true)
 					Sabine.Zone.Skills.Pets.PetService.Detach(character);
 
+				if (character.Mercenary?.IsActive == true)
+					Sabine.Zone.Skills.Mercenaries.MercenaryService.Detach(character);
+
 				// Detach the live player back-pointer from the
 				// in-memory Guild record so the GC can reclaim the
 				// session; the member row stays put.

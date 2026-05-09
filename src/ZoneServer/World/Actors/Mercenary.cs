@@ -37,5 +37,18 @@ namespace Sabine.Zone.World.Actors
 
 			return target is Monster;
 		}
+
+		/// <summary>
+		/// Mercenary deaths skip the wild-monster post-death pipeline
+		/// (no EXP / drops / MVP roll — it's a hireling, not a kill
+		/// reward) and route through MercenaryService so the contract
+		/// closes with the death-faith penalty applied. Mirrors
+		/// eAthena mercenary_dead.
+		/// </summary>
+		public override void Kill(Character killer)
+		{
+			Sabine.Zone.Network.Send.ZC_NOTIFY_VANISH(this, Sabine.Shared.Const.DisappearType.StrikedDead);
+			Sabine.Zone.Skills.Mercenaries.MercenaryService.OnMercenaryDeath(this.Owner);
+		}
 	}
 }
