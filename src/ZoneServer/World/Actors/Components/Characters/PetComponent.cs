@@ -146,6 +146,25 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		public void SetHunger(int value) => this.Hunger = Math.Max(0, Math.Min(100, value));
 
 		/// <summary>
+		/// Renames the pet. Mirrors eAthena's pet_rename: bumps the
+		/// in-memory name and the live entity's display name (when
+		/// summoned). The "one-rename per pet" lock that eAthena keeps
+		/// on pet_rename_flag isn't enforced here — the /petrename GM
+		/// command was already a no-op stub, so leaving the lock
+		/// permissive matches the existing UX. A future paid-rename
+		/// flow can flip the flag at this site.
+		/// </summary>
+		public void Rename(string name)
+		{
+			if (string.IsNullOrWhiteSpace(name)) return;
+			if (this.State == PetState.None) return;
+
+			this.Name = name;
+			if (this.Entity != null)
+				this.Entity.Name = name;
+		}
+
+		/// <summary>
 		/// Drops the contract entirely (pet ran away from low intimacy
 		/// or the player abandoned it). Mirrors Homunculus's bond-broken
 		/// path; called from the hunger tick once it lands.

@@ -241,6 +241,22 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// ZC_PET_ACT — pet action / emote echo. Wire (EP4): petHandle
+		/// (4) + actionId (4) + a 2-byte pad slot reserved by the
+		/// PacketTable for length 10. Routed to the owner only — wild
+		/// player-character bystanders don't see other players'
+		/// pet emotes, mirroring eAthena's clif_pet_performance scope.
+		/// </summary>
+		public static void ZC_PET_ACT(PlayerCharacter owner, int petHandle, int actionId)
+		{
+			using var packet = Packet.Rent(Op.ZC_PET_ACT);
+			packet.PutInt(petHandle);
+			packet.PutInt(actionId);
+			packet.PutShort(0);
+			owner.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Removes character from clients around it.
 		/// </summary>
 		/// <param name="character"></param>

@@ -2064,5 +2064,89 @@ namespace Sabine.Zone.Network
 				character.Party.RemoveMember(character.Id);
 			}
 		}
+
+		/// <summary>
+		/// CZ_RENAME_PET — client requests to rename the active pet.
+		/// Wire: short op, 24-byte name. Refuses when no pet contract
+		/// exists or when the existing name was set already (eAthena
+		/// only allows one rename per pet via pet_rename_flag); the
+		/// /petrename GM command can clear that flag.
+		///
+		/// EP4-only — packet doesn't exist on Alpha / Beta1; the client
+		/// just won't send it on those versions.
+		/// </summary>
+		[PacketHandler(Op.CZ_RENAME_PET)]
+		public void CZ_RENAME_PET(ZoneConnection conn, Packet packet)
+		{
+			var name = packet.GetString(24);
+			var character = conn.GetCurrentCharacter();
+
+			if (character.Pet == null || !character.Pet.IsActive)
+			{
+				character.ServerMessage(Localization.Get("No active pet to rename."));
+				return;
+			}
+
+			if (string.IsNullOrWhiteSpace(name)) return;
+
+			character.Pet.Rename(name);
+			character.ServerMessage(Localization.Get("Pet renamed to {0}."), name);
+		}
+
+		/// <summary>
+		/// CZ_PET_ACT — pet performance / emote dispatch. Wire: short op,
+		/// 4-byte action code. eAthena routes this through pet_performance;
+		/// Sabine echoes the action via ZC_PET_ACT to the owner so the
+		/// pet sprite plays the emote without further server state.
+		/// </summary>
+		[PacketHandler(Op.CZ_PET_ACT)]
+		public void CZ_PET_ACT(ZoneConnection conn, Packet packet)
+		{
+			var actionId = packet.GetInt();
+			var character = conn.GetCurrentCharacter();
+
+			if (character.Pet == null || !character.Pet.IsActive) return;
+			if (character.Pet.Entity == null) return;
+
+			Send.ZC_PET_ACT(character, character.Pet.Entity.Handle, actionId);
+		}
+
+		/// <summary>
+		/// CZ_COMMAND_PET — feed / pat / send-back. Wire: short op,
+		/// 1-byte command code (0 = feed, 1 = perform, 2 = return-to-egg).
+		/// Maps onto the existing PetService surface; the GM commands
+		/// (/petfeed / /unsummon) drive the same flows.
+		/// </summary>
+		[PacketHandler(Op.CZ_COMMAND_PET)]
+		public void CZ_COMMAND_PET(ZoneConnection conn, Packet packet)
+		{
+			var command = packet.GetByte();
+			var character = conn.GetCurrentCharacter();
+
+			if (character.Pet == null || !character.Pet.IsActive) return;
+
+			switch (command)
+			{
+				case 0: // Feed
+				{
+					var entry = Sabine.Zone.World.Actors.Components.Characters.PetTypeData.GetByMobId(character.Pet.MobId);
+					if (entry == null) return;
+					if (character.Inventory.Remove(entry.FoodItemId, 1) == 0)
+					{
+						character.ServerMessage(Localization.Get("No {0} to feed."), entry.FoodItemId);
+						return;
+					}
+					character.Pet.Feed();
+					break;
+				}
+				case 1: // Perform — trigger the pet's emote action.
+					if (character.Pet.Entity != null)
+						Send.ZC_PET_ACT(character, character.Pet.Entity.Handle, 0);
+					break;
+				case 2: // Return to egg
+					Sabine.Zone.Skills.Pets.PetService.ReturnToEgg(character);
+					break;
+			}
+		}
 	}
 }
