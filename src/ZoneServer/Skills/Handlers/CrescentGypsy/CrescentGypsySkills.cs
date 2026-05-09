@@ -159,9 +159,16 @@ namespace Sabine.Zone.Skills.Handlers.CrescentGypsy
 							if (target.StatusEffects.Has(sid))
 								target.StatusEffects.Stop(sid);
 						break;
-					case 3:  // Hanged Man — 1000 damage. eA also breaks armor;
-					         // the equip-break listener isn't wired, so just damage.
+					case 3:  // Hanged Man — 1000 damage + random armor break.
+					         // CR_FULLPROTECTION shields the break.
 						target.TakeDamage(1000, caster);
+						if (!target.IsDead && target is PlayerCharacter ptarget
+							&& ptarget.StatusEffects?.Has(StatusId.FullProtection) != true)
+						{
+							Sabine.Zone.Battle.Listeners.EquipBreakListener.BreakRandomEquip(
+								ptarget,
+								Sabine.Zone.Battle.Listeners.EquipBreakListener.ArmorSlots);
+						}
 						break;
 					case 4:  // Strength — eA halves ATK; subs in Stun (5s).
 						target.StatusEffects.Start(StatusId.Stun, level, TimeSpan.FromSeconds(5), caster);

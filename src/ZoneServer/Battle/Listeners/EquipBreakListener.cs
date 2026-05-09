@@ -57,10 +57,16 @@ namespace Sabine.Zone.Battle.Listeners
 				BreakRandomEquip(pc, ArmorSlots);
 		}
 
-		private static readonly EquipSlots[] WeaponSlots = new[] { EquipSlots.RightHand };
-		private static readonly EquipSlots[] ArmorSlots = new[] { EquipSlots.Body, EquipSlots.HeadTop, EquipSlots.HeadMiddle, EquipSlots.HeadBottom, EquipSlots.Shoes, EquipSlots.Robe };
+		public static readonly EquipSlots[] WeaponSlots = new[] { EquipSlots.RightHand };
+		public static readonly EquipSlots[] ArmorSlots = new[] { EquipSlots.Body, EquipSlots.HeadTop, EquipSlots.HeadMiddle, EquipSlots.HeadBottom, EquipSlots.Shoes, EquipSlots.Robe };
 
-		private static void BreakRandomEquip(PlayerCharacter pc, IReadOnlyList<EquipSlots> candidateSlots)
+		/// <summary>
+		/// Breaks a random equipped item belonging to one of the given
+		/// slots. Public so other on-hit paths (Tarot Hanged Man,
+		/// future skill_break_equip callers) can reuse the same
+		/// pick / unequip / flag flow.
+		/// </summary>
+		public static void BreakRandomEquip(PlayerCharacter pc, IReadOnlyList<EquipSlots> candidateSlots)
 		{
 			var equipped = pc.Inventory.GetItems(static i => i.IsEquipped && !i.IsDamaged).ToList();
 			var matches = equipped.Where(i => candidateSlots.Any(s => (i.EquippedOn & s) != 0)).ToList();
