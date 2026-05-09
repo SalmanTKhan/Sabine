@@ -297,6 +297,55 @@ namespace Sabine.Zone.World.Actors
 			}
 		}
 
+		// Per-skill cooldown clocks read by the AI's mob-skill tick.
+		// Keyed by skill id; value is the next-eligible UTC tick. The
+		// monster keeps its own dictionary instead of stuffing cooldowns
+		// onto AI state so re-attaching the AI (or attaching multiple
+		// reactive AIs in stacking ladders) doesn't desync the timing.
+		private readonly Dictionary<SkillId, DateTime> _mobSkillNextAt = new();
+
+		/// <summary>
+		/// Tries to cast one of the mob's skills at the given target.
+		/// Reuses the standard skill-handler registry — no separate mob
+		/// pipeline. Reads <c>Game.CurrentData.MobSkills</c> for the
+		/// skill list, rolls each entry independently against its rate,
+		/// gates on per-skill cooldown, and routes through
+		/// <see cref="ITargetedSkillHandler"/>. Self-target entries pass
+		/// the monster as both caster and target.
+		/// </summary>
+		public bool TryCastMobSkill(Character target)
+		{
+			if (this.IsImmobilized || this.IsSilenced) return false;
+			if (target == null || target.IsDead) return false;
+
+			var skills = Sabine.Shared.Game.CurrentData?.MobSkills?.GetForMob((int)this.Data.Id);
+			if (skills == null || skills.Count == 0) return false;
+
+			var rnd = Yggdrasil.Util.RandomProvider.Get();
+			var now = DateTime.UtcNow;
+
+			foreach (var entry in skills)
+			{
+				if (_mobSkillNextAt.TryGetValue(entry.SkillId, out var nextAt) && now < nextAt)
+					continue;
+
+				if (rnd.Next(100) >= entry.Rate)
+					continue;
+
+				if (!ZoneServer.Instance.SkillHandlers.TryGetHandler<Sabine.Zone.Skills.Handlers.ITargetedSkillHandler>(entry.SkillId, out var handler))
+					continue;
+
+				var castTarget = entry.Target == "self" ? this : target;
+				var skill = new Sabine.Zone.Skills.Skill(this, entry.SkillId, entry.Level);
+				handler.Handle(new Sabine.Zone.Skills.Handlers.UseSkillParams(this, castTarget, skill, entry.Level));
+
+				_mobSkillNextAt[entry.SkillId] = now.AddMilliseconds(entry.CooldownMs);
+				return true;
+			}
+
+			return false;
+		}
+
 		/// <summary>
 		/// Sets up the AI and attaches it to the monster.
 		/// </summary>

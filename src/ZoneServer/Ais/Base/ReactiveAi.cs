@@ -19,6 +19,28 @@ namespace Sabine.Zone.Ais.Base
 			base.Init();
 			During("Idle", CheckAttacks);
 			During("Leash", CheckAttacks);
+			During("Combat", TryMobSkill);
+		}
+
+		/// <summary>
+		/// Per-tick mob-skill cast attempt during combat. Rolls each
+		/// skill in <c>Game.CurrentData.MobSkills</c> against its rate;
+		/// the per-skill cooldown lives on the Monster so AI re-attach
+		/// doesn't desync timing. Skills inflict their effects through
+		/// the standard handler registry — same path PlayerCharacters
+		/// take — so anything that works for a player works for a mob.
+		/// </summary>
+		protected virtual void TryMobSkill(CallbackState state)
+		{
+			if (state.Handled) return;
+			if (_targetCharacterHandle == 0) return;
+			if (!Character.Map.TryGetCharacter(_targetCharacterHandle, out var target)) return;
+
+			var monster = Character as Sabine.Zone.World.Actors.Monster;
+			if (monster == null) return;
+
+			if (monster.TryCastMobSkill(target))
+				state.Handled = true;
 		}
 
 		protected override void Start()

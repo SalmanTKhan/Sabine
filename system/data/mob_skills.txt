@@ -1,0 +1,43 @@
+// Sabine
+// Mob Skill Database
+//
+// Slim subset of eAthena's `db/mob_skill_db.txt`. Each row attaches a
+// skill to a mob class; the reactive AI's combat tick consults this
+// table, rolls the per-tick rate, and casts via the standard skill
+// handler registry. Multiple entries per mob are allowed — the AI
+// rolls each one independently per tick.
+//
+// Fields:
+//   mobId, skillId        — mob class id, SkillId enum name
+//   level                  — skill level for the cast
+//   rate                   — per-100 chance per AI tick (default 50)
+//   cooldownMs             — minimum ms between casts of this skill
+//   target                 — "target" / "self" (default "target")
+//
+// Omitted from eAthena: state / condition / val1-5 / emotion / chat —
+// the v1 schema treats every entry as "always-true while in combat".
+//---------------------------------------------------------------------------
+
+[
+// Poring family — eA classic example: TF_POISON
+{ mobId: 1002, skillId: "TF_POISON", level: 3, rate: 30, cooldownMs: 10000 },
+{ mobId: 1031, skillId: "TF_POISON", level: 5, rate: 30, cooldownMs: 8000 },
+
+// Magnolia — Provoke (the canonical mob debuff in classic)
+{ mobId: 1115, skillId: "SM_PROVOKE", level: 5, rate: 30, cooldownMs: 12000 },
+
+// Hode — buffs itself with Two-Hand Quicken (eA mob_skill_db row)
+{ mobId: 1088, skillId: "KN_TWOHANDQUICKEN", level: 5, rate: 30, cooldownMs: 30000, target: "self" },
+
+// Mummy — Stone Curse on contact (the famous Pyramids hazard)
+{ mobId: 1041, skillId: "MG_STONECURSE", level: 5, rate: 25, cooldownMs: 10000 },
+
+// Boa / Argiope-style — Frost Diver application via mage spell mobs
+{ mobId: 1015, skillId: "MG_FROSTDIVER", level: 3, rate: 25, cooldownMs: 8000 },
+
+// Skeleton archers — Arrow Shower
+{ mobId: 1059, skillId: "AC_SHOWER", level: 3, rate: 30, cooldownMs: 6000 },
+
+// Munak / Bongun — Body Relocation (substituted with TF_HIDING for now)
+{ mobId: 1026, skillId: "TF_HIDING", level: 3, rate: 15, cooldownMs: 30000, target: "self" }
+]

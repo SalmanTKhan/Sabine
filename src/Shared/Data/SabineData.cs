@@ -71,6 +71,14 @@ namespace Sabine.Shared.Data
 		public PetDb Pets { get; } = new();
 
 		/// <summary>
+		/// db/mob_skills.txt — slim mob-skill table consumed by the
+		/// reactive AI's combat tick. Mirrors a subset of eAthena's
+		/// <c>db/mob_skill_db.txt</c>; the omitted state / condition /
+		/// val1–5 columns default to "always-true while in combat".
+		/// </summary>
+		public MobSkillDb MobSkills { get; } = new();
+
+		/// <summary>
 		/// db/produce_db.txt
 		/// </summary>
 		public ProduceDb Produce { get; } = new();
