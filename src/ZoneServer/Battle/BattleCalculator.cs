@@ -728,7 +728,9 @@ namespace Sabine.Zone.Battle
 
 		// eAthena enchant_eff lookup for SA_VOLCANO / SA_DELUGE / SA_VIOLENTGALE
 		// elemental field bonuses (skill.c:198). Indexed by skill level - 1.
-		private static readonly int[] EnchantEff = { 10, 14, 17, 19, 20 };
+		// Internal so the Sage field status handlers can reuse the same
+		// ratio for their per-stat bumps without duplicating the table.
+		internal static readonly int[] EnchantEff = { 10, 14, 17, 19, 20 };
 
 		private static int ApplyElement(int damage, Character attacker, ElementType atk, ElementType def, int defLevel)
 		{
