@@ -1,0 +1,42 @@
+// Sabine
+// Pet Database
+//
+// Static pet templates. Each row binds a mob id to its lure / egg /
+// equip / food item ids and the intimacy / hunger constants. Mirrors
+// eAthena's `db/pet_db.txt`; see `src/Shared/Data/Databases/Pets.cs`
+// for the field documentation.
+//
+// Fields:
+//   mobId, name             — mob class id and display name on hatch
+//   lureItemId              — taming item (consumed on capture)
+//   eggItemId               — inventory item representing the pet
+//   equipItemId             — accessory the pet can wear
+//   foodItemId, foodFullness — feed item + hunger units restored
+//   hungerIntervalSec        — seconds between hunger ticks
+//   intimacyHungryFeed       — intimacy delta when fed while starving
+//   intimacyFullFeed         — intimacy delta when fed while full (negative for over-feed punishment)
+//   initialIntimacy          — intimacy at hatch
+//   deathIntimacyLoss        — intimacy penalty when bond breaks
+//   speed                    — movement ms per tile
+//---------------------------------------------------------------------------
+
+[
+{ mobId: 1002, name: "Poring",   lureItemId: 619, eggItemId: 9001, equipItemId: 10013, foodItemId: 531, intimacyHungryFeed: 50, intimacyFullFeed: 100 },
+{ mobId: 1113, name: "Drops",    lureItemId: 620, eggItemId: 9002, equipItemId: 10013, foodItemId: 508, intimacyHungryFeed: 40, intimacyFullFeed: 100 },
+{ mobId: 1031, name: "Poporing", lureItemId: 621, eggItemId: 9003, equipItemId: 10013, foodItemId: 511, intimacyHungryFeed: 30, intimacyFullFeed: 100 },
+{ mobId: 1063, name: "Lunatic",  lureItemId: 622, eggItemId: 9004, equipItemId: 10007, foodItemId: 534, intimacyHungryFeed: 40, intimacyFullFeed: 100 },
+{ mobId: 1049, name: "Picky",    lureItemId: 623, eggItemId: 9005, equipItemId: 10012, foodItemId: 507, intimacyHungryFeed: 40, intimacyFullFeed: 100 },
+{ mobId: 1011, name: "ChonChon", lureItemId: 624, eggItemId: 9006, equipItemId: 10002, foodItemId: 537, intimacyHungryFeed: 30, intimacyFullFeed: 100 },
+{ mobId: 1042, name: "Steel ChonChon", lureItemId: 625, eggItemId: 9007, equipItemId: 10002, foodItemId: 1002, intimacyHungryFeed: 20, intimacyFullFeed: 100 },
+{ mobId: 1035, name: "Hunter Fly", lureItemId: 626, eggItemId: 9008, equipItemId: 10002, foodItemId: 716, intimacyHungryFeed: 10, intimacyFullFeed: 100 },
+{ mobId: 1167, name: "Savage Babe", lureItemId: 627, eggItemId: 9009, equipItemId: 10015, foodItemId: 537, intimacyHungryFeed: 40, intimacyFullFeed: 100 },
+{ mobId: 1107, name: "Baby Desert Wolf", lureItemId: 628, eggItemId: 9010, equipItemId: 10003, foodItemId: 537, intimacyHungryFeed: 40, intimacyFullFeed: 100 },
+{ mobId: 1052, name: "Rocker",   lureItemId: 629, eggItemId: 9011, equipItemId: 10005, foodItemId: 537, intimacyHungryFeed: 40, intimacyFullFeed: 100 },
+{ mobId: 1054, name: "Spore",    lureItemId: 630, eggItemId: 9012, equipItemId: 10004, foodItemId: 535, intimacyHungryFeed: 50, intimacyFullFeed: 100 },
+{ mobId: 1019, name: "Peco Peco", lureItemId: 631, eggItemId: 9013, equipItemId: 10009, foodItemId: 522, intimacyHungryFeed: 30, intimacyFullFeed: 100 },
+{ mobId: 1056, name: "Smokie",   lureItemId: 632, eggItemId: 9014, equipItemId: 10010, foodItemId: 537, intimacyHungryFeed: 30, intimacyFullFeed: 100 },
+{ mobId: 1023, name: "Orc Warrior", lureItemId: 633, eggItemId: 9015, equipItemId: 10001, foodItemId: 599, intimacyHungryFeed: 30, intimacyFullFeed: 100 },
+{ mobId: 1077, name: "Poison Spore", lureItemId: 634, eggItemId: 9016, equipItemId: 10004, foodItemId: 535, intimacyHungryFeed: 30, intimacyFullFeed: 100 },
+{ mobId: 1078, name: "Red Plant", lureItemId: 635, eggItemId: 9017, equipItemId: 10004, foodItemId: 535, intimacyHungryFeed: 30, intimacyFullFeed: 100 },
+{ mobId: 1057, name: "Yoyo",     lureItemId: 636, eggItemId: 9018, equipItemId: 10006, foodItemId: 532, intimacyHungryFeed: 30, intimacyFullFeed: 100 }
+]

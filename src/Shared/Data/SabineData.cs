@@ -63,6 +63,14 @@ namespace Sabine.Shared.Data
 		public InstanceDb Instances { get; } = new();
 
 		/// <summary>
+		/// db/pets.txt — pet definitions (mob id, name, lure / egg /
+		/// equip item ids, food, fullness, hunger interval, intimacy
+		/// bands). Mirrors eAthena's <c>db/pet_db.txt</c>; consumed by
+		/// the Zone-side <c>PetTypeData</c> facade.
+		/// </summary>
+		public PetDb Pets { get; } = new();
+
+		/// <summary>
 		/// db/produce_db.txt
 		/// </summary>
 		public ProduceDb Produce { get; } = new();

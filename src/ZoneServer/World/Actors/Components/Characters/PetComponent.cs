@@ -70,7 +70,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			}
 		}
 
-		private void TickHunger(PetEntry entry)
+		private void TickHunger(Sabine.Shared.Data.Databases.PetData entry)
 		{
 			this.Hunger = Math.Max(0, this.Hunger - 1);
 
@@ -124,7 +124,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// Initializes a fresh contract from a pet definition. Called
 		/// by the hatch handler after the egg item is consumed.
 		/// </summary>
-		public void Adopt(PetEntry entry, string name)
+		public void Adopt(Sabine.Shared.Data.Databases.PetData entry, string name)
 		{
 			this.MobId = entry.MobId;
 			this.Name = string.IsNullOrEmpty(name) ? entry.Name : name;

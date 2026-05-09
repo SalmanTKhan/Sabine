@@ -58,7 +58,7 @@ namespace Sabine.Zone.Commands
 				return CommandResult.Okay;
 			}
 
-			PetEntry hatched = null;
+			Sabine.Shared.Data.Databases.PetData hatched = null;
 			foreach (var item in target.Inventory.GetItems(static _ => true))
 			{
 				var e = PetTypeData.GetByEggItemId(item.ClassId);
