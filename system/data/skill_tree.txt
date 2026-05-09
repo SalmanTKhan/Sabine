@@ -182,6 +182,142 @@
 	{ jobId: "Wedding", skillId: "WE_FEMALE", maxLevel: 5, versionMin: 300 },
 	{ jobId: "Wedding", skillId: "WE_CALLPARTNER", maxLevel: 5, versionMin: 300 },
 
+	// 2-2 class skill trees. Prerequisites follow eAthena's classic
+	// chains where the predecessor is a 1st-class skill the player
+	// already inherits; new branches start without prereqs to keep
+	// the trees self-contained per job.
+	//---------------------------------------------------------------------------
+
+	// Crusader (CR_*)
+	{ jobId: "Crusader", skillId: "CR_TRUST", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_AUTOGUARD", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_SHIELDCHARGE", maxLevel: 5, prerequisites: [{ skillId: "CR_AUTOGUARD", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_SHIELDBOOMERANG", maxLevel: 5, prerequisites: [{ skillId: "CR_SHIELDCHARGE", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_REFLECTSHIELD", maxLevel: 10, prerequisites: [{ skillId: "CR_SHIELDBOOMERANG", requiredLevel: 2 }], versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_HOLYCROSS", maxLevel: 10, prerequisites: [{ skillId: "CR_TRUST", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_GRANDCROSS", maxLevel: 10, prerequisites: [{ skillId: "CR_HOLYCROSS", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_DEVOTION", maxLevel: 5, prerequisites: [{ skillId: "CR_TRUST", requiredLevel: 7 }], versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_PROVIDENCE", maxLevel: 5, prerequisites: [{ skillId: "CR_TRUST", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_DEFENDER", maxLevel: 5, prerequisites: [{ skillId: "CR_AUTOGUARD", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Crusader", skillId: "CR_SPEARQUICKEN", maxLevel: 10, versionMin: 300 },
+
+	// Monk (MO_*)
+	{ jobId: "Monk", skillId: "MO_IRONHAND", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_SPIRITSRECOVERY", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_CALLSPIRITS", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_ABSORBSPIRITS", maxLevel: 1, prerequisites: [{ skillId: "MO_CALLSPIRITS", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_TRIPLEATTACK", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_BODYRELOCATION", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_DODGE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_INVESTIGATE", maxLevel: 5, prerequisites: [{ skillId: "MO_TRIPLEATTACK", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_FINGEROFFENSIVE", maxLevel: 5, prerequisites: [{ skillId: "MO_CALLSPIRITS", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_STEELBODY", maxLevel: 5, prerequisites: [{ skillId: "MO_INVESTIGATE", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_BLADESTOP", maxLevel: 5, prerequisites: [{ skillId: "MO_TRIPLEATTACK", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_EXPLOSIONSPIRITS", maxLevel: 5, prerequisites: [{ skillId: "MO_CALLSPIRITS", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_EXTREMITYFIST", maxLevel: 5, prerequisites: [{ skillId: "MO_EXPLOSIONSPIRITS", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_CHAINCOMBO", maxLevel: 5, prerequisites: [{ skillId: "MO_TRIPLEATTACK", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Monk", skillId: "MO_COMBOFINISH", maxLevel: 5, prerequisites: [{ skillId: "MO_CHAINCOMBO", requiredLevel: 3 }], versionMin: 300 },
+
+	// Sage (SA_*) — Hocus Pocus outcomes (290-303) are Abracadabra
+	// rolls, not learnable directly; only cast skills + passives go
+	// in the tree.
+	{ jobId: "Sage", skillId: "SA_ADVANCEDBOOK", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_CASTCANCEL", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_MAGICROD", maxLevel: 5, prerequisites: [{ skillId: "SA_CASTCANCEL", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_SPELLBREAKER", maxLevel: 5, prerequisites: [{ skillId: "SA_MAGICROD", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_FREECAST", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_AUTOSPELL", maxLevel: 10, prerequisites: [{ skillId: "SA_ADVANCEDBOOK", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_FLAMELAUNCHER", maxLevel: 5, prerequisites: [{ skillId: "MG_FIREBOLT", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_FROSTWEAPON", maxLevel: 5, prerequisites: [{ skillId: "MG_COLDBOLT", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_LIGHTNINGLOADER", maxLevel: 5, prerequisites: [{ skillId: "MG_LIGHTNINGBOLT", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_SEISMICWEAPON", maxLevel: 5, prerequisites: [{ skillId: "WZ_EARTHSPIKE", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_DRAGONOLOGY", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_VOLCANO", maxLevel: 5, prerequisites: [{ skillId: "SA_FLAMELAUNCHER", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_DELUGE", maxLevel: 5, prerequisites: [{ skillId: "SA_FROSTWEAPON", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_VIOLENTGALE", maxLevel: 5, prerequisites: [{ skillId: "SA_LIGHTNINGLOADER", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_LANDPROTECTOR", maxLevel: 5, prerequisites: [{ skillId: "SA_VOLCANO", requiredLevel: 1 }, { skillId: "SA_DELUGE", requiredLevel: 1 }, { skillId: "SA_VIOLENTGALE", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_DISPELL", maxLevel: 5, prerequisites: [{ skillId: "SA_SPELLBREAKER", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Sage", skillId: "SA_ABRACADABRA", maxLevel: 10, prerequisites: [{ skillId: "SA_DISPELL", requiredLevel: 5 }], versionMin: 300 },
+
+	// Rogue (RG_*)
+	{ jobId: "Rogue", skillId: "RG_SNATCHER", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_STEALCOIN", maxLevel: 10, prerequisites: [{ skillId: "RG_SNATCHER", requiredLevel: 4 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_BACKSTAP", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_TUNNELDRIVE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_RAID", maxLevel: 5, prerequisites: [{ skillId: "TF_HIDING", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_STRIPWEAPON", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_STRIPSHIELD", maxLevel: 5, prerequisites: [{ skillId: "RG_STRIPWEAPON", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_STRIPARMOR", maxLevel: 5, prerequisites: [{ skillId: "RG_STRIPSHIELD", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_STRIPHELM", maxLevel: 5, prerequisites: [{ skillId: "RG_STRIPARMOR", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_INTIMIDATE", maxLevel: 5, prerequisites: [{ skillId: "RG_BACKSTAP", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_GRAFFITI", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_FLAGGRAFFITI", maxLevel: 1, prerequisites: [{ skillId: "RG_GRAFFITI", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_CLEANER", maxLevel: 1, prerequisites: [{ skillId: "RG_GRAFFITI", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_GANGSTER", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_COMPULSION", maxLevel: 5, prerequisites: [{ skillId: "MC_DISCOUNT", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Rogue", skillId: "RG_PLAGIARISM", maxLevel: 10, versionMin: 300 },
+
+	// Alchemist (AM_*)
+	{ jobId: "Alchemist", skillId: "AM_AXEMASTERY", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_LEARNINGPOTION", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_PHARMACY", maxLevel: 10, prerequisites: [{ skillId: "AM_LEARNINGPOTION", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_DEMONSTRATION", maxLevel: 5, prerequisites: [{ skillId: "AM_PHARMACY", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_ACIDTERROR", maxLevel: 5, prerequisites: [{ skillId: "AM_DEMONSTRATION", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_POTIONPITCHER", maxLevel: 5, prerequisites: [{ skillId: "AM_PHARMACY", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_CANNIBALIZE", maxLevel: 5, prerequisites: [{ skillId: "AM_PHARMACY", requiredLevel: 7 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_SPHEREMINE", maxLevel: 5, prerequisites: [{ skillId: "AM_CANNIBALIZE", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_CP_WEAPON", maxLevel: 5, prerequisites: [{ skillId: "AM_LEARNINGPOTION", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_CP_SHIELD", maxLevel: 5, prerequisites: [{ skillId: "AM_CP_WEAPON", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_CP_ARMOR", maxLevel: 5, prerequisites: [{ skillId: "AM_CP_SHIELD", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_CP_HELM", maxLevel: 5, prerequisites: [{ skillId: "AM_CP_ARMOR", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_CALLHOMUN", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_REST", maxLevel: 1, prerequisites: [{ skillId: "AM_CALLHOMUN", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_HEALHOMUN", maxLevel: 5, prerequisites: [{ skillId: "AM_CALLHOMUN", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Alchemist", skillId: "AM_RESURRECTHOMUN", maxLevel: 5, prerequisites: [{ skillId: "AM_HEALHOMUN", requiredLevel: 3 }], versionMin: 300 },
+
+	// Bard (BA_* + shared BD_*) — only male performer line; Dancer
+	// (DC_*) gets its own tree below with DC_* skills.
+	{ jobId: "Bard", skillId: "BA_MUSICALLESSON", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Bard", skillId: "BA_MUSICALSTRIKE", maxLevel: 5, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BA_DISSONANCE", maxLevel: 5, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BA_FROSTJOKER", maxLevel: 5, prerequisites: [{ skillId: "BA_DISSONANCE", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BA_WHISTLE", maxLevel: 10, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BA_ASSASSINCROSS", maxLevel: 10, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BA_POEMBRAGI", maxLevel: 10, prerequisites: [{ skillId: "BA_WHISTLE", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BA_APPLEIDUN", maxLevel: 10, prerequisites: [{ skillId: "BA_ASSASSINCROSS", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_ADAPTATION", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_ENCORE", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_LULLABY", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 7 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_RICHMANKIM", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 7 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_ETERNALCHAOS", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 9 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_DRUMBATTLEFIELD", maxLevel: 5, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 9 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_RINGNIBELUNGEN", maxLevel: 5, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 9 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_ROKISWEIL", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 9 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_INTOABYSS", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_SIEGFRIED", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Bard", skillId: "BD_RAGNAROK", maxLevel: 1, prerequisites: [{ skillId: "BA_MUSICALLESSON", requiredLevel: 10 }], versionMin: 300 },
+
+	// Dancer (DC_* + shared BD_*) — mirrors Bard's BD_* shared tree.
+	{ jobId: "Dancer", skillId: "DC_DANCINGLESSON", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Dancer", skillId: "DC_THROWARROW", maxLevel: 5, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "DC_UGLYDANCE", maxLevel: 5, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "DC_SCREAM", maxLevel: 5, prerequisites: [{ skillId: "DC_UGLYDANCE", requiredLevel: 1 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "DC_HUMMING", maxLevel: 10, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "DC_DONTFORGETME", maxLevel: 10, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "DC_FORTUNEKISS", maxLevel: 10, prerequisites: [{ skillId: "DC_HUMMING", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "DC_SERVICEFORYOU", maxLevel: 10, prerequisites: [{ skillId: "DC_DONTFORGETME", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_ADAPTATION", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 3 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_ENCORE", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 5 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_LULLABY", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 7 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_RICHMANKIM", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 7 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_ETERNALCHAOS", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 9 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_DRUMBATTLEFIELD", maxLevel: 5, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 9 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_RINGNIBELUNGEN", maxLevel: 5, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 9 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_ROKISWEIL", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 9 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_INTOABYSS", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_SIEGFRIED", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 10 }], versionMin: 300 },
+	{ jobId: "Dancer", skillId: "BD_RAGNAROK", maxLevel: 1, prerequisites: [{ skillId: "DC_DANCINGLESSON", requiredLevel: 10 }], versionMin: 300 },
+
 	// Transcendent (Reborn) skill trees. Trans characters inherit
 	// their 2nd-class skills via the job hierarchy; only the new
 	// trans-only skills are listed per-job below. Prerequisite
