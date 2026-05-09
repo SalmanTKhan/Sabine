@@ -160,5 +160,8 @@ namespace Sabine.Shared.Const
 		AuraBlade = 240,
 		LkConcentration = 241,
 		MagicPower = 242,
+		Parrying = 243,
+		TensionRelax = 244,
+		Berserk = 245,
 	}
 }

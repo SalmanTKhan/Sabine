@@ -86,4 +86,38 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 				target.Modifiers.BonusMatkRate -= effect.Val2;
 		}
 	}
+
+	/// <summary>
+	/// SC_PARRYING (LK_PARRYING) — block-chance buff. Marker; the
+	/// block roll lives in the damage pipeline (not wired yet).
+	/// </summary>
+	[StatusEffectHandler(StatusId.Parrying)]
+	public class ParryingStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
+
+	/// <summary>
+	/// SC_TENSIONRELAX (LK_TENSIONRELAX) — accelerated HP regen
+	/// while sitting. Marker; the regen tick doesn't yet read it.
+	/// </summary>
+	[StatusEffectHandler(StatusId.TensionRelax)]
+	public class TensionRelaxStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
+
+	/// <summary>
+	/// SC_BERSERK (LK_BERSERK / Frenzy) — frenzy state. Marker; the
+	/// 2x MaxHP / 3x ATK / move-speed / skill-lock / heal-block /
+	/// HP-drain effects all need their own pipeline hooks.
+	/// </summary>
+	[StatusEffectHandler(StatusId.Berserk)]
+	public class BerserkStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
 }
