@@ -114,6 +114,20 @@ namespace Sabine.Zone.Battle
 			}
 			hitConfirmed:
 
+			// SC_PARRYING (LK_PARRYING) — two-handed sword melee block.
+			// eAthena classic battle.c: chance = 20 + 3*level%, applies
+			// only to weapon attacks (BF_WEAPON, non-skill or weapon
+			// skills) and only when the target wields a two-handed
+			// sword. A successful parry zeroes the hit entirely;
+			// modeled here as IsMiss so the rest of the pipeline
+			// short-circuits without surfacing a "Parry" packet — the
+			// alpha / beta1 client doesn't render a parry frame.
+			if (TryParryingBlock(target, isRanged, ctx, rnd))
+			{
+				result.IsMiss = true;
+				return result;
+			}
+
 			var renewal = IsRenewal();
 			int baseDamage;
 
@@ -219,6 +233,29 @@ namespace Sabine.Zone.Battle
 
 			var reduction = Math.Clamp(defender.Val2, 0, 100);
 			return damage * (100 - reduction) / 100;
+		}
+
+		// SC_PARRYING (LK_PARRYING): two-handed sword block roll on
+		// melee weapon hits. eAthena classic chance = 20 + 3*level%.
+		// Returns true when the parry succeeds and the caller should
+		// drop the hit; returns false otherwise. Skill hits are
+		// allowed to pass through — only basic-attack and
+		// weapon-class skills should ever be blocked, which Sabine
+		// approximates today by gating on `ctx.SkillId == None`.
+		private static bool TryParryingBlock(Character target, bool attackerIsRanged, AttackContext ctx, Random rnd)
+		{
+			if (attackerIsRanged) return false;
+			if (ctx.SkillId != SkillId.None) return false;
+			if (target.StatusEffects == null) return false;
+
+			var effect = target.StatusEffects.Get(StatusId.Parrying);
+			if (effect == null) return false;
+
+			if (BattleHelpers.GetWeaponType(target) != WeaponType.TwoHandedSword)
+				return false;
+
+			var chance = 20 + 3 * effect.Level;
+			return rnd.Next(100) < chance;
 		}
 
 		// SC_AURABLADE (LK_AURABLADE): adds level*10 flat ATK to every

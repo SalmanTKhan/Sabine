@@ -89,8 +89,9 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	}
 
 	/// <summary>
-	/// SC_PARRYING (LK_PARRYING) — block-chance buff. Marker; the
-	/// block roll lives in the damage pipeline (not wired yet).
+	/// SC_PARRYING (LK_PARRYING) — block-chance buff. The roll
+	/// lives in <c>BattleCalculator.TryParryingBlock</c>, which
+	/// reads the buff's level directly. Marker handler.
 	/// </summary>
 	[StatusEffectHandler(StatusId.Parrying)]
 	public class ParryingStatusHandler : IStatusEffectHandler
