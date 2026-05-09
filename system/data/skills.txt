@@ -581,5 +581,24 @@
 	{ id: 684, skillId: "NPC_WIDEHELLDIGNITY", name: "Hell Dignity", maxLevel: 1, type: "Support", target: "Self" },
 	{ id: 685, skillId: "NPC_INVINCIBLE", name: "Invincible", maxLevel: 1, type: "Support", target: "Self" },
 	{ id: 686, skillId: "NPC_INVINCIBLEOFF", name: "Invincible off", maxLevel: 1, type: "Support", target: "Self" },
-	{ id: 687, skillId: "NPC_ALLHEAL", name: "Full Heal", maxLevel: 1, type: "Support", target: "Self" }
+	{ id: 687, skillId: "NPC_ALLHEAL", name: "Full Heal", maxLevel: 1, type: "Support", target: "Self" },
+
+// Homunculus Skills
+//---------------------------------------------------------------------------
+	{ id: 8001, skillId: "HLIF_HEAL", name: "Healing Touch", maxLevel: 5, type: "Support", target: "Self", range: 9 },
+	{ id: 8002, skillId: "HLIF_AVOID", name: "Avoid", maxLevel: 5, type: "Support", target: "Self" },
+	{ id: 8003, skillId: "HLIF_BRAIN", name: "Brain Surgery", maxLevel: 5, type: "Passive" },
+	{ id: 8004, skillId: "HLIF_CHANGE", name: "Change", maxLevel: 3, type: "Support", target: "Self" },
+	{ id: 8005, skillId: "HAMI_CASTLE", name: "Castling", maxLevel: 5, type: "Support", target: "Self" },
+	{ id: 8006, skillId: "HAMI_DEFENCE", name: "Defense", maxLevel: 5, type: "Support", target: "Self" },
+	{ id: 8007, skillId: "HAMI_SKIN", name: "Adamantium Skin", maxLevel: 5, type: "Passive" },
+	{ id: 8008, skillId: "HAMI_BLOODLUST", name: "Bloodlust", maxLevel: 3, type: "Support", target: "Self" },
+	{ id: 8009, skillId: "HFLI_MOON", name: "Moonlight", maxLevel: 5, type: "Attack", target: "Enemy", range: 1 },
+	{ id: 8010, skillId: "HFLI_FLEET", name: "Fleeting Move", maxLevel: 5, type: "Support", target: "Self" },
+	{ id: 8011, skillId: "HFLI_SPEED", name: "Speed", maxLevel: 5, type: "Support", target: "Self" },
+	{ id: 8012, skillId: "HFLI_SBR44", name: "S.B.R.44", maxLevel: 3, type: "Attack", target: "Enemy", range: 1 },
+	{ id: 8013, skillId: "HVAN_CAPRICE", name: "Caprice", maxLevel: 5, type: "Attack", target: "Enemy", range: 9 },
+	{ id: 8014, skillId: "HVAN_CHAOTIC", name: "Benediction of Chaos", maxLevel: 5, type: "Support", target: "Self" },
+	{ id: 8015, skillId: "HVAN_INSTRUCT", name: "Instruct", maxLevel: 5, type: "Passive" },
+	{ id: 8016, skillId: "HVAN_EXPLOSION", name: "Bio Explosion", maxLevel: 3, type: "Support", target: "Self", range: 4, element: "Weapon" }
 ]
