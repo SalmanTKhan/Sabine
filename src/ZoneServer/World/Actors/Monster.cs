@@ -146,6 +146,7 @@ namespace Sabine.Zone.World.Actors
 
 				this.GiveExp(killer);
 				this.GiveMvpExp(killer);
+				this.AnnounceMvpKill(killer);
 
 				// Removing the monster with a delay seems wonky, but if we
 				// don't, the client will not display the damage for the last
@@ -218,6 +219,23 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Broadcasts a server-wide announcement when an MVP or boss-mode
+		/// mob is killed by a player.
+		/// </summary>
+		/// <param name="killer"></param>
+		private void AnnounceMvpKill(Character killer)
+		{
+			if (killer is not PlayerCharacter playerCharacter)
+				return;
+
+			if (this.Data.MvpExp <= 0 && !this.Data.IsBoss)
+				return;
+
+			var message = string.Format("[{0}] has defeated MVP [{1}]", playerCharacter.Name, this.Data.Name);
+			Send.ZC_BROADCAST(message);
+		}
+
+		/// <summary>
 		/// Drops the monster's items.
 		/// </summary>
 		/// <param name="killer"></param>
@@ -229,13 +247,13 @@ namespace Sabine.Zone.World.Actors
 		/// </summary>
 		/// <param name="killer"></param>
 		private void DropMvpItems(Character killer)
-			=> this.DropRandomItems(killer, this.Data.MvpDrops);
+			=> this.DropRandomItems(killer, this.Data.MvpDrops, isMvp: true);
 
 		/// <summary>
 		/// Drops the monster's items.
 		/// </summary>
 		/// <param name="killer"></param>
-		private async void DropRandomItems(Character killer, List<DropData> dropsData)
+		private async void DropRandomItems(Character killer, List<DropData> dropsData, bool isMvp = false)
 		{
 			try
 			{
@@ -245,6 +263,7 @@ namespace Sabine.Zone.World.Actors
 				var rnd = RandomProvider.Get();
 				var map = this.Map;
 				var pos = this.Position;
+				var killerPlayer = killer as PlayerCharacter;
 
 				for (var i = 0; i < dropsData.Count; ++i)
 				{
@@ -267,6 +286,12 @@ namespace Sabine.Zone.World.Actors
 					var dropPos = pos.GetRandomInSquareRange(1);
 
 					item.Drop(map, dropPos);
+
+					// For MVP drops, send the special "MVP getting item"
+					// message to the killer so the client displays the
+					// signature pop-up for the loot they received.
+					if (isMvp && killerPlayer != null)
+						Send.ZC_MVP_GETTING_ITEM(killerPlayer, dropData.ItemId);
 				}
 			}
 			catch (Exception ex)

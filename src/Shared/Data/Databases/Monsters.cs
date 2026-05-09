@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using Sabine.Shared.Const;
 using Yggdrasil.Data.JSON;
@@ -40,6 +41,19 @@ namespace Sabine.Shared.Data.Databases
 		public int AttackDelay { get; set; }
 		public int AttackMotion { get; set; }
 		public int DamageMotion { get; set; }
+
+		/// <summary>
+		/// Whether the monster is treated as a boss-mode mob (eA MD_BOSS):
+		/// extended aggro range, immune to certain status effects, no
+		/// de-aggro on flee. MVP rows commonly set this to true.
+		/// </summary>
+		public bool IsBoss { get; set; }
+
+		/// <summary>
+		/// Per-mob respawn delay override. When greater than zero, this
+		/// overrides the spawner's normal cadence on the next respawn.
+		/// </summary>
+		public TimeSpan RespawnDelay { get; set; }
 
 		public List<DropData> Drops { get; set; } = new();
 		public List<DropData> MvpDrops { get; set; } = new();
@@ -137,6 +151,8 @@ namespace Sabine.Shared.Data.Databases
 			data.AttackDelay = entry.ReadInt("attackDelay", 1500);
 			data.AttackMotion = entry.ReadInt("attackMotion", 0);
 			data.DamageMotion = entry.ReadInt("damageMotion", 0);
+			data.IsBoss = entry.ReadBool("isBoss", false);
+			data.RespawnDelay = TimeSpan.FromSeconds(entry.ReadInt("respawnDelay", 0));
 
 			if (entry.ContainsKey("drops"))
 			{

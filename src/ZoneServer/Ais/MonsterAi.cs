@@ -48,7 +48,10 @@ namespace Sabine.Zone.Ais
 				return;
 
 			// Monsters can chill if there's no player nearby.
-			// TODO: Limit to visible range?
+			// TODO: Limit to visible range? For Monster.Data.IsBoss mobs
+			// the visible/aggro range should also be raised (eA MD_BOSS
+			// doubles detection); see Monster.cs and AggressiveAi when
+			// active-aggro AI lands.
 			if (this.Character.Map.PlayerCount == 0)
 				return;
 
@@ -384,8 +387,16 @@ namespace Sabine.Zone.Ais
 		{
 			var attacker = this.Character;
 			var attackDelay = attacker.Parameters.AttackDelay;
-			var attackRange = ((attacker as Monster)?.Data.AttackRange ?? 1);
-			var chaseRange = (attacker as Monster)?.Data.ChaseRange ?? 12;
+			var monster = attacker as Monster;
+			var attackRange = monster?.Data.AttackRange ?? 1;
+			var chaseRange = monster?.Data.ChaseRange ?? 12;
+			var isBoss = monster?.Data.IsBoss ?? false;
+
+			// Boss-mode mobs (eA MD_BOSS) double their chase range and
+			// never de-aggro on distance, mirroring classic-era behaviour
+			// where MVPs follow targets across the map.
+			if (isBoss)
+				chaseRange *= 2;
 
 			while (true)
 			{
@@ -401,7 +412,7 @@ namespace Sabine.Zone.Ais
 
 				while (!attacker.Position.InRange(target.Position, attackRange))
 				{
-					if (!attacker.Position.InRange(target.Position, chaseRange))
+					if (!isBoss && !attacker.Position.InRange(target.Position, chaseRange))
 						yield break;
 
 					attacker.Controller.MoveTo(target.Position);
