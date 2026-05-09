@@ -155,4 +155,15 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 			character.Modifiers.AddRace[(int)RaceType.Insect] -= 7;
 		}
 	}
+
+	/// <summary>Thara Frog Card (4058): -30% damage taken from DemiHuman.</summary>
+	[CardHandler(4058)]
+	public class TharaFrogCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.SubRace[(int)RaceType.DemiHuman] += 30;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.SubRace[(int)RaceType.DemiHuman] -= 30;
+	}
 }

@@ -503,4 +503,58 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Modifiers.AddBonus(ParameterType.Hit, -100);
 	}
+
+	/// <summary>Eggyra Card (4070): +15% SP recovery rate.</summary>
+	[CardHandler(4070)]
+	public class EggyraCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.SpRecovRate, 15);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.SpRecovRate, -15);
+	}
+
+	/// <summary>Savage Card (4078): +3 VIT.</summary>
+	[CardHandler(4078)]
+	public class SavageCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Parameters.Modify(ParameterType.Vit, 3);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Parameters.Modify(ParameterType.Vit, -3);
+	}
+
+	/// <summary>Bapho Jr. Card (4129): +3 AGI, +1 Critical.</summary>
+	[CardHandler(4129)]
+	public class BaphoJrCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Agi, 3);
+			character.Parameters.Modify(ParameterType.Critical, 1);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Agi, -3);
+			character.Parameters.Modify(ParameterType.Critical, -1);
+		}
+	}
+
+	/// <summary>
+	/// Vagabond Wolf Card (4183): +1 STR. The set-bonus +18 Flee
+	/// branch on Skel Worker armor (4029) is dropped — Sabine doesn't
+	/// model card-set conditional bonuses yet.
+	/// </summary>
+	[CardHandler(4183)]
+	public class VagabondWolfCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Parameters.Modify(ParameterType.Str, 1);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Parameters.Modify(ParameterType.Str, -1);
+	}
 }
