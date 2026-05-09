@@ -74,10 +74,8 @@ namespace Sabine.Zone.Commands
 			}
 
 			target.Pet.Adopt(hatched, hatched.Name);
-			// The companion entity isn't spawned yet (wires up in the next
-			// commit); the contract sits in Egg state so /unsummon and
-			// future /summon commands can drive the round-trip.
-			sender.ServerMessage(Localization.Get("Hatched {0}. Pet entity spawn lands in the next commit."), hatched.Name);
+			Sabine.Zone.Skills.Pets.PetService.Spawn(target);
+			sender.ServerMessage(Localization.Get("Hatched {0}."), hatched.Name);
 			return CommandResult.Okay;
 		}
 
@@ -95,7 +93,7 @@ namespace Sabine.Zone.Commands
 				return CommandResult.Okay;
 			}
 
-			target.Pet.MarkDespawned();
+			Sabine.Zone.Skills.Pets.PetService.ReturnToEgg(target);
 			sender.ServerMessage(Localization.Get("Pet despawned."));
 			return CommandResult.Okay;
 		}

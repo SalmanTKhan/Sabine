@@ -369,6 +369,9 @@ namespace Sabine.Zone.World.Actors
 			if (this.Homunculus?.IsActive == true)
 				Sabine.Zone.Skills.Homunculi.HomunculusService.Detach(this);
 
+			if (this.Pet?.IsActive == true)
+				Sabine.Zone.Skills.Pets.PetService.Detach(this);
+
 			Send.ZC_NPCACK_MAPMOVE(this, map.StringId, location.Position);
 		}
 
@@ -931,6 +934,9 @@ namespace Sabine.Zone.World.Actors
 
 			if (this.Homunculus?.IsActive == true)
 				Sabine.Zone.Skills.Homunculi.HomunculusService.Detach(this);
+
+			if (this.Pet?.IsActive == true)
+				Sabine.Zone.Skills.Pets.PetService.Detach(this);
 
 			Send.ZC_NOTIFY_VANISH(this, DisappearType.StrikedDead);
 		}
