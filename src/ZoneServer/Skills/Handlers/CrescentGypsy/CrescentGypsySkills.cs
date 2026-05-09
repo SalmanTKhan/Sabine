@@ -112,18 +112,21 @@ namespace Sabine.Zone.Skills.Handlers.CrescentGypsy
 	}
 
 	/// <summary>
-	/// CG_TAROTCARD (Tarot Card of Fate) — rolls one of 14 random
-	/// debuffs on the target (heal, drain, stat shift, status inflict,
-	/// or instant-death at low odds). Marker today — Sabine's per-skill
-	/// status-inflict dispatcher isn't built, and the 14-card random
-	/// table is non-trivial to graft on cleanly. The cast plays its
-	/// animation and ends; nothing applies to the target. The handler
-	/// shape is left as a damage-skill stub so the dispatcher can land
-	/// later without changing the wire format.
+	/// CG_TAROTCARD (Tarot Card of Fate) — rolls 1 of 14 outcomes on
+	/// the target. Success rate is <c>level * 8</c>%; on failure the
+	/// cast simply fizzles. Mirrors eAthena skill.c:5253 with these
+	/// substitutions where Sabine doesn't expose the eA SC:
+	/// SC_INCATKRATE / SC_INCMATKRATE / SC_INCHITRATE / SC_INCFLEERATE
+	/// / SC_INCDEFRATE aren't wired, so the stat-debuff cards collapse
+	/// to a single-status alternative (Stun / Curse). The 6666-damage
+	/// "Star" and 4444-damage "Moon" land verbatim. Card 6 (eA's
+	/// "draw 2 more") rolls two extra outcomes inline.
 	/// </summary>
 	[SkillHandler(SkillId.CG_TAROTCARD)]
 	public class TarotCardHandler : ITargetedSkillHandler
 	{
+		private static readonly TimeSpan EffectDuration = TimeSpan.FromSeconds(30);
+
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
@@ -132,7 +135,89 @@ namespace Sabine.Zone.Skills.Handlers.CrescentGypsy
 			var level = parameters.SkillLevel;
 			if (target == null) return;
 
+			var rnd = Random.Shared;
 			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+
+			// Success roll: level * 8% (eA skill.c:5256). Boss / Emperium
+			// guards from eA aren't checked here — Sabine doesn't model
+			// emperium guardian state on the boss flag yet.
+			if (rnd.Next(100) >= level * 8) return;
+
+			var draws = 1;
+			while (draws-- > 0)
+			{
+				switch (rnd.Next(14))
+				{
+					case 0:  // Fool — drain target SP to 0.
+						target.TrySpendSp(target.Parameters.Sp);
+						break;
+					case 1:  // Lovers — eA halves MATK; Sabine subs in Curse.
+						target.StatusEffects.Start(StatusId.Curse, level, EffectDuration, caster);
+						break;
+					case 2:  // Empress — strip buffs (matches Dispel set).
+						foreach (var sid in DispelTargets)
+							if (target.StatusEffects.Has(sid))
+								target.StatusEffects.Stop(sid);
+						break;
+					case 3:  // Hanged Man — 1000 damage. eA also breaks armor;
+					         // the equip-break listener isn't wired, so just damage.
+						target.TakeDamage(1000, caster);
+						break;
+					case 4:  // Strength — eA halves ATK; subs in Stun (5s).
+						target.StatusEffects.Start(StatusId.Stun, level, TimeSpan.FromSeconds(5), caster);
+						break;
+					case 5:  // Sun — heal caster 2000 HP. Teleport leg deferred.
+						caster.HealHp(2000);
+						break;
+					case 6:  // Hermit — draw two extra outcomes (eA "count=3" path).
+						draws += 2;
+						break;
+					case 7:  // Wheel of Fortune — random hard CC: Freeze / Stone.
+						{
+							var which = rnd.Next(2);
+							var sid = which == 0 ? StatusId.Freeze : StatusId.Stone;
+							target.StatusEffects.Start(sid, level, EffectDuration, caster);
+						}
+						break;
+					case 8:  // Devil — Curse + Poison. eA also adds Coma; Sabine
+					         // has no Coma status, so we skip it.
+						target.StatusEffects.Start(StatusId.Curse, level, EffectDuration, caster);
+						target.StatusEffects.Start(StatusId.Poison, level, EffectDuration, caster);
+						break;
+					case 9:  // Tower — Confusion.
+						target.StatusEffects.Start(StatusId.Confusion, level, EffectDuration, caster);
+						break;
+					case 10: // Star — 6666 fixed damage + Curse (eA's stat halves
+					         // collapse to Curse).
+						target.TakeDamage(6666, caster);
+						if (!target.IsDead)
+							target.StatusEffects.Start(StatusId.Curse, level, EffectDuration, caster);
+						break;
+					case 11: // Moon — 4444 fixed damage.
+						target.TakeDamage(4444, caster);
+						break;
+					case 12: // Emperor — 5s Stun (eA verbatim).
+						target.StatusEffects.Start(StatusId.Stun, level, TimeSpan.FromSeconds(5), caster);
+						break;
+					case 13: // World — eA's all-stat -20% combo collapses to Sleep,
+					         // since none of the rate buckets are wired today.
+						target.StatusEffects.Start(StatusId.Sleep, level, EffectDuration, caster);
+						break;
+				}
+				if (target.IsDead) break;
+			}
 		}
+
+		// Same buff set SA_DISPELL strips. Kept narrow on purpose — the
+		// "world" / dispel card only knocks off offensive buffs, not the
+		// defensive shields it'd be unfair to wipe in a tarot roll.
+		private static readonly StatusId[] DispelTargets = new[]
+		{
+			StatusId.Blessing, StatusId.IncreaseAgi, StatusId.Angelus,
+			StatusId.Concentration, StatusId.TwoHandQuicken,
+			StatusId.SpearQuicken, StatusId.AdrenalineRush,
+			StatusId.OverThrust, StatusId.MaxOverThrust,
+			StatusId.WeaponPerfection, StatusId.PowerMaximize,
+		};
 	}
 }
