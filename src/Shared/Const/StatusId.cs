@@ -205,5 +205,10 @@ namespace Sabine.Shared.Const
 		// balloon the commit.
 		Sacrifice = 255,
 		Gospel = 256,
+
+		// Reborn 2-2 — Creator. FullProtection covers all four equip
+		// slots from breakage; marker until the on-hit equip-break
+		// listener exists (tied to the WS_MELTDOWN deferral).
+		FullProtection = 257,
 	}
 }
