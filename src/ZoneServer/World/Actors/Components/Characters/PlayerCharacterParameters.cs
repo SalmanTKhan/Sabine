@@ -87,6 +87,14 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			var sigmaOfBaseLevel = RoMath.Sigma(this.BaseLevel - 1);
 
 			this.HpMax = (int)Math.Floor((Math.Floor((baseVal + this.BaseLevel * statMultiplier + sigmaOfBaseLevel * statFactor) * (1 + this.Vit / 100f)) + statAdditions) * itemStatMultipliers);
+
+			// eAthena status_calc_maxhp ordering: rate scales the base
+			// HP, then flat bonuses are summed. SC_BERSERK (+100) /
+			// SC_DELUGE / bMaxHPrate cards all flow through here.
+			var hpRate = this.Character.Modifiers.BonusMaxHpRate;
+			if (hpRate != 0)
+				this.HpMax = this.HpMax * (100 + hpRate) / 100;
+
 			this.HpMax += this.Character.Modifiers.BonusMaxHp;
 			if (this.HpMax < 1) this.HpMax = 1;
 

@@ -74,6 +74,16 @@ namespace Sabine.Zone.Battle
 		/// <summary>Flat MaxHP added on top of the recalc result.</summary>
 		public int BonusMaxHp { get; set; }
 
+		/// <summary>
+		/// Percent MaxHP scalar applied during recalc before the flat
+		/// <see cref="BonusMaxHp"/> term. Mirrors eAthena's
+		/// <c>status_calc_maxhp</c> rate-then-flat ordering. Read by
+		/// <c>PlayerCharacterParameters.RecalculateHp</c>; written by
+		/// SC_BERSERK (+100), SC_DELUGE (+enchant_eff%), and any
+		/// <c>bMaxHPrate</c> card script.
+		/// </summary>
+		public int BonusMaxHpRate { get; set; }
+
 		/// <summary>Flat MaxSP added on top of the recalc result.</summary>
 		public int BonusMaxSp { get; set; }
 
@@ -191,6 +201,7 @@ namespace Sabine.Zone.Battle
 				case ParameterType.MagicDefenseBonus: this.BonusMagicDefenseBonus += amount; break;
 				case ParameterType.HpRecovRate: this.BonusHpRecovRate += amount; break;
 				case ParameterType.SpRecovRate: this.BonusSpRecovRate += amount; break;
+				case ParameterType.MaxHpRate: this.BonusMaxHpRate += amount; break;
 				case ParameterType.AtkRate: this.BonusAtkRate += amount; break;
 				case ParameterType.MagicAtkRate: this.BonusMatkRate += amount; break;
 				case ParameterType.LongAtkRate: this.BonusLongAtkRate += amount; break;

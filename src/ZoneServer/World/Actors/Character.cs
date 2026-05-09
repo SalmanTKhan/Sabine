@@ -578,6 +578,13 @@ namespace Sabine.Zone.World.Actors
 		/// <param name="healAmount">The amount of health points to restore. Must be a positive integer.</param>
 		public void HealHp(int healAmount)
 		{
+			// SC_BERSERK blocks all incoming heals (regen tick, item
+			// use, AL_HEAL, party heal — every caller funnels through
+			// here, so guarding once at the entry point keeps every
+			// source consistent with eAthena status_calc_heal).
+			if (this.StatusEffects?.Has(StatusId.Berserk) == true)
+				return;
+
 			this.Parameters.Modify(ParameterType.Hp, healAmount);
 		}
 
