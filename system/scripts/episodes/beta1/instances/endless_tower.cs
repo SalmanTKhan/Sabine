@@ -18,6 +18,7 @@
 //      the highest cleared floor onto the player's perm vars.
 //---------------------------------------------------------------------------
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
@@ -25,6 +26,7 @@ using Sabine.Zone;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Actors;
+using Yggdrasil.Util;
 using static Sabine.Zone.Scripting.Shortcuts;
 using static Sabine.Shared.Const.IdentityId;
 
@@ -55,6 +57,28 @@ public class Beta1EndlessTowerScript : GeneralScript
 		new(33, 125),  // moc_pryd02
 		new(290, 167), // moc_pryd03
 		new(133, 60),  // moc_pryd04
+	};
+
+	// Per-floor mob waves. Each floor spawns this many copies of the
+	// listed monster id near the entry; the climb portal is gated on
+	// every mob being defeated. The top floor adds Osiris as a boss.
+	private const int MobsPerFloor = 5;
+	private static readonly IdentityId[] FloorMobs =
+	{
+		IdentityId.JT_PORING,   // 1F: lvl 1
+		IdentityId.JT_FABRE,    // 2F: lvl 2
+		IdentityId.JT_ZOMBIE,   // 3F: lvl 15
+		IdentityId.JT_VERIT,    // 4F: lvl 38
+		IdentityId.JT_MUMMY,    // 5F: lvl 37
+		IdentityId.JT_MUMMY,    // 6F: mummies + Osiris boss (see SpawnFloorMobs)
+	};
+
+	// Reward inventory drop on top-floor clear. Zeny is awarded
+	// separately in OnTowerCleared.
+	private static readonly (int classId, int amount)[] ClearRewards =
+	{
+		(603, 1),  // Old_Blue_Box
+		(607, 3),  // Yggdrasilberry
 	};
 
 	public override void Load()
@@ -98,8 +122,9 @@ public class Beta1EndlessTowerScript : GeneralScript
 				return;
 			}
 
-			// Drop the inter-floor portals onto every cloned map.
+			// Drop the inter-floor portals + mob waves onto each cloned map.
 			SpawnFloorPortals(instId);
+			SpawnFloorMobs(instId);
 		}
 
 		WarpToFloor(player, instId, 1);
@@ -138,8 +163,47 @@ public class Beta1EndlessTowerScript : GeneralScript
 		}
 	}
 
+	/// <summary>
+	/// Spawns <see cref="MobsPerFloor"/> monsters per floor at random
+	/// offsets around the floor entry. The top floor also gets one
+	/// Osiris as a boss capper.
+	/// </summary>
+	private static void SpawnFloorMobs(int instId)
+	{
+		for (var floorIdx = 0; floorIdx < Floors.Length; floorIdx++)
+		{
+			var instanceMapName = GetInstanceMapName(Floors[floorIdx], instId);
+			if (!ZoneServer.Instance.World.Maps.TryGetByStringId(instanceMapName, out var clone))
+				continue;
+
+			var mobId = FloorMobs[floorIdx];
+			var entry = FloorEntry[floorIdx];
+
+			for (var i = 0; i < MobsPerFloor; i++)
+			{
+				var pos = entry.GetRandomInRange(4, 8);
+				var monster = new Monster((int)mobId);
+				monster.Warp(clone.Id, pos);
+			}
+
+			// Top-floor boss.
+			if (floorIdx == Floors.Length - 1)
+			{
+				var boss = new Monster((int)IdentityId.JT_OSIRIS);
+				boss.Warp(clone.Id, entry);
+			}
+		}
+	}
+
 	private static void OnPortalTriggered(PlayerCharacter player, int instId, int currentFloor)
 	{
+		// Gate: defeat all live mobs on this floor before advancing.
+		if (!IsFloorClear(player, instId, currentFloor))
+		{
+			player.ServerMessage("Defeat all monsters on this floor before climbing.");
+			return;
+		}
+
 		// Top floor: complete the run.
 		if (currentFloor >= Floors.Length)
 		{
@@ -148,6 +212,21 @@ public class Beta1EndlessTowerScript : GeneralScript
 		}
 
 		WarpToFloor(player, instId, currentFloor + 1);
+	}
+
+	private static bool IsFloorClear(PlayerCharacter player, int instId, int currentFloor)
+	{
+		var floorIdx = currentFloor - 1;
+		if (floorIdx < 0 || floorIdx >= Floors.Length)
+			return true;
+
+		var instMap = GetInstanceMapName(Floors[floorIdx], instId);
+		if (!ZoneServer.Instance.World.Maps.TryGetByStringId(instMap, out var map))
+			return true;
+
+		using var monsters = PooledList<Monster>.Rent();
+		map.GetMonsters(monsters, 0, static (_, m) => !m.IsDead);
+		return monsters.Count == 0;
 	}
 
 	private static void WarpToFloor(PlayerCharacter player, int instId, int floorNumber)
@@ -183,11 +262,11 @@ public class Beta1EndlessTowerScript : GeneralScript
 			player.ServerMessage($"Tower cleared (floor {cleared}). Best: {prevHighest}.");
 		}
 
-		// Reward: zeny payout. Item rewards can be added later via
-		// player.Inventory.AddItem(new Item(...)) once a reward-item
-		// catalogue is decided.
+		// Reward: zeny + a small drop bundle.
 		player.Parameters.Zeny += 100000;
-		player.ServerMessage("Reward: 100,000 zeny.");
+		foreach (var (classId, amount) in ClearRewards)
+			player.Inventory.AddItem(new Item(classId, amount));
+		player.ServerMessage("Reward: 100,000 zeny + Old Blue Box + 3 Yggdrasil Berries.");
 
 		// Warp back to Alberta. The instance stays alive on its TTL
 		// so partymates still inside aren't kicked.
