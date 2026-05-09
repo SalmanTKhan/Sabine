@@ -136,14 +136,14 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult AgitStart(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			WoeService.Instance.Start();
+			ZoneServer.Instance.World.Woe.Start();
 			Send.ZC_BROADCAST("[Server] War of Emperium has started.");
 			return CommandResult.Okay;
 		}
 
 		private CommandResult AgitEnd(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			WoeService.Instance.End();
+			ZoneServer.Instance.World.Woe.End();
 			Send.ZC_BROADCAST("[Server] War of Emperium has ended.");
 			return CommandResult.Okay;
 		}
