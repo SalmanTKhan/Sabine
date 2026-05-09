@@ -186,5 +186,16 @@ namespace Sabine.Shared.Const
 		CartBoost = 249,
 		MaxOverThrust = 250,
 		MeltDown = 251,
+
+		// Reborn 2-2 — Stalker. ChaseWalk is the toggle hide-with-slow
+		// (eAthena status.c:5537); Preserve locks Plagiarism state;
+		// RejectSword reflects sword-class melee hits with limited
+		// charges (status.c:5706 — val2 = 15*val1 chance, val3 = 3
+		// charges). All marker today: hide-toggle integration, the
+		// Plagiarism state itself, and the on-hit reflect listener
+		// each live in subsystems that haven't grown the hooks yet.
+		ChaseWalk = 252,
+		Preserve = 253,
+		RejectSword = 254,
 	}
 }
