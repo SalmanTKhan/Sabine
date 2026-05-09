@@ -197,5 +197,13 @@ namespace Sabine.Shared.Const
 		ChaseWalk = 252,
 		Preserve = 253,
 		RejectSword = 254,
+
+		// Reborn 2-2 — Paladin. Sacrifice is a finite-charge damage
+		// redirect (val2 = 5 hits per eAthena status.c:5307). Gospel
+		// is the toggle ground chant — marker today, the per-tick
+		// random-buff roll lives in a different subsystem and would
+		// balloon the commit.
+		Sacrifice = 255,
+		Gospel = 256,
 	}
 }
