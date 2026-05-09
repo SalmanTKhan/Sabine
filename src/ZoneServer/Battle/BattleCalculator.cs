@@ -645,6 +645,17 @@ namespace Sabine.Zone.Battle
 			var afterLexAeterna = ApplyLexAeterna(afterStatus, target);
 			var afterKyrie = ApplyKyrieEleison(afterLexAeterna, target, isWeaponHit: false, ctx.SkillId);
 
+			// SC_MAGICPOWER (HW_MAGICPOWER): single-shot. The +MATK%
+			// rode through ApplyMatkRate above; consume the buff now
+			// so the next spell casts at base power. eAthena status.c
+			// dispels MAGICPOWER in skill_castend after the cast
+			// resolves; we mirror that by ending the status here on
+			// the first amplified hit. AoE / multi-tick spells (Storm
+			// Gust, Meteor) only get the bonus on their first tick,
+			// matching eAthena's "one cast, one consumption" rule.
+			if (attacker.StatusEffects?.Has(StatusId.MagicPower) == true)
+				attacker.StatusEffects.Stop(StatusId.MagicPower);
+
 			result.Damage = Math.Max(1, afterKyrie);
 			result.DamagePerHit = (int)Math.Ceiling(result.Damage / (float)result.HitCount);
 			result.Damage = result.DamagePerHit * result.HitCount;

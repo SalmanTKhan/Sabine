@@ -65,11 +65,10 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 
 	/// <summary>
 	/// SC_MAGICPOWER (HW_MAGICPOWER) — +5%/level MATK on the next
-	/// spell cast. We ride BonusMatkRate so the multiplier flows
-	/// through CalcMagic without a separate code path. Val2 stores
-	/// the snapshotted percent so the revert is symmetric. The
-	/// "single-shot, breaks on cast" gate is not yet wired — the
-	/// status simply expires on its 30s timer for now.
+	/// spell cast. The MATK% rides BonusMatkRate; CalcMagic ends
+	/// the status after the first amplified hit (the "single-shot,
+	/// breaks on cast" semantic). Val2 stores the snapshotted
+	/// percent so the OnEnd revert is symmetric.
 	/// </summary>
 	[StatusEffectHandler(StatusId.MagicPower)]
 	public class MagicPowerStatusHandler : IStatusEffectHandler
