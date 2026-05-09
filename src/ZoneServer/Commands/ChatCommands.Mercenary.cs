@@ -11,6 +11,7 @@ namespace Sabine.Zone.Commands
 		{
 			this.Add("mercsummon", "<mobId>", Localization.Get("Hires a mercenary by mob id."), this.MercSummon);
 			this.Add("mercdismiss", "", Localization.Get("Dismisses the active mercenary."), this.MercDismiss);
+			this.Add("mercresummon", "", Localization.Get("Re-summons the mercenary from a paused contract."), this.MercResummon);
 			this.Add("mercfaith", "<faction> [delta]", Localization.Get("Reports or adjusts faith with a faction."), this.MercFaith);
 			this.Add("mercinfo", "", Localization.Get("Reports the active contract state."), this.MercInfo);
 		}
@@ -32,6 +33,41 @@ namespace Sabine.Zone.Commands
 			}
 
 			sender.ServerMessage(Localization.Get("{0} hired mercenary {1}."), target.Name, mobId);
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// /mercresummon — brings the merc back after a re-login, warp,
+		/// or owner death paused the contract. Reads the existing
+		/// contract from the component and spawns the entity beside
+		/// the owner. Refuses when there's no contract or the contract
+		/// is already active with a live entity. Mirrors eAthena's
+		/// auto-resume on map enter — Sabine doesn't auto-spawn so the
+		/// player has explicit control over when the rental clock
+		/// runs alongside their session.
+		/// </summary>
+		private CommandResult MercResummon(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (target.Mercenary == null || !target.Mercenary.HasContract)
+			{
+				sender.ServerMessage(Localization.Get("No paused contract to re-summon."));
+				return CommandResult.Okay;
+			}
+
+			if (target.Mercenary.IsActive && target.Mercenary.Entity != null)
+			{
+				sender.ServerMessage(Localization.Get("Mercenary already summoned."));
+				return CommandResult.Okay;
+			}
+
+			// Force the state back to Active so Spawn doesn't refuse,
+			// then place the entity. The component's heartbeat will
+			// resume ticking the contract clock from the next frame.
+			target.Mercenary.StartContractResume();
+			if (Sabine.Zone.Skills.Mercenaries.MercenaryService.Spawn(target))
+				sender.ServerMessage(Localization.Get("Mercenary re-summoned."));
+			else
+				sender.ServerMessage(Localization.Get("Re-summon failed."));
 			return CommandResult.Okay;
 		}
 

@@ -72,6 +72,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			this.Faction = data.Faction;
 			this.ContractSecondsRemaining = data.ContractSeconds;
 			this.State = MercenaryState.Active;
+			_warned5min = false;
+			_warned1min = false;
 		}
 
 		internal void EndContract()
@@ -84,11 +86,33 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 		internal void MarkDespawned() => this.State = MercenaryState.Despawned;
 
+		/// <summary>
+		/// Re-activates a paused contract loaded from the persistent
+		/// store. Used by <c>/mercresummon</c> — the load path drops
+		/// the state to Despawned, this flips it back to Active so
+		/// the heartbeat and the service Spawn paths agree on the
+		/// state machine. ContractSecondsRemaining is left untouched
+		/// so the rental clock continues from where it paused.
+		/// </summary>
+		public void StartContractResume()
+		{
+			if (!this.HasContract) return;
+			this.State = MercenaryState.Active;
+			_warned5min = this.ContractSecondsRemaining <= 300;
+			_warned1min = this.ContractSecondsRemaining <= 60;
+		}
+
 		// ---------------------------------------------------------------
 		// Heartbeat
 		// ---------------------------------------------------------------
 
 		private TimeSpan _tickAccumulator;
+
+		// Warning thresholds at 5 / 1 minute(s) remaining. Crossed
+		// once each so the player isn't spammed; flags reset on a new
+		// contract via StartContract.
+		private bool _warned5min;
+		private bool _warned1min;
 
 		public void Update(TimeSpan elapsed)
 		{
@@ -100,13 +124,27 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				_tickAccumulator -= TimeSpan.FromSeconds(1);
 				this.ContractSecondsRemaining = Math.Max(0, this.ContractSecondsRemaining - 1);
 
-				// Expiry dispatch — the service drops the entity, awards
-				// the completion faith, and runs any post-contract hooks.
-				if (this.ContractSecondsRemaining == 0
-					&& this.Character is PlayerCharacter owner)
+				if (this.Character is PlayerCharacter owner)
 				{
-					Sabine.Zone.Skills.Mercenaries.MercenaryService.OnContractExpired(owner);
-					return;
+					// Threshold notices — eAthena fires equivalents at
+					// 5 / 1 minute(s) so the player can renew or stash
+					// valuables before the merc walks off.
+					if (!_warned5min && this.ContractSecondsRemaining <= 300)
+					{
+						_warned5min = true;
+						owner.ServerMessage(Sabine.Shared.Util.Localization.Get("Mercenary contract: 5 minutes remaining."));
+					}
+					if (!_warned1min && this.ContractSecondsRemaining <= 60)
+					{
+						_warned1min = true;
+						owner.ServerMessage(Sabine.Shared.Util.Localization.Get("Mercenary contract: 1 minute remaining."));
+					}
+
+					if (this.ContractSecondsRemaining == 0)
+					{
+						Sabine.Zone.Skills.Mercenaries.MercenaryService.OnContractExpired(owner);
+						return;
+					}
 				}
 			}
 		}
