@@ -820,6 +820,117 @@ namespace Sabine.Zone.Database
 			return result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result);
 		}
 
+		// ----- Auction persistence (Slice G) ----------------------------
+		// All open auctions are loaded once at startup; mutations
+		// (insert / update bid / mark resolved) write through. The
+		// resolution loop polls in-memory and calls
+		// `UpdateAuctionStatus` once payout has fanned out via Mail.
+		// Schema: `sql/updates/2026-05-09_001.sql`.
+
+		/// <summary>
+		/// Returns every auction whose status is <c>Open</c>. Resolved
+		/// rows stay in the table for history but aren't re-loaded.
+		/// </summary>
+		public List<World.Auctions.AuctionEntry> LoadOpenAuctions()
+		{
+			var list = new List<World.Auctions.AuctionEntry>();
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"SELECT * FROM `auctions` WHERE `status` = 0", conn);
+			using var reader = cmd.ExecuteReader();
+			while (reader.Read())
+				list.Add(ReadAuction(reader));
+			return list;
+		}
+
+		private static World.Auctions.AuctionEntry ReadAuction(MySqlDataReader reader)
+		{
+			return new World.Auctions.AuctionEntry
+			{
+				Id = reader.GetInt32("auctionId"),
+				SellerId = reader.GetInt32("sellerId"),
+				SellerName = reader.GetStringSafe("sellerName") ?? string.Empty,
+				ItemClassId = reader.GetInt32("itemClassId"),
+				ItemAmount = (short)reader.GetInt32("itemAmount"),
+				ItemRefine = (byte)reader.GetInt32("itemRefine"),
+				ItemIdentified = reader.GetInt32("itemIdentified") != 0,
+				ItemDamaged = reader.GetInt32("itemDamaged") != 0,
+				StartingPrice = reader.GetInt32("startingPrice"),
+				BuyoutPrice = reader.GetInt32("buyoutPrice"),
+				CurrentBid = reader.GetInt32("currentBid"),
+				BidderId = reader.GetInt32("bidderId"),
+				BidderName = reader.GetStringSafe("bidderName") ?? string.Empty,
+				Status = (World.Auctions.AuctionStatus)reader.GetInt32("status"),
+				CreatedAt = reader.GetDateTime("createdAt"),
+				Deadline = reader.GetDateTime("deadline"),
+			};
+		}
+
+		/// <summary>
+		/// Inserts a new auction row, assigning the auto-generated
+		/// <c>auctionId</c> back onto <paramref name="entry"/>.
+		/// </summary>
+		public void InsertAuction(World.Auctions.AuctionEntry entry)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"INSERT INTO `auctions` "
+				+ "(`sellerId`, `sellerName`, `itemClassId`, `itemAmount`, "
+				+ " `itemRefine`, `itemIdentified`, `itemDamaged`, "
+				+ " `startingPrice`, `buyoutPrice`, `currentBid`, "
+				+ " `bidderId`, `bidderName`, `status`, `createdAt`, `deadline`) "
+				+ "VALUES (@sellerId, @sellerName, @itemClassId, @itemAmount, "
+				+ " @itemRefine, @itemIdentified, @itemDamaged, "
+				+ " @startingPrice, @buyoutPrice, @currentBid, "
+				+ " @bidderId, @bidderName, @status, @createdAt, @deadline); "
+				+ "SELECT LAST_INSERT_ID();",
+				conn);
+			cmd.AddParameter("@sellerId", entry.SellerId);
+			cmd.AddParameter("@sellerName", entry.SellerName ?? string.Empty);
+			cmd.AddParameter("@itemClassId", entry.ItemClassId);
+			cmd.AddParameter("@itemAmount", (int)entry.ItemAmount);
+			cmd.AddParameter("@itemRefine", (int)entry.ItemRefine);
+			cmd.AddParameter("@itemIdentified", entry.ItemIdentified ? 1 : 0);
+			cmd.AddParameter("@itemDamaged", entry.ItemDamaged ? 1 : 0);
+			cmd.AddParameter("@startingPrice", entry.StartingPrice);
+			cmd.AddParameter("@buyoutPrice", entry.BuyoutPrice);
+			cmd.AddParameter("@currentBid", entry.CurrentBid);
+			cmd.AddParameter("@bidderId", entry.BidderId);
+			cmd.AddParameter("@bidderName", entry.BidderName ?? string.Empty);
+			cmd.AddParameter("@status", (int)entry.Status);
+			cmd.AddParameter("@createdAt", entry.CreatedAt);
+			cmd.AddParameter("@deadline", entry.Deadline);
+			entry.Id = Convert.ToInt32(cmd.ExecuteScalar());
+		}
+
+		/// <summary>Updates an active auction's bid + bidder.</summary>
+		public void UpdateAuctionBid(int auctionId, int currentBid, int bidderId, string bidderName)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"UPDATE `auctions` SET `currentBid` = @bid, "
+				+ "`bidderId` = @bidderId, `bidderName` = @bidderName "
+				+ "WHERE `auctionId` = @id", conn);
+			cmd.AddParameter("@bid", currentBid);
+			cmd.AddParameter("@bidderId", bidderId);
+			cmd.AddParameter("@bidderName", bidderName ?? string.Empty);
+			cmd.AddParameter("@id", auctionId);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>
+		/// Marks an auction as resolved (Sold / Expired / Cancelled).
+		/// </summary>
+		public void UpdateAuctionStatus(int auctionId, World.Auctions.AuctionStatus status)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"UPDATE `auctions` SET `status` = @status WHERE `auctionId` = @id", conn);
+			cmd.AddParameter("@status", (int)status);
+			cmd.AddParameter("@id", auctionId);
+			cmd.ExecuteNonQuery();
+		}
+
 		// ----- Castle persistence (Phase 8) -----------------------------
 		// `LoadAllCastles` runs once at startup; `UpsertCastle` is
 		// called by `CastleManager` whenever a script mutates state

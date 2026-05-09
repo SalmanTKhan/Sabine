@@ -92,6 +92,14 @@ namespace Sabine.Zone.World
 		public global::Sabine.Zone.World.Mail.MailManager Mail => global::Sabine.Zone.World.Mail.MailManager.Instance;
 
 		/// <summary>
+		/// Active auction registry (Slice G v1, text-mode). State is
+		/// DB-backed via <c>sql/updates/2026-05-09_001.sql</c>; mutations
+		/// (register / bid / cancel / resolve) write through. The
+		/// 30s resolution loop is started in <see cref="Start"/>.
+		/// </summary>
+		public global::Sabine.Zone.World.Auctions.AuctionManager Auctions => global::Sabine.Zone.World.Auctions.AuctionManager.Instance;
+
+		/// <summary>
 		/// WoE castle ownership registry. Static templates live in
 		/// <c>system/data/castles.txt</c>; runtime state (owner,
 		/// economy/defense, triggers) is DB-backed via
@@ -159,6 +167,7 @@ namespace Sabine.Zone.World
 			this.LoadGuilds();
 			this.LoadParties();
 			this.LoadCastles();
+			this.LoadAuctions();
 			this.SetupUpdates();
 		}
 
@@ -193,6 +202,22 @@ namespace Sabine.Zone.World
 			catch (Exception ex)
 			{
 				Log.Error("WorldManager.LoadCastles: failed to load castles: {0}", ex);
+			}
+		}
+
+		/// <summary>
+		/// Hydrates <see cref="Auctions"/> from the `auctions` table
+		/// (open rows only).
+		/// </summary>
+		private void LoadAuctions()
+		{
+			try
+			{
+				this.Auctions.LoadAll();
+			}
+			catch (Exception ex)
+			{
+				Log.Error("WorldManager.LoadAuctions: failed to load auctions: {0}", ex);
 			}
 		}
 
@@ -287,6 +312,9 @@ namespace Sabine.Zone.World
 			this.Guardians.Attach(this.Woe);
 			this.Treasures.Attach(this.Woe);
 			this.Treasures.StartPolling();
+
+			// Auction resolution loop (Slice G).
+			this.Auctions.StartPolling();
 			this.Woe.StartSchedule();
 		}
 
