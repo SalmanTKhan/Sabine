@@ -178,3 +178,5 @@ $RECYCLE.BIN/
 #SyncToy
 SyncToy*
 *.bak
+/.github
+/.claude
