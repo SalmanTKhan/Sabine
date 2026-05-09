@@ -13,6 +13,21 @@ namespace Sabine.Zone.Network.Helpers
 	public static class PacketCharacterHelpers
 	{
 		/// <summary>
+		/// Returns the network id the entry should appear as on the
+		/// client. For <see cref="Character"/> actors this honors the
+		/// <see cref="Character.DisplayClassId"/> override (set by Hocus
+		/// Pocus transforms and similar effects); other entries fall
+		/// back to their <see cref="IStandEntry.IdentityId"/>.
+		/// </summary>
+		private static int GetDisplayNetworkId(IStandEntry entry)
+		{
+			if (entry is Character ch)
+				return ((IdentityId)ch.DisplayClassId).ToNetwork();
+
+			return entry.IdentityId.ToNetwork();
+		}
+
+		/// <summary>
 		/// Adds stand entry information about character to packet.
 		/// </summary>
 		/// <param name="packet"></param>
@@ -32,7 +47,7 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutByte(0);
 				}
 
-				packet.PutByte((byte)character.IdentityId.ToNetwork());
+				packet.PutByte((byte)GetDisplayNetworkId(character));
 				packet.PutByte((byte)character.Sex);
 				packet.AddPackedPosition(character.Position, character.Direction);
 				packet.PutByte(0);
@@ -47,7 +62,7 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
-				packet.PutShort((short)character.IdentityId.ToNetwork());
+				packet.PutShort((short)GetDisplayNetworkId(character));
 				packet.PutShort((short)character.HairId);
 				packet.PutShort((short)character.WeaponLook);
 				packet.PutShort((short)character.HeadBottomLook);
@@ -93,7 +108,7 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutByte(0);
 				}
 
-				packet.PutByte((byte)character.IdentityId.ToNetwork());
+				packet.PutByte((byte)GetDisplayNetworkId(character));
 				packet.PutByte((byte)character.Sex);
 				packet.AddPackedPosition(character.Position, character.Direction);
 				packet.PutByte(0);
@@ -107,7 +122,7 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
-				packet.PutShort((short)character.IdentityId.ToNetwork());
+				packet.PutShort((short)GetDisplayNetworkId(character));
 				packet.PutShort((short)character.HairId);
 				packet.PutShort((short)character.WeaponLook);
 				packet.PutShort((short)character.HeadBottomLook);
@@ -145,7 +160,7 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutByte(0);
 				}
 
-				packet.PutByte((byte)character.IdentityId.ToNetwork());
+				packet.PutByte((byte)GetDisplayNetworkId(character));
 				packet.PutByte((byte)character.Sex);
 				packet.AddPackedPosition(character.Position, character.Direction);
 				packet.PutByte(0);
@@ -159,7 +174,7 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
-				packet.PutShort((short)character.IdentityId.ToNetwork());
+				packet.PutShort((short)GetDisplayNetworkId(character));
 				packet.PutShort((short)character.HairId);
 				packet.PutShort((short)character.WeaponLook);
 				packet.PutShort((short)character.HeadBottomLook);
@@ -206,7 +221,7 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutByte(0);
 				}
 
-				packet.PutByte((byte)character.IdentityId.ToNetwork());
+				packet.PutByte((byte)GetDisplayNetworkId(character));
 				packet.PutByte((byte)character.Sex);
 				packet.AddPackedMove(from, to, 8, 8);
 				packet.PutShort(0);
@@ -220,7 +235,7 @@ namespace Sabine.Zone.Network.Helpers
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
 				packet.PutShort(0);     // Status Effects?
-				packet.PutShort((short)character.IdentityId.ToNetwork());
+				packet.PutShort((short)GetDisplayNetworkId(character));
 				packet.PutShort((short)character.HairId);
 				packet.PutShort((short)character.WeaponLook);
 				packet.PutShort((short)character.HeadBottomLook);

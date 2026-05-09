@@ -22,6 +22,14 @@ namespace Sabine.Zone.Skills.StatusEffects
 		public int Val3 { get; set; }
 		public int Val4 { get; set; }
 
+		/// <summary>
+		/// Free-form string slot for handlers that need to stash a
+		/// non-numeric scratch value across OnStart / OnEnd. Used by
+		/// SA_REVERSEORCISH to remember the target's original name
+		/// while the override is active.
+		/// </summary>
+		public string OriginalName { get; set; }
+
 		public TimeSpan Duration { get; }
 		public TimeSpan RemainingDuration { get; private set; }
 

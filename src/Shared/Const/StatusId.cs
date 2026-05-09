@@ -142,6 +142,24 @@ namespace Sabine.Shared.Const
 		// target for the duration. eAthena status.c SC_GRAVITATION.
 		Gravity = 235,
 
+		// Sage Hocus Pocus — SA_MONOCELL outcome. Disguises the
+		// target as a Poring (JT_PORING) for the duration; eAthena
+		// status.c SC_CHANGEUNDEAD-style sprite swap with HP set to 1.
+		Monocell = 236,
+
+		// Sage Hocus Pocus — SA_CLASSCHANGE outcome. Disguises the
+		// target as a random low-tier mob for the duration. eAthena
+		// status.c SC_CLASSCHANGE.
+		ClassChange = 237,
+
+		// Sage Hocus Pocus — SA_REVERSEORCISH outcome. Replaces the
+		// target's display name with "ORCISH" via vanish + re-entry.
+		ReverseOrcish = 238,
+
+		// Sage Hocus Pocus — SA_QUESTION outcome. One-shot emote on
+		// status start (no persistent state).
+		Question = 239,
+
 		// Bard / Dancer (2-2) — songs/dances apply per-tick auras
 		// while standing in the unit; the flag here is the in-aura
 		// marker so handlers can check membership.
