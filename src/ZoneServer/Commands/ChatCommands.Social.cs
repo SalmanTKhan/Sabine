@@ -161,9 +161,59 @@ namespace Sabine.Zone.Commands
 			return CommandResult.Okay;
 		}
 
+		// eAthena atcommand_autolootitem: a per-character whitelist of up
+		// to 10 item ids that survive the auto-loot filter regardless of
+		// the global rate. No-arg lists / clears the current set; an int
+		// argument toggles membership; "reset" / "clear" empties the list.
+		// NOTE: Sabine's current pickup pipeline doesn't yet consult this
+		// list — the same gap exists on /autoloot, which only stores
+		// Sabine.AutoLootRate without a read-side consumer. Persisting the
+		// set still means the toggle survives a relog so the filter goes
+		// live the moment the pickup hook lands.
 		private CommandResult ALootId(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("alootid is not implemented."));
+			const string varName = "Sabine.AutoLootIds";
+			const int maxIds = 10;
+
+			var existing = target.Vars.Perm.GetIntArray(varName);
+			var ids = existing != null ? new System.Collections.Generic.List<int>(existing) : new System.Collections.Generic.List<int>();
+
+			if (args.Count == 0)
+			{
+				if (ids.Count == 0)
+					sender.ServerMessage(Localization.Get("AutoLootIds: (empty)"));
+				else
+					sender.ServerMessage("AutoLootIds: {0}", string.Join(", ", ids));
+				return CommandResult.Okay;
+			}
+
+			var arg = args.Get(0);
+			if (arg.Equals("reset", System.StringComparison.OrdinalIgnoreCase) || arg.Equals("clear", System.StringComparison.OrdinalIgnoreCase))
+			{
+				target.Vars.Perm.SetIntArray(varName, System.Array.Empty<int>());
+				sender.ServerMessage(Localization.Get("AutoLootIds cleared."));
+				return CommandResult.Okay;
+			}
+
+			if (!int.TryParse(arg, out var itemId) || itemId <= 0)
+				return CommandResult.InvalidArgument;
+
+			if (ids.Remove(itemId))
+			{
+				target.Vars.Perm.SetIntArray(varName, ids);
+				sender.ServerMessage(Localization.Get("Removed {0} from AutoLootIds."), itemId);
+				return CommandResult.Okay;
+			}
+
+			if (ids.Count >= maxIds)
+			{
+				sender.ServerMessage(Localization.Get("AutoLootIds full ({0} max). Drop one with /alootid <existing id> first."), maxIds);
+				return CommandResult.Okay;
+			}
+
+			ids.Add(itemId);
+			target.Vars.Perm.SetIntArray(varName, ids);
+			sender.ServerMessage(Localization.Get("Added {0} to AutoLootIds."), itemId);
 			return CommandResult.Okay;
 		}
 

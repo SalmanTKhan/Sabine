@@ -252,13 +252,33 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult Rates(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Server rate display is not implemented."));
+			// Sabine's WorldConf only models JobExp + ItemDrop rates today
+			// (the other knobs eAthena exposes — base_exp_rate,
+			// quest_exp_rate, mvp_drop_rate, etc. — are hard-coded to 100%).
+			// Print the live values plus a note so players know the
+			// remaining channels are unscaled rather than secretly tuned.
+			var conf = ZoneServer.Instance.Conf.World;
+			sender.ServerMessage("Server rates: Job Exp {0}%  Item Drop {1}%", conf.JobExpRate, conf.ItemDropRate);
+			sender.ServerMessage("Base Exp / Quest Exp / MVP Drop: 100% (not configurable)");
 			return CommandResult.Okay;
 		}
 
 		private CommandResult SkillTree(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Skill tree display is not implemented."));
+			if (!ZoneServer.Instance.Data.SkillTrees.TryFind(target.JobId, out var treeData) || treeData.Skills.Count == 0)
+			{
+				sender.ServerMessage(Localization.Get("No skill tree available for {0}."), target.JobId);
+				return CommandResult.Okay;
+			}
+
+			sender.ServerMessage("Skill tree for {0}:", target.JobId);
+			foreach (var entry in treeData.Skills)
+			{
+				var current = target.Skills.TryGet(entry.SkillId, out var s) ? s.Level : 0;
+				var name = ZoneServer.Instance.Data.Skills.TryFind(entry.SkillId, out var skillData) ? skillData.Name : entry.SkillId.ToString();
+				sender.ServerMessage("  {0}: {1}/{2}", name, current, entry.MaxLevel);
+			}
+
 			return CommandResult.Okay;
 		}
 
