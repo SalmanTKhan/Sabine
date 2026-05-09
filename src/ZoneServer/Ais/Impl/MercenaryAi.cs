@@ -1,17 +1,24 @@
 #pragma warning disable IDE0009
 
+using System;
 using System.Linq;
+using Sabine.Shared.Const;
+using Sabine.Shared.Data.Databases;
 using Sabine.Zone.Ais.Base;
 using Sabine.Zone.World.Actors;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Ais.Impl
 {
 	/// <summary>
 	/// Mercenary AI: stays close to its owner, engages whatever the
-	/// owner is currently fighting (or whoever just hit the owner).
-	/// Mirrors <see cref="HomunculusAi"/>'s shape but without the
-	/// auto-cast arm — mercenary skills (MS_*) are deferred to a
-	/// follow-up commit; today the merc is a basic-attack assist.
+	/// owner is currently fighting (or whoever just hit the owner),
+	/// and casts a faction-appropriate offensive skill on cooldown.
+	/// Mirrors <see cref="HomunculusAi"/>'s shape with eA's MS_* /
+	/// MA_* / ML_* substituted for the existing player skills (eA's
+	/// merc-specific skill ids are functionally identical rebrandings
+	/// of SM_BASH / AC_DOUBLE / KN_PIERCE etc., so reusing the player
+	/// SkillId is simpler than adding the MS_* range to the enum).
 	/// </summary>
 	[Ai("Mercenary")]
 	public class MercenaryAi : ReactiveAi
@@ -20,12 +27,15 @@ namespace Sabine.Zone.Ais.Impl
 		private const int LeashRange = 14;
 		private const int AssistScanRange = 9;
 
+		private DateTime _nextSkillAt;
+
 		protected override void Init()
 		{
 			base.Init();
 			During("Idle", PickTarget);
 			During("Idle", FollowOwner);
 			During("Combat", LeashCheck);
+			During("Combat", AutoCast);
 		}
 
 		private PlayerCharacter Owner => (this.Character as Mercenary)?.Owner;
@@ -98,6 +108,55 @@ namespace Sabine.Zone.Ais.Impl
 				StartRoutine("Idle", Idle());
 				state.Handled = true;
 			}
+		}
+
+		/// <summary>
+		/// Per-faction offensive cast roll. Archers double-strafe,
+		/// swordsmen bash, spearmen pierce. Higher-rank mercs get
+		/// a higher skill level (1-5 scaling with the merc's rank).
+		/// Cooldown is 5s so the cast doesn't spam every tick.
+		/// </summary>
+		private void AutoCast(CallbackState state)
+		{
+			if (state.Handled) return;
+			if (DateTime.Now < _nextSkillAt) return;
+			if (_targetCharacterHandle == 0) return;
+			if (!this.Character.Map.TryGetCharacter(_targetCharacterHandle, out var target)) return;
+			if (target.IsDead) return;
+
+			var merc = this.Character as Mercenary;
+			if (merc?.State == null) return;
+
+			var (skillId, level) = ResolveSkill(merc);
+			if (skillId == SkillId.None) return;
+
+			if (!ZoneServer.Instance.SkillHandlers.TryGetHandler<Sabine.Zone.Skills.Handlers.ITargetedSkillHandler>(skillId, out var handler))
+				return;
+
+			var skill = new Sabine.Zone.Skills.Skill(this.Character, skillId, level);
+			handler.Handle(new Sabine.Zone.Skills.Handlers.UseSkillParams(this.Character, target, skill, level));
+
+			_nextSkillAt = DateTime.Now.AddSeconds(5);
+		}
+
+		private static (SkillId skillId, int level) ResolveSkill(Mercenary merc)
+		{
+			// Rank 1-10 → skill level 1-5 (clamped halve). Higher rank
+			// mercs hit harder via the standard skill ratio.
+			var data = Sabine.Shared.Game.CurrentData?.Mercenaries?.Entries;
+			if (data == null) return (SkillId.None, 0);
+			if (!data.TryGetValue(merc.State.MobId, out var entry)) return (SkillId.None, 0);
+
+			var level = Math.Max(1, Math.Min(5, (entry.Rank + 1) / 2));
+
+			return entry.Faction switch
+			{
+				MercenaryFaction.Archer => (SkillId.AC_DOUBLE, level),
+				MercenaryFaction.Sword => (SkillId.SM_BASH, level),
+				MercenaryFaction.Spearman => (SkillId.KN_PIERCE, level),
+				MercenaryFaction.Lancer => (SkillId.KN_BRANDISHSPEAR, level),
+				_ => (SkillId.None, 0),
+			};
 		}
 	}
 }
