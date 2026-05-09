@@ -13,6 +13,7 @@ namespace Sabine.Zone.Commands
 			this.Add("makeegg", "<mobId>", Localization.Get("Creates a pet egg for a mob."), this.MakeEgg);
 			this.Add("hatch", "", Localization.Get("Hatches the first egg in the inventory."), this.Hatch);
 			this.Add("unsummon", "", Localization.Get("Returns the active pet to its egg."), this.Unsummon);
+			this.Add("petfeed", "", Localization.Get("Feeds the active pet a unit of its food."), this.PetFeed);
 			this.Add("petfriendly", "<value>", Localization.Get("Sets the pet's intimacy."), this.PetFriendly);
 			this.Add("pethungry", "<value>", Localization.Get("Sets the pet's hunger."), this.PetHungry);
 			this.Add("petrename", "", Localization.Get("Lets the pet be renamed again."), this.PetRename);
@@ -95,6 +96,35 @@ namespace Sabine.Zone.Commands
 
 			Sabine.Zone.Skills.Pets.PetService.ReturnToEgg(target);
 			sender.ServerMessage(Localization.Get("Pet despawned."));
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// /petfeed — consumes one of the pet's food item (eA pet_db
+		/// column 7 / FoodID) and runs the feed scoring. Refuses when
+		/// the pet isn't active or the food isn't in inventory.
+		/// </summary>
+		private CommandResult PetFeed(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (!target.Pet.IsActive)
+			{
+				sender.ServerMessage(Localization.Get("No active pet to feed."));
+				return CommandResult.Okay;
+			}
+
+			var entry = PetTypeData.GetByMobId(target.Pet.MobId);
+			if (entry == null) return CommandResult.Okay;
+
+			var consumed = target.Inventory.Remove(entry.FoodItemId, 1);
+			if (consumed == 0)
+			{
+				sender.ServerMessage(Localization.Get("Need food item {0}."), entry.FoodItemId);
+				return CommandResult.Okay;
+			}
+
+			target.Pet.Feed();
+			sender.ServerMessage(Localization.Get("Fed {0}. Hunger {1}, intimacy {2}."),
+				target.Pet.Name, target.Pet.Hunger, target.Pet.Intimacy);
 			return CommandResult.Okay;
 		}
 

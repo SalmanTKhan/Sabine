@@ -48,11 +48,76 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// <summary>Live entity reference while the pet is summoned; null otherwise.</summary>
 		public Sabine.Zone.World.Actors.Monster Entity { get; internal set; }
 
+		// eAthena pet hunger: drops 1 every HungryDelay seconds
+		// (pet_db column 9, typically 60s). Intimacy bleeds when the
+		// pet is starving and recovers slowly when it's well fed.
+		private TimeSpan _hungerAccumulator;
+
 		public void Update(TimeSpan elapsed)
 		{
-			// Hunger tick lands in the follow-up commit alongside the
-			// companion entity; today this is a no-op so the component
-			// can be added to the player without behavioural change.
+			if (this.State != PetState.Active) return;
+
+			var entry = PetTypeData.GetByMobId(this.MobId);
+			if (entry == null) return;
+
+			_hungerAccumulator += elapsed;
+			var interval = TimeSpan.FromSeconds(entry.HungerIntervalSec);
+			while (_hungerAccumulator >= interval)
+			{
+				_hungerAccumulator -= interval;
+				this.TickHunger(entry);
+				if (this.State == PetState.None) return;
+			}
+		}
+
+		private void TickHunger(PetEntry entry)
+		{
+			this.Hunger = Math.Max(0, this.Hunger - 1);
+
+			if (this.Hunger == 0)
+			{
+				this.Intimacy = Math.Max(0, this.Intimacy - entry.DeathIntimacyLoss);
+				if (this.Intimacy == 0)
+				{
+					// Bond broken — pet runs away. Despawn the entity if
+					// present and clear the contract; the egg is NOT
+					// refunded (eAthena pet_run behaviour).
+					this.Entity?.Map?.RemoveNpc(this.Entity);
+					this.Entity = null;
+					this.BreakContract();
+				}
+			}
+		}
+
+		/// <summary>
+		/// Feeds the pet with one unit of its food item. Returns true on
+		/// success; false when there's no contract or the pet is already
+		/// at full hunger. The intimacy delta depends on current hunger
+		/// at the time of feeding — the eAthena bands collapse to four
+		/// zones here:
+		/// <list type="bullet">
+		/// <item>≤ 25 (starving): +R_Hungry intimacy</item>
+		/// <item>26–74 (comfortable): half of R_Hungry</item>
+		/// <item>75–89 (stuffed): R_Full (negative for overfeed-punished pets)</item>
+		/// <item>≥ 90 (overfed): 2× R_Full</item>
+		/// </list>
+		/// </summary>
+		public bool Feed()
+		{
+			if (this.State != PetState.Active) return false;
+
+			var entry = PetTypeData.GetByMobId(this.MobId);
+			if (entry == null) return false;
+
+			int delta;
+			if (this.Hunger <= 25)        delta = entry.IntimacyHungryFeed;
+			else if (this.Hunger <= 74)   delta = entry.IntimacyHungryFeed / 2;
+			else if (this.Hunger <= 89)   delta = entry.IntimacyFullFeed;
+			else                          delta = entry.IntimacyFullFeed * 2;
+
+			this.Hunger = Math.Min(100, this.Hunger + entry.FoodFullness);
+			this.Intimacy = Math.Max(0, Math.Min(1000, this.Intimacy + delta));
+			return true;
 		}
 
 		/// <summary>
