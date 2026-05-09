@@ -248,6 +248,30 @@ namespace Sabine.Zone.World.Actors
 		public bool IsRooted => this.StatusEffects?.Has(StatusId.Stop) == true;
 
 		/// <summary>
+		/// True while the character owns a live song / dance unit
+		/// (SC_DANCING in eAthena). Movement is locked unless
+		/// CG_LONGINGFREEDOM is active, mirroring eAthena's gender-paired
+		/// performer immobilization. The check walks the current map's
+		/// SkillUnit list so re-summoning or partial expiry doesn't drift
+		/// from the lock state.
+		/// </summary>
+		public bool IsPerforming
+		{
+			get
+			{
+				if (this.Map == null) return false;
+				if (this.StatusEffects?.Has(StatusId.LongingFreedom) == true) return false;
+
+				foreach (var unit in this.Map.GetSkillUnitsByOwner(this))
+				{
+					if (unit is Sabine.Zone.World.Maps.SkillUnits.SongUnit)
+						return true;
+				}
+				return false;
+			}
+		}
+
+		/// <summary>
 		/// Returns the character's components.
 		/// </summary>
 		public CharacterComponents Components { get; } = new CharacterComponents();

@@ -77,8 +77,11 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			// Stone/Freeze/Sleep/Stun lock movement — the cast/attack paths
 			// already check this, but the move path was missing the guard.
 			// SC_STOP / IsRooted is movement-only (actions still flow), so
-			// it lives in its own check rather than IsImmobilized.
-			if (character.IsImmobilized || character.IsRooted)
+			// it lives in its own check rather than IsImmobilized. Same
+			// shape for IsPerforming (SC_DANCING) — the performer can
+			// still cast but can't stride out of their own song unit
+			// unless CG_LONGINGFREEDOM is active.
+			if (character.IsImmobilized || character.IsRooted || character.IsPerforming)
 				return TimeSpan.Zero;
 
 			_finalDestination = toPos;

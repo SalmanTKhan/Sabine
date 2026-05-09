@@ -22,6 +22,69 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 			}
 			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, center.X, center.Y, 0);
 		}
+
+		/// <summary>
+		/// Ensemble (BD_*) adjacency check. eAthena requires a Bard and
+		/// Dancer (or trans equivalents Clown / Gypsy) standing within
+		/// 1 cell of each other before the ensemble skill resolves;
+		/// failure cancels the cast with a fail packet. Returns true
+		/// when the partner is found, false otherwise. The eA gender-
+		/// specific gating (Bard ↔ Dancer only, no Bard ↔ Bard) is
+		/// preserved here.
+		/// </summary>
+		public static bool HasAdjacentPartner(Sabine.Zone.World.Actors.PlayerCharacter caster)
+		{
+			if (caster?.Map == null) return false;
+
+			var isBardSide = caster.JobId == Sabine.Shared.Const.JobId.Bard
+				|| caster.JobId == Sabine.Shared.Const.JobId.Clown
+				|| caster.JobId == Sabine.Shared.Const.JobId.BabyBard;
+			var isDancerSide = caster.JobId == Sabine.Shared.Const.JobId.Dancer
+				|| caster.JobId == Sabine.Shared.Const.JobId.Gypsy
+				|| caster.JobId == Sabine.Shared.Const.JobId.BabyDancer;
+
+			if (!isBardSide && !isDancerSide) return false;
+
+			foreach (var c in caster.Map.GetCharactersInRange(caster.Position, 1))
+			{
+				if (c == caster) continue;
+				if (c is not Sabine.Zone.World.Actors.PlayerCharacter other) continue;
+
+				var partnerIsBard = other.JobId == Sabine.Shared.Const.JobId.Bard
+					|| other.JobId == Sabine.Shared.Const.JobId.Clown
+					|| other.JobId == Sabine.Shared.Const.JobId.BabyBard;
+				var partnerIsDancer = other.JobId == Sabine.Shared.Const.JobId.Dancer
+					|| other.JobId == Sabine.Shared.Const.JobId.Gypsy
+					|| other.JobId == Sabine.Shared.Const.JobId.BabyDancer;
+
+				if (isBardSide && partnerIsDancer) return true;
+				if (isDancerSide && partnerIsBard) return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Wrapper used by BD_* ensemble handlers — places the aura iff
+		/// a valid partner is adjacent. Otherwise emits a server-side
+		/// fail message (no client fail packet on alpha-era) and burns
+		/// no SP — the SP-deduction site already charged the cost,
+		/// so on a real failure this would refund. Today we just log;
+		/// the refund lands when a "post-handler refund" hook ships.
+		/// </summary>
+		public static bool PlaceEnsembleAura(UseSkillParams p, StatusId applied, bool affectsEnemies = false)
+		{
+			if (p.Character is not Sabine.Zone.World.Actors.PlayerCharacter pc)
+				return false;
+
+			if (!HasAdjacentPartner(pc))
+			{
+				pc.ServerMessage(Sabine.Shared.Util.Localization.Get("Need an opposite-gender performer adjacent."));
+				return false;
+			}
+
+			PlaceAura(p, applied, affectsEnemies);
+			return true;
+		}
 	}
 
 	// Mastery passives.
@@ -223,59 +286,61 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.ServiceForYou);
 	}
 
-	// Ensemble (BD_*) — require Bard + Dancer adjacency. v1 just
-	// places the aura; the adjacency check is a follow-up.
+	// Ensemble (BD_*) — require Bard + Dancer adjacency. PlaceEnsembleAura
+	// gates each cast on a HasAdjacentPartner check; on failure the cast
+	// fizzles with a server-side message (the alpha-era profile lacks a
+	// proper fail packet for these).
 	[SkillHandler(SkillId.BD_LULLABY)]
 	public class LullabyHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.Lullaby, affectsEnemies: true);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.Lullaby, affectsEnemies: true);
 	}
 
 	[SkillHandler(SkillId.BD_RICHMANKIM)]
 	public class MrKimAMillionaireHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
 	}
 
 	[SkillHandler(SkillId.BD_ETERNALCHAOS)]
 	public class EternalChaosHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong, affectsEnemies: true);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong, affectsEnemies: true);
 	}
 
 	[SkillHandler(SkillId.BD_DRUMBATTLEFIELD)]
 	public class DrumOnTheBattlefieldHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
 	}
 
 	[SkillHandler(SkillId.BD_RINGNIBELUNGEN)]
 	public class RingOfNibelungenHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
 	}
 
 	[SkillHandler(SkillId.BD_ROKISWEIL)]
 	public class LokisVeilHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.MentalSensing);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.MentalSensing);
 	}
 
 	[SkillHandler(SkillId.BD_INTOABYSS)]
 	public class IntoTheAbyssHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
 	}
 
 	[SkillHandler(SkillId.BD_SIEGFRIED)]
 	public class InvulnerableSiegfriedHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
 	}
 
 	[SkillHandler(SkillId.BD_RAGNAROK)]
 	public class RagnarokHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
 	}
 }

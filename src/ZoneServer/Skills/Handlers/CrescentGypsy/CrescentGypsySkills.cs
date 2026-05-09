@@ -45,11 +45,10 @@ namespace Sabine.Zone.Skills.Handlers.CrescentGypsy
 
 	/// <summary>
 	/// CG_MOONLIT (Sphere of Moonlight) — toggle aura that drops a
-	/// vertical waterfall around the caster. Marker today: Sabine's
-	/// performer-toggle pipeline (Bard/Dancer ensemble framework)
-	/// doesn't have a one-side aura unit yet; the visual will play
-	/// from the cast packet, but the per-tile water sphere doesn't
-	/// spawn. Duration: 20s + 5s/level (skill_cast_db.txt:658).
+	/// vertical waterfall around the caster. Reuses the SongUnit
+	/// pipeline (5×5 footprint with the Moonlit-marker status) so the
+	/// performer movement-lock applies the same way as Bard / Dancer
+	/// solos. Duration: 20s + 5s/level (skill_cast_db.txt:658).
 	/// </summary>
 	[SkillHandler(SkillId.CG_MOONLIT)]
 	public class MoonlitHandler : ITargetedSkillHandler
@@ -59,8 +58,19 @@ namespace Sabine.Zone.Skills.Handlers.CrescentGypsy
 			var caster = parameters.Character;
 			var skill = parameters.Skill;
 			var level = parameters.SkillLevel;
+			var center = caster.Position;
 
-			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+			for (var dx = -2; dx <= 2; dx++)
+			{
+				for (var dy = -2; dy <= 2; dy++)
+				{
+					var pos = new Sabine.Shared.World.Position((short)(center.X + dx), (short)(center.Y + dy));
+					caster.Map.AddSkillUnit(new Sabine.Zone.World.Maps.SkillUnits.SongUnit(
+						caster, pos, skill.Id, level, StatusId.DancerDance));
+				}
+			}
+
+			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, center.X, center.Y, 0);
 		}
 	}
 
@@ -84,11 +94,10 @@ namespace Sabine.Zone.Skills.Handlers.CrescentGypsy
 
 	/// <summary>
 	/// CG_LONGINGFREEDOM (Longing for Freedom) — cancels the movement
-	/// lock applied by an active Bard/Dancer ensemble (Apple of Idun
-	/// etc.) so the performer can move while the song plays. Marker
-	/// today — Sabine doesn't model the ensemble movement lock yet,
-	/// so there's nothing to release; the marker still lands so the
-	/// future ensemble system can read it. Duration: 180s
+	/// lock applied while a Bard / Dancer / Clown / Gypsy is performing.
+	/// <see cref="Sabine.Zone.World.Actors.Character.IsPerforming"/>
+	/// short-circuits when this status is active, so the performer
+	/// can stride out of their own song unit. Duration: 180s
 	/// (skill_cast_db.txt:821).
 	/// </summary>
 	[SkillHandler(SkillId.CG_LONGINGFREEDOM)]
