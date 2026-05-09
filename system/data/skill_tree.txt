@@ -180,5 +180,95 @@
 	{ jobId: "Assassin", skillId: "AS_SPLASHER", maxLevel: 10, prerequisites: [{ skillId: "AS_POISONREACT", requiredLevel: 5 }, { skillId: "AS_VENOMDUST", requiredLevel: 5 }], versionMin: 300 },
 	{ jobId: "Wedding", skillId: "WE_MALE", maxLevel: 1, versionMin: 300 },
 	{ jobId: "Wedding", skillId: "WE_FEMALE", maxLevel: 5, versionMin: 300 },
-	{ jobId: "Wedding", skillId: "WE_CALLPARTNER", maxLevel: 5, versionMin: 300 }
+	{ jobId: "Wedding", skillId: "WE_CALLPARTNER", maxLevel: 5, versionMin: 300 },
+
+	// Transcendent (Reborn) skill trees. Trans characters inherit
+	// their 2nd-class skills via the job hierarchy; only the new
+	// trans-only skills are listed per-job below. Prerequisite
+	// chains follow eAthena's classic skill_tree.txt; skipped where
+	// the 2nd-class predecessor is already inherited.
+	//---------------------------------------------------------------------------
+
+	// Lord Knight (LK_*) — 4012 in eA
+	{ jobId: "LordKnight", skillId: "LK_AURABLADE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "LordKnight", skillId: "LK_PARRYING", maxLevel: 10, versionMin: 300 },
+	{ jobId: "LordKnight", skillId: "LK_CONCENTRATION", maxLevel: 5, versionMin: 300 },
+	{ jobId: "LordKnight", skillId: "LK_TENSIONRELAX", maxLevel: 1, versionMin: 300 },
+	{ jobId: "LordKnight", skillId: "LK_BERSERK", maxLevel: 1, versionMin: 300 },
+	{ jobId: "LordKnight", skillId: "LK_SPIRALPIERCE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "LordKnight", skillId: "LK_HEADCRUSH", maxLevel: 1, versionMin: 300 },
+	{ jobId: "LordKnight", skillId: "LK_JOINTBEAT", maxLevel: 10, versionMin: 300 },
+
+	// High Priest (HP_*) — 4013
+	{ jobId: "HighPriest", skillId: "HP_ASSUMPTIO", maxLevel: 5, versionMin: 300 },
+	{ jobId: "HighPriest", skillId: "HP_BASILICA", maxLevel: 5, versionMin: 300 },
+	{ jobId: "HighPriest", skillId: "HP_MEDITATIO", maxLevel: 10, versionMin: 300 },
+	{ jobId: "HighPriest", skillId: "HP_MANARECHARGE", maxLevel: 5, versionMin: 300 },
+
+	// High Wizard (HW_*) — 4014
+	{ jobId: "HighWizard", skillId: "HW_SOULDRAIN", maxLevel: 10, versionMin: 300 },
+	{ jobId: "HighWizard", skillId: "HW_MAGICCRASHER", maxLevel: 1, versionMin: 300 },
+	{ jobId: "HighWizard", skillId: "HW_MAGICPOWER", maxLevel: 10, versionMin: 300 },
+	{ jobId: "HighWizard", skillId: "HW_NAPALMVULCAN", maxLevel: 5, versionMin: 300 },
+	{ jobId: "HighWizard", skillId: "HW_GANBANTEIN", maxLevel: 1, versionMin: 300 },
+	{ jobId: "HighWizard", skillId: "HW_GRAVITATION", maxLevel: 5, versionMin: 300 },
+
+	// Paladin (PA_*) — 4008
+	{ jobId: "Paladin", skillId: "PA_PRESSURE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Paladin", skillId: "PA_SACRIFICE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Paladin", skillId: "PA_GOSPEL", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Paladin", skillId: "PA_SHIELDCHAIN", maxLevel: 5, versionMin: 300 },
+
+	// Champion (CH_*) — 4009
+	{ jobId: "Champion", skillId: "CH_PALMSTRIKE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Champion", skillId: "CH_TIGERFIST", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Champion", skillId: "CH_CHAINCRUSH", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Champion", skillId: "CH_SOULCOLLECT", maxLevel: 1, versionMin: 300 },
+
+	// Sniper (SN_*) — 4012
+	{ jobId: "Sniper", skillId: "SN_SIGHT", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Sniper", skillId: "SN_FALCONASSAULT", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Sniper", skillId: "SN_SHARPSHOOTING", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Sniper", skillId: "SN_WINDWALK", maxLevel: 10, versionMin: 300 },
+
+	// Whitesmith (WS_*) — 4011
+	{ jobId: "Whitesmith", skillId: "WS_MELTDOWN", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Whitesmith", skillId: "WS_CREATECOIN", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Whitesmith", skillId: "WS_CREATENUGGET", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Whitesmith", skillId: "WS_CARTBOOST", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Whitesmith", skillId: "WS_SYSTEMCREATE", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Whitesmith", skillId: "WS_WEAPONREFINE", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Whitesmith", skillId: "WS_CARTTERMINATION", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Whitesmith", skillId: "WS_OVERTHRUSTMAX", maxLevel: 5, versionMin: 300 },
+
+	// Stalker (ST_*) — 4019
+	{ jobId: "Stalker", skillId: "ST_CHASEWALK", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Stalker", skillId: "ST_REJECTSWORD", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Stalker", skillId: "ST_STEALBACKPACK", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Stalker", skillId: "ST_PRESERVE", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Stalker", skillId: "ST_FULLSTRIP", maxLevel: 5, versionMin: 300 },
+
+	// Creator (CR_*) — 4019
+	{ jobId: "Creator", skillId: "CR_ALCHEMY", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Creator", skillId: "CR_SYNTHESISPOTION", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Creator", skillId: "CR_SLIMPITCHER", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Creator", skillId: "CR_FULLPROTECTION", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Creator", skillId: "CR_ACIDDEMONSTRATION", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Creator", skillId: "CR_CULTIVATION", maxLevel: 5, versionMin: 300 },
+
+	// Clown (CG_*) — 4020 (male performer trans)
+	{ jobId: "Clown", skillId: "CG_ARROWVULCAN", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Clown", skillId: "CG_MOONLIT", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Clown", skillId: "CG_MARIONETTE", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Clown", skillId: "CG_LONGINGFREEDOM", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Clown", skillId: "CG_HERMODE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Clown", skillId: "CG_TAROTCARD", maxLevel: 1, versionMin: 300 },
+
+	// Gypsy (CG_*) — 4021 (female performer trans; mirrors Clown)
+	{ jobId: "Gypsy", skillId: "CG_ARROWVULCAN", maxLevel: 10, versionMin: 300 },
+	{ jobId: "Gypsy", skillId: "CG_MOONLIT", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Gypsy", skillId: "CG_MARIONETTE", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Gypsy", skillId: "CG_LONGINGFREEDOM", maxLevel: 1, versionMin: 300 },
+	{ jobId: "Gypsy", skillId: "CG_HERMODE", maxLevel: 5, versionMin: 300 },
+	{ jobId: "Gypsy", skillId: "CG_TAROTCARD", maxLevel: 1, versionMin: 300 }
 ]
