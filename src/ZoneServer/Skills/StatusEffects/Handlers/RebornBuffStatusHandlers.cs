@@ -113,6 +113,20 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	}
 
 	/// <summary>
+	/// SC_BASILICA (HP_BASILICA) — marker applied to friendly
+	/// standers by <see cref="Sabine.Zone.World.Maps.SkillUnits.BasilicaUnit"/>.
+	/// The damage block lives on the unit, not on the status; the
+	/// flag is here so future "caster movement lock" / "friendly
+	/// aura" work has a clear hook to read.
+	/// </summary>
+	[StatusEffectHandler(StatusId.Basilica)]
+	public class BasilicaStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
+
+	/// <summary>
 	/// SC_BERSERK (LK_BERSERK / Frenzy) — frenzy state. Pays a 50%
 	/// current-HP + 100% MaxSP entry cost, grants +200% ATK and
 	/// +100% MaxHP, locks skill use, and drains 5% MaxHP every 15s.

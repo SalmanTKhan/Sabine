@@ -163,5 +163,11 @@ namespace Sabine.Shared.Const
 		Parrying = 243,
 		TensionRelax = 244,
 		Berserk = 245,
+
+		// Reborn 2-1 — High Priest. Marker applied to friendlies who
+		// stand on the BasilicaUnit cells; the damage-block lives on
+		// the unit, the status flag lets future "caster movement
+		// lock" land here without changing the wire format.
+		Basilica = 246,
 	}
 }
