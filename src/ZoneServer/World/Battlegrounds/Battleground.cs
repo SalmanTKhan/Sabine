@@ -42,6 +42,15 @@ namespace Sabine.Zone.World.Battlegrounds
 		/// <summary>Per-team zeny prize awarded to every member on win.</summary>
 		public int RewardZeny { get; set; } = 5000;
 
+		/// <summary>
+		/// Designated "crystal" monster handle for the Flavius-style
+		/// destroy-the-crystal win condition. When the monster dies,
+		/// the opposing team wins regardless of kill score. Null when
+		/// the BG is in plain kill-count mode. eAthena's Flavius BG
+		/// uses Brave / Cool guardian objects on this slot.
+		/// </summary>
+		public int? CrystalHandle { get; set; }
+
 		public Battleground()
 		{
 			lock (_idLock)

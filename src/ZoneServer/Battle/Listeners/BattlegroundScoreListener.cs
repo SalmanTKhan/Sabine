@@ -22,6 +22,38 @@ namespace Sabine.Zone.Battle.Listeners
 		public static void Subscribe()
 		{
 			CombatEvents.PlayerKilled += OnPlayerKilled;
+			CombatEvents.MonsterKilled += OnMonsterKilled;
+		}
+
+		/// <summary>
+		/// Flavius-style win condition: when a Monster designated as a
+		/// BG's "crystal" (Battleground.CrystalHandle) dies, the
+		/// opposing team wins outright. Other monster kills are
+		/// ignored — this listener only fires the BG end on registered
+		/// crystals.
+		/// </summary>
+		private static void OnMonsterKilled(Sabine.Zone.World.Actors.Monster monster, Character killer)
+		{
+			var bgs = ZoneServer.Instance.World.Battlegrounds;
+			Battleground breached = null;
+			foreach (var bg in bgs.All)
+			{
+				if (bg.CrystalHandle == monster.Handle)
+				{
+					breached = bg;
+					break;
+				}
+			}
+			if (breached == null) return;
+			if (breached.MatchEnded) return;
+			if (breached.OpponentId == null) return;
+
+			var winner = bgs.Get(breached.OpponentId.Value);
+			if (winner == null) return;
+
+			Announce(winner, Sabine.Shared.Util.Localization.Get("Crystal destroyed! Victory."));
+			Announce(breached, Sabine.Shared.Util.Localization.Get("Your crystal has fallen. Defeat."));
+			EndMatch(winner, breached);
 		}
 
 		private static void OnPlayerKilled(PlayerCharacter victim, Character killer)

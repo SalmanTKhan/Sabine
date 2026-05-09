@@ -17,6 +17,7 @@ namespace Sabine.Zone.Commands
 			this.Add("bgdisband", "<bgId>", Localization.Get("Disbands a Battleground team."), this.BgDisband);
 			this.Add("bgmatch", "<bgIdA> <bgIdB> [winScore]", Localization.Get("Pairs two BGs as opponents in a kill-count match."), this.BgMatch);
 			this.Add("bgscore", "<bgId>", Localization.Get("Reports a BG's current score."), this.BgScore);
+			this.Add("bgsetcrystal", "<bgId> <monsterHandle>", Localization.Get("Designates a monster as a BG's crystal (Flavius win condition)."), this.BgSetCrystal);
 		}
 
 		private CommandResult BgList(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
@@ -136,6 +137,32 @@ namespace Sabine.Zone.Commands
 			a.MatchEnded = false; b.MatchEnded = false;
 
 			sender.ServerMessage(Localization.Get("BGs #{0} vs #{1} paired, first to {2}."), a.Id, b.Id, winScore);
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// /bgsetcrystal &lt;bgId&gt; &lt;monsterHandle&gt; — designates an
+		/// existing monster as the BG's crystal. When the monster dies,
+		/// the opposing BG wins outright (Flavius-style destroy-the-
+		/// crystal win condition), regardless of kill score. Pair this
+		/// with /spawn to drop a tough monster on the BG map first,
+		/// then call /bgsetcrystal with the spawned handle.
+		/// </summary>
+		private CommandResult BgSetCrystal(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (args.Count < 2) return CommandResult.InvalidArgument;
+			if (!int.TryParse(args.Get(0), out var bgId)) return CommandResult.InvalidArgument;
+			if (!int.TryParse(args.Get(1), out var handle)) return CommandResult.InvalidArgument;
+
+			var bg = ZoneServer.Instance.World.Battlegrounds.Get(bgId);
+			if (bg == null)
+			{
+				sender.ServerMessage(Localization.Get("No Battleground with id {0}."), bgId);
+				return CommandResult.Okay;
+			}
+
+			bg.CrystalHandle = handle;
+			sender.ServerMessage(Localization.Get("BG #{0} crystal set to handle {1}."), bgId, handle);
 			return CommandResult.Okay;
 		}
 
