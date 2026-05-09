@@ -14,15 +14,20 @@
 //---------------------------------------------------------------------------
 
 [
+// Endless Tower — classic-era stand-in. The renewal `1@tower`...`6@tower`
+// memorial-dungeon maps don't exist in Sabine's classic map cache, so
+// we reuse six existing dungeon floors as 1F..6F. Behavior mirrors the
+// renewal endless-tower loop (linear floor advance, boss every floor,
+// reward on top floor).
 {
 	name: "Endless Tower",
 	sourceMaps: [
-		"1@tower",
-		"2@tower",
-		"3@tower",
-		"4@tower",
-		"5@tower",
-		"6@tower"
+		"gef_dun00",
+		"gef_dun01",
+		"moc_pryd01",
+		"moc_pryd02",
+		"moc_pryd03",
+		"moc_pryd04"
 	],
 	ttlMinutes: 240
 },
