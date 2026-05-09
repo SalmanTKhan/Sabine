@@ -557,4 +557,69 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Parameters.Modify(ParameterType.Str, -1);
 	}
+
+	/// <summary>Chonchon Card (4009): +1 AGI, +2 Flee.</summary>
+	[CardHandler(4009)]
+	public class ChonchonCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Agi, 1);
+			character.Modifiers.AddBonus(ParameterType.Flee, 2);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Agi, -1);
+			character.Modifiers.AddBonus(ParameterType.Flee, -2);
+		}
+	}
+
+	/// <summary>Willow Card (4010): +80 MaxSP.</summary>
+	[CardHandler(4010)]
+	public class WillowCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.SpMax, 80);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.SpMax, -80);
+	}
+
+	/// <summary>Condor Card (4015): +10 Flee.</summary>
+	[CardHandler(4015)]
+	public class CondorCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.Flee, 10);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.Flee, -10);
+	}
+
+	/// <summary>Ambernite Card (4032): +2 hard MeleeDefense.</summary>
+	[CardHandler(4032)]
+	public class AmberniteCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.MeleeDefense, 2);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.MeleeDefense, -2);
+	}
+
+	/// <summary>
+	/// Andre Card (4043): +20 ATK. (Distinct from the +Insect-race
+	/// bonus card already in RaceCards.cs at id 4042; eAthena ships
+	/// both cards with the same family name but different scripts.)
+	/// </summary>
+	[CardHandler(4043)]
+	public class AndreAtkCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.Attack, 20);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.Attack, -20);
+	}
 }
