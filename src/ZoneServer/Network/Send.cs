@@ -1308,6 +1308,33 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Displays a message to the MVP killer announcing the special
+		/// item drop they received from the MVP.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="itemId"></param>
+		public static void ZC_MVP_GETTING_ITEM(PlayerCharacter character, int itemId)
+		{
+			using var packet = Packet.Rent(Op.ZC_MVP_GETTING_ITEM);
+
+			// Alpha registers this packet at size 18 (header 2 + payload 16),
+			// while Beta2 shrinks it to 4 (header 2 + payload 2). The payload
+			// shape isn't fully documented; we send the item id as the first
+			// short and pad the rest with zeroes for older clients.
+			if (Game.Version >= Versions.Beta2)
+			{
+				packet.PutShort((short)itemId);
+			}
+			else
+			{
+				packet.PutShort((short)itemId);
+				packet.PutEmpty(14);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Sends response to restart request to character's client.
 		/// </summary>
 		/// <param name="character"></param>
