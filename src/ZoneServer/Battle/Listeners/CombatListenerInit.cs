@@ -21,6 +21,7 @@ namespace Sabine.Zone.Battle.Listeners
 			DrainListener.Subscribe();
 			SoulDrainListener.Subscribe();
 			EquipBreakListener.Subscribe();
+			BattlegroundScoreListener.Subscribe();
 		}
 	}
 }

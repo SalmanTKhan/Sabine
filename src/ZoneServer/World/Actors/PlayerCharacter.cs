@@ -948,6 +948,7 @@ namespace Sabine.Zone.World.Actors
 			if (this.Pet?.IsActive == true)
 				Sabine.Zone.Skills.Pets.PetService.Detach(this);
 
+			Sabine.Zone.Battle.CombatEvents.RaisePlayerKilled(this, killer);
 			Send.ZC_NOTIFY_VANISH(this, DisappearType.StrikedDead);
 		}
 

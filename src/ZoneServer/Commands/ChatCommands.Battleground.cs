@@ -15,6 +15,8 @@ namespace Sabine.Zone.Commands
 			this.Add("bgjoin", "<bgId>", Localization.Get("Adds the target to a Battleground team."), this.BgJoin);
 			this.Add("bgleave", "", Localization.Get("Removes the target from their Battleground team."), this.BgLeave);
 			this.Add("bgdisband", "<bgId>", Localization.Get("Disbands a Battleground team."), this.BgDisband);
+			this.Add("bgmatch", "<bgIdA> <bgIdB> [winScore]", Localization.Get("Pairs two BGs as opponents in a kill-count match."), this.BgMatch);
+			this.Add("bgscore", "<bgId>", Localization.Get("Reports a BG's current score."), this.BgScore);
 		}
 
 		private CommandResult BgList(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
@@ -100,6 +102,57 @@ namespace Sabine.Zone.Commands
 			sender.ServerMessage(ok
 				? Localization.Get("Disbanded BG #{0}.")
 				: Localization.Get("No Battleground with id {0}."), bgId);
+			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// /bgmatch &lt;bgIdA&gt; &lt;bgIdB&gt; [winScore] — pairs two
+		/// Battlegrounds as opponents and resets their scores. The
+		/// kill-count listener (BattlegroundScoreListener) reads
+		/// OpponentId on every PvP kill and bumps the killer team's
+		/// score; first to winScore (default 10) wins, payouts to
+		/// every member. Use /bgmatch a b 0 to pause counting.
+		/// </summary>
+		private CommandResult BgMatch(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (args.Count < 2) return CommandResult.InvalidArgument;
+			if (!int.TryParse(args.Get(0), out var idA)) return CommandResult.InvalidArgument;
+			if (!int.TryParse(args.Get(1), out var idB)) return CommandResult.InvalidArgument;
+
+			var bgs = ZoneServer.Instance.World.Battlegrounds;
+			var a = bgs.Get(idA);
+			var b = bgs.Get(idB);
+			if (a == null || b == null)
+			{
+				sender.ServerMessage(Localization.Get("One or both BG ids don't exist."));
+				return CommandResult.Okay;
+			}
+
+			var winScore = args.Count > 2 && int.TryParse(args.Get(2), out var ws) ? ws : 10;
+			a.OpponentId = b.Id;
+			b.OpponentId = a.Id;
+			a.Score = 0; b.Score = 0;
+			a.WinScore = winScore; b.WinScore = winScore;
+			a.MatchEnded = false; b.MatchEnded = false;
+
+			sender.ServerMessage(Localization.Get("BGs #{0} vs #{1} paired, first to {2}."), a.Id, b.Id, winScore);
+			return CommandResult.Okay;
+		}
+
+		private CommandResult BgScore(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (args.Count < 1) return CommandResult.InvalidArgument;
+			if (!int.TryParse(args.Get(0), out var bgId)) return CommandResult.InvalidArgument;
+
+			var bg = ZoneServer.Instance.World.Battlegrounds.Get(bgId);
+			if (bg == null)
+			{
+				sender.ServerMessage(Localization.Get("No Battleground with id {0}."), bgId);
+				return CommandResult.Okay;
+			}
+
+			sender.ServerMessage(Localization.Get("BG #{0}: {1} / {2} (opponent #{3}, ended={4})"),
+				bg.Id, bg.Score, bg.WinScore, bg.OpponentId?.ToString() ?? "none", bg.MatchEnded);
 			return CommandResult.Okay;
 		}
 	}

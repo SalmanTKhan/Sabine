@@ -52,5 +52,16 @@ namespace Sabine.Zone.Battle
 
 		internal static void RaiseMonsterKilled(Sabine.Zone.World.Actors.Monster monster, Sabine.Zone.World.Actors.Character killer)
 			=> MonsterKilled?.Invoke(monster, killer);
+
+		/// <summary>
+		/// Fired when a PlayerCharacter is killed by another character.
+		/// Killer may be null for self-deaths (poison tick, fall damage,
+		/// suicide). Subscribers: Battleground score, future PvP-rank
+		/// counters, achievement triggers.
+		/// </summary>
+		public static event Action<Sabine.Zone.World.Actors.PlayerCharacter, Sabine.Zone.World.Actors.Character> PlayerKilled;
+
+		internal static void RaisePlayerKilled(Sabine.Zone.World.Actors.PlayerCharacter player, Sabine.Zone.World.Actors.Character killer)
+			=> PlayerKilled?.Invoke(player, killer);
 	}
 }
