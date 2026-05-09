@@ -307,6 +307,11 @@ namespace Sabine.Shared.Const
 				case ItemType.Item2:
 				case ItemType.Usable:
 				case ItemType.Cash:
+				// Pet eggs ride CZ_USE_ITEM at the alpha-era profile —
+				// the dedicated CZ_USE_PET_EGG packet doesn't exist in
+				// the upstream README's client target, so we route the
+				// hatch through the standard item-use packet instead.
+				case ItemType.PetEgg:
 					return true;
 				default:
 					return false;

@@ -1024,6 +1024,19 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			// Pet eggs short-circuit the item-script lookup. eAthena's
+			// pc_useitem dispatches ITF_PETEGG to a dedicated path that
+			// adopts + spawns; we mirror that here so the alpha-era
+			// CZ_USE_ITEM flow drives the hatch end-to-end without
+			// needing a per-egg ItemScript stub.
+			if (item.Type == ItemType.PetEgg)
+			{
+				if (TryHatchEgg(character, item))
+					character.Inventory.DecrementItem(item, 1);
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				return;
+			}
+
 			if (!ItemScript.TryGetScript(item.ClassId, out var script))
 			{
 				character.ServerMessage(Localization.Get("This item has not been implemented yet."));
@@ -1037,6 +1050,32 @@ namespace Sabine.Zone.Network
 			}
 
 			Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+		}
+
+		/// <summary>
+		/// Resolves a pet egg into a contract and spawns the companion.
+		/// Returns true if the egg should be consumed. Refuses (without
+		/// consuming) when the player already has an active contract or
+		/// the egg's mob id isn't registered in pets.txt.
+		/// </summary>
+		private static bool TryHatchEgg(Sabine.Zone.World.Actors.PlayerCharacter character, Sabine.Zone.World.Actors.Item item)
+		{
+			var entry = Sabine.Zone.World.Actors.Components.Characters.PetTypeData.GetByEggItemId(item.ClassId);
+			if (entry == null)
+			{
+				character.ServerMessage(Localization.Get("This egg can't be hatched here."));
+				return false;
+			}
+
+			if (character.Pet.HasContract)
+			{
+				character.ServerMessage(Localization.Get("You already have a pet contract."));
+				return false;
+			}
+
+			character.Pet.Adopt(entry, entry.Name);
+			Sabine.Zone.Skills.Pets.PetService.Spawn(character);
+			return true;
 		}
 
 		/// <summary>
