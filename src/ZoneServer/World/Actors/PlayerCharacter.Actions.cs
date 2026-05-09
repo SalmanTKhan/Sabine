@@ -110,6 +110,15 @@ namespace Sabine.Zone.World.Actors
 			if (target == null || target == this || target.IsDead)
 				return;
 
+			// PvP gate: a player can only basic-attack another player
+			// when they share a duel. Without this, every player was a
+			// valid melee target on every map. Skill targeting is
+			// gated separately by the IsHostileTo-aware handlers
+			// (Provoke / AoE filters); this just covers the basic
+			// attack request which has no hostility check of its own.
+			if (target is PlayerCharacter && !this.IsHostileTo(target))
+				return;
+
 			this.StopCasting();
 			this.StopAttacking();
 

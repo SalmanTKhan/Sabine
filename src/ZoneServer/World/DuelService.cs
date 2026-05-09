@@ -39,6 +39,23 @@ namespace Sabine.Zone.World
 
 		public bool Disband(int duelId)
 			=> _duels.TryRemove(duelId, out _);
+
+		/// <summary>
+		/// Returns true when both characters are accepted members of the
+		/// same duel. Mirrors eAthena's <c>duel_check</c>: two players are
+		/// PvP-eligible to each other iff they share a duel id, regardless
+		/// of map. Self-pairings return false so the caller doesn't have
+		/// to guard against attacking themselves.
+		/// </summary>
+		public bool AreOpponents(int charIdA, int charIdB)
+		{
+			if (charIdA == charIdB) return false;
+
+			var duelA = this.GetByMember(charIdA);
+			if (duelA == null) return false;
+
+			return duelA.Members.Contains(charIdB);
+		}
 	}
 
 	public class Duel

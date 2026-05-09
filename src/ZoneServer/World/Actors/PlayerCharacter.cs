@@ -817,6 +817,24 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Two players are hostile to each other only when they're accepted
+		/// members of the same duel — eAthena's <c>duel_check</c> rule.
+		/// Without this override, the base
+		/// <see cref="Character.IsHostileTo"/> falls back to the
+		/// player-vs-monster split, which would miss player-vs-player and
+		/// PvP-disable AoE filtering, Provoke gating, and any other call
+		/// site that asks "is this a valid attack target?". Monster
+		/// targets keep flowing through the base logic.
+		/// </summary>
+		internal override bool IsHostileTo(Character target)
+		{
+			if (target is PlayerCharacter other)
+				return Sabine.Zone.World.DuelService.Instance.AreOpponents(this.Id, other.Id);
+
+			return base.IsHostileTo(target);
+		}
+
+		/// <summary>
 		/// Heals the given amount of SP.
 		/// </summary>
 		/// <param name="amount"></param>
