@@ -190,6 +190,20 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Clears any active per-skill cooldowns on the character. Today
+		/// this is a no-op hook — Sabine doesn't yet track per-skill
+		/// reuse timestamps (Skill.GetCooldown only reads the static
+		/// data row), so there's nothing to wipe. Existing as a stable
+		/// entry point so the GM /cooldown command and any future
+		/// cooldown-resetting logic (e.g. SC_FREEZE break, Berserk
+		/// expiry) have one place to call when the runtime tracking
+		/// lands.
+		/// </summary>
+		public void ClearCooldowns()
+		{
+		}
+
+		/// <summary>
 		/// Returns the skill with the given id via out. Returns false if
 		/// the skill didn't exist.
 		/// </summary>

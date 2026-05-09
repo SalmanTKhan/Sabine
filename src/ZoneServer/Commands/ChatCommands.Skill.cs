@@ -100,7 +100,12 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult ResetCoolTime(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Cooldown reset is not implemented."));
+			target.Skills.ClearCooldowns();
+
+			sender.ServerMessage(Localization.Get("Cooldowns reset for {0}."), target.Name);
+			if (sender != target)
+				target.ServerMessage(Localization.Get("Your skill cooldowns have been reset by {0}."), sender.Name);
+
 			return CommandResult.Okay;
 		}
 
