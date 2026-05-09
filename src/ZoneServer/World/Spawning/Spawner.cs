@@ -139,10 +139,21 @@ namespace Sabine.Zone.World.Spawning
 		/// <param name="monster"></param>
 		private void OnMonsterKilled(Monster monster)
 		{
-			var rnd = RandomProvider.Get();
-			var randomDelay = rnd.Between(this.RespawnDelayMin, this.RespawnDelayMax);
+			// If the monster's data specifies its own respawn delay
+			// (typical for MVPs/bosses), honour that instead of the
+			// spawner's default cadence.
+			TimeSpan delay;
+			if (monster.Data.RespawnDelay > TimeSpan.Zero)
+			{
+				delay = monster.Data.RespawnDelay;
+			}
+			else
+			{
+				var rnd = RandomProvider.Get();
+				delay = rnd.Between(this.RespawnDelayMin, this.RespawnDelayMax);
+			}
 
-			this.PlanSpawn(randomDelay);
+			this.PlanSpawn(delay);
 		}
 	}
 }

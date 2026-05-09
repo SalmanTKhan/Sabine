@@ -91,6 +91,7 @@ namespace Sabine.Zone.World.Actors
 
 				this.GiveExp(killer);
 				this.GiveMvpExp(killer);
+				this.AnnounceMvpKill(killer);
 
 				// Removing the monster with a delay seems wonky, but if we
 				// don't, the client will not display the damage for the last
@@ -147,6 +148,23 @@ namespace Sabine.Zone.World.Actors
 
 			Send.ZC_MVP(playerCharacter);
 			Send.ZC_MVP_GETTING_SPECIAL_EXP(playerCharacter, exp);
+		}
+
+		/// <summary>
+		/// Broadcasts a server-wide announcement when an MVP or boss-mode
+		/// mob is killed by a player.
+		/// </summary>
+		/// <param name="killer"></param>
+		private void AnnounceMvpKill(Character killer)
+		{
+			if (killer is not PlayerCharacter playerCharacter)
+				return;
+
+			if (this.Data.MvpExp <= 0 && !this.Data.IsBoss)
+				return;
+
+			var message = string.Format("[{0}] has defeated MVP [{1}]", playerCharacter.Name, this.Data.Name);
+			Send.ZC_BROADCAST(message);
 		}
 
 		/// <summary>
