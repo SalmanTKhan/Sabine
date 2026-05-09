@@ -169,5 +169,12 @@ namespace Sabine.Shared.Const
 		// the unit, the status flag lets future "caster movement
 		// lock" land here without changing the wire format.
 		Basilica = 246,
+
+		// Reborn 2-1 — Sniper. SC_WINDWALK / SC_TRUESIGHT in eAthena.
+		// Both ride existing parameter buckets (Flee / Hit / Speed and
+		// every primary stat for TrueSight) so the status handlers stay
+		// thin: snapshot the bonus on Val* at start, revert on end.
+		WindWalk = 247,
+		TrueSight = 248,
 	}
 }
