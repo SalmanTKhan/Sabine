@@ -38,6 +38,7 @@ namespace Sabine.Zone.Commands
 			this.LoadSkill();
 			this.LoadPet();
 			this.LoadHomun();
+			this.LoadBattleground();
 			this.LoadParty();
 			this.LoadNpc();
 			this.LoadQuest();

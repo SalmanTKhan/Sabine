@@ -842,7 +842,17 @@ namespace Sabine.Zone.World.Actors
 		internal override bool IsHostileTo(Character target)
 		{
 			if (target is PlayerCharacter other)
-				return Sabine.Zone.World.DuelService.Instance.AreOpponents(this.Id, other.Id);
+			{
+				// Two PvP-eligibility paths today: shared duel id, or
+				// opposing Battleground team. Either flips hostility on;
+				// non-team / non-duel pairings stay friendly so AOE
+				// filters and basic-attack guards work the same way.
+				if (Sabine.Zone.World.DuelService.Instance.AreOpponents(this.Id, other.Id))
+					return true;
+				if (ZoneServer.Instance.World.Battlegrounds.AreOpponents(this.Id, other.Id))
+					return true;
+				return false;
+			}
 
 			return base.IsHostileTo(target);
 		}
