@@ -166,4 +166,26 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Modifiers.SubRace[(int)RaceType.DemiHuman] -= 30;
 	}
+
+	/// <summary>Orc Warrior Card (4066): -30% damage taken from Brute.</summary>
+	[CardHandler(4066)]
+	public class OrcWarriorCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.SubRace[(int)RaceType.Brute] += 30;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.SubRace[(int)RaceType.Brute] -= 30;
+	}
+
+	/// <summary>Bigfoot Card (4074): -30% damage taken from Insect.</summary>
+	[CardHandler(4074)]
+	public class BigfootCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.SubRace[(int)RaceType.Insect] += 30;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.SubRace[(int)RaceType.Insect] -= 30;
+	}
 }

@@ -622,4 +622,47 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Modifiers.AddBonus(ParameterType.Attack, -20);
 	}
+
+	/// <summary>Kukre Card (4027): +2 AGI.</summary>
+	[CardHandler(4027)]
+	public class KukreCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Parameters.Modify(ParameterType.Agi, 2);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Parameters.Modify(ParameterType.Agi, -2);
+	}
+
+	/// <summary>
+	/// Cornutus Card (4061): +1 hard MeleeDefense. The eAthena script
+	/// also grants <c>bUnbreakableArmor</c>; armor breakage isn't
+	/// modeled in Sabine, so only the +1 DEF half lands.
+	/// </summary>
+	[CardHandler(4061)]
+	public class CornutusCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.MeleeDefense, 1);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.MeleeDefense, -1);
+	}
+
+	/// <summary>Kobold Card (4091): +1 STR, +4 Critical.</summary>
+	[CardHandler(4091)]
+	public class KoboldCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Str, 1);
+			character.Parameters.Modify(ParameterType.Critical, 4);
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Parameters.Modify(ParameterType.Str, -1);
+			character.Parameters.Modify(ParameterType.Critical, -4);
+		}
+	}
 }
