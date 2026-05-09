@@ -51,6 +51,29 @@ namespace Sabine.Shared.Data.Databases
 
 		/// <summary>Walk speed; alpha mob default 150ms per tile.</summary>
 		public int Speed { get; set; } = 150;
+
+		/// <summary>
+		/// Per-10000 chance the pet attacks the owner's current target
+		/// each AI tick. Mirrors eAthena's <c>attack_rate</c> column.
+		/// Gated on intimacy ≥ <see cref="MinFriendlyIntimacy"/>.
+		/// </summary>
+		public int AttackRate { get; set; } = 300;
+
+		/// <summary>
+		/// Per-10000 chance the pet retaliates against whoever just hit
+		/// the owner each AI tick. Mirrors eAthena's
+		/// <c>defence_attack_rate</c> column. Same intimacy gate as
+		/// <see cref="AttackRate"/>.
+		/// </summary>
+		public int DefenseAttackRate { get; set; } = 300;
+
+		/// <summary>
+		/// Minimum intimacy to enable the pet's combat arm. eAthena's
+		/// <c>battle_config.pet_support_min_friendly</c> default is 900
+		/// (Loyal). Sabine's catalog defaults to that value; per-pet
+		/// overrides land via the data file.
+		/// </summary>
+		public int MinFriendlyIntimacy { get; set; } = 900;
 	}
 
 	/// <summary>
@@ -82,6 +105,9 @@ namespace Sabine.Shared.Data.Databases
 				InitialIntimacy = entry.ReadInt("initialIntimacy", 250),
 				DeathIntimacyLoss = entry.ReadInt("deathIntimacyLoss", 20),
 				Speed = entry.ReadInt("speed", 150),
+				AttackRate = entry.ReadInt("attackRate", 300),
+				DefenseAttackRate = entry.ReadInt("defenseAttackRate", 300),
+				MinFriendlyIntimacy = entry.ReadInt("minFriendlyIntimacy", 900),
 			};
 
 			this.AddOrReplace(data.MobId, data);
