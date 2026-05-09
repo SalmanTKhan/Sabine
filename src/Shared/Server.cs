@@ -203,6 +203,7 @@ namespace Sabine.Shared
 			this.LoadDataFile(this.Data.Castles, "castles.txt");
 			this.LoadDataFile(this.Data.Pets, "pets.txt");
 			this.LoadDataFile(this.Data.MobSkills, "mob_skills.txt");
+			this.LoadDataFile(this.Data.Mercenaries, "mercenaries.txt");
 
 			// Refine numbers diverge between classic/pre-re and renewal
 			// (cap and bonuses); pick the file matching the active era.

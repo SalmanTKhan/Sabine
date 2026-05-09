@@ -259,6 +259,15 @@ namespace Sabine.Zone.World.Actors
 		public PetComponent Pet { get; private set; }
 
 		/// <summary>
+		/// Mercenary-state bookkeeping. Tracks contract time-left,
+		/// faction faith counters, and the live entity reference
+		/// while a merc is summoned. Mirrors <see cref="Pet"/> in
+		/// shape; lifecycle drives through
+		/// <c>Sabine.Zone.Skills.Mercenaries.MercenaryService</c>.
+		/// </summary>
+		public MercenaryComponent Mercenary { get; private set; }
+
+		/// <summary>
 		/// Creates a new character.
 		/// </summary>
 		public PlayerCharacter(JobId jobId)
@@ -274,6 +283,8 @@ namespace Sabine.Zone.World.Actors
 			this.Components.Add(this.Homunculus);
 			this.Pet = new PetComponent(this);
 			this.Components.Add(this.Pet);
+			this.Mercenary = new MercenaryComponent(this);
+			this.Components.Add(this.Mercenary);
 
 			this.LoadJobData(jobId);
 		}

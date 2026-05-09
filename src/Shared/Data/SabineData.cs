@@ -79,6 +79,14 @@ namespace Sabine.Shared.Data
 		public MobSkillDb MobSkills { get; } = new();
 
 		/// <summary>
+		/// db/mercenaries.txt — mercenary contract metadata (faction,
+		/// rank, contract item, duration, faith reward). Stat lines
+		/// come from the standard monster table; this row only carries
+		/// the rental-side bookkeeping.
+		/// </summary>
+		public MercenaryDb Mercenaries { get; } = new();
+
+		/// <summary>
 		/// db/produce_db.txt
 		/// </summary>
 		public ProduceDb Produce { get; } = new();

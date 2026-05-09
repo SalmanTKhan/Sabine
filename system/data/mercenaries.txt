@@ -1,0 +1,60 @@
+// Sabine
+// Mercenary Database
+//
+// Contract metadata for hireable mercenaries. Stat lines come from
+// the standard monster table (monsters.txt); these rows only carry
+// the rental-side bookkeeping: faction, rank, contract item, duration,
+// faith reward / penalty.
+//
+// Fields:
+//   mobId, name              — mob class id, display name
+//   faction                  — Archer / Sword / Spearman / Lancer
+//   rank                     — 1..10 within a faction
+//   contractItemId           — consumable contract card item
+//   contractSeconds          — rental duration (default 1800 = 30 min)
+//   faithRewardOnComplete    — faith awarded when contract ends faithfully
+//   faithPenaltyOnDeath      — faith penalty if the merc dies (negative)
+//
+// Mob ids align with eAthena db/mercenary_db.txt rows 6017-6026 (Archer)
+// and the parallel ranges for Sword (6027+), Spearman (6037+), Lancer
+// (6047+). Sabine's monsters.txt may not stock every entry; missing
+// rows fall back to a Poring-shaped placeholder via the spawn path.
+//---------------------------------------------------------------------------
+
+[
+// Archer mercenaries — 30/30/30 minute base contract.
+{ mobId: 6017, name: "Archer Mercenary 1", faction: "Archer", rank: 1, contractItemId: 12153, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6018, name: "Archer Mercenary 2", faction: "Archer", rank: 2, contractItemId: 12154, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6019, name: "Archer Mercenary 3", faction: "Archer", rank: 3, contractItemId: 12155, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6020, name: "Archer Mercenary 4", faction: "Archer", rank: 4, contractItemId: 12156, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6021, name: "Archer Mercenary 5", faction: "Archer", rank: 5, contractItemId: 12157, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6022, name: "Archer Mercenary 6", faction: "Archer", rank: 6, contractItemId: 12158, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6023, name: "Archer Mercenary 7", faction: "Archer", rank: 7, contractItemId: 12159, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6024, name: "Archer Mercenary 8", faction: "Archer", rank: 8, contractItemId: 12160, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6025, name: "Archer Mercenary 9", faction: "Archer", rank: 9, contractItemId: 12161, contractSeconds: 1800, faithRewardOnComplete: 3 },
+{ mobId: 6026, name: "Archer Mercenary 10", faction: "Archer", rank: 10, contractItemId: 12162, contractSeconds: 1800, faithRewardOnComplete: 3 },
+
+// Sword mercenaries.
+{ mobId: 6037, name: "Sword Mercenary 1", faction: "Sword", rank: 1, contractItemId: 12163, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6038, name: "Sword Mercenary 2", faction: "Sword", rank: 2, contractItemId: 12164, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6039, name: "Sword Mercenary 3", faction: "Sword", rank: 3, contractItemId: 12165, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6040, name: "Sword Mercenary 4", faction: "Sword", rank: 4, contractItemId: 12166, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6041, name: "Sword Mercenary 5", faction: "Sword", rank: 5, contractItemId: 12167, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6042, name: "Sword Mercenary 6", faction: "Sword", rank: 6, contractItemId: 12168, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6043, name: "Sword Mercenary 7", faction: "Sword", rank: 7, contractItemId: 12169, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6044, name: "Sword Mercenary 8", faction: "Sword", rank: 8, contractItemId: 12170, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6045, name: "Sword Mercenary 9", faction: "Sword", rank: 9, contractItemId: 12171, contractSeconds: 1800, faithRewardOnComplete: 3 },
+{ mobId: 6046, name: "Sword Mercenary 10", faction: "Sword", rank: 10, contractItemId: 12172, contractSeconds: 1800, faithRewardOnComplete: 3 },
+
+// Spearman mercenaries (Lancer in some translations).
+{ mobId: 6027, name: "Spearman Mercenary 1", faction: "Spearman", rank: 1, contractItemId: 12173, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6028, name: "Spearman Mercenary 2", faction: "Spearman", rank: 2, contractItemId: 12174, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6029, name: "Spearman Mercenary 3", faction: "Spearman", rank: 3, contractItemId: 12175, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6030, name: "Spearman Mercenary 4", faction: "Spearman", rank: 4, contractItemId: 12176, contractSeconds: 1800, faithRewardOnComplete: 1 },
+{ mobId: 6031, name: "Spearman Mercenary 5", faction: "Spearman", rank: 5, contractItemId: 12177, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6032, name: "Spearman Mercenary 6", faction: "Spearman", rank: 6, contractItemId: 12178, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6033, name: "Spearman Mercenary 7", faction: "Spearman", rank: 7, contractItemId: 12179, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6034, name: "Spearman Mercenary 8", faction: "Spearman", rank: 8, contractItemId: 12180, contractSeconds: 1800, faithRewardOnComplete: 2 },
+{ mobId: 6035, name: "Spearman Mercenary 9", faction: "Spearman", rank: 9, contractItemId: 12181, contractSeconds: 1800, faithRewardOnComplete: 3 },
+{ mobId: 6036, name: "Spearman Mercenary 10", faction: "Spearman", rank: 10, contractItemId: 12182, contractSeconds: 1800, faithRewardOnComplete: 3 }
+]
