@@ -1444,6 +1444,40 @@ namespace Sabine.Zone.Network
 			return false;
 		}
 
+		/// <summary>
+		/// Computes the SP cost of a cast at the given level and deducts it
+		/// from the caster, returning false if there isn't enough SP. eAthena
+		/// charges SP at <c>skill_castend_id</c> entry; doing it here at the
+		/// packet boundary keeps the deduction in one place rather than
+		/// scattered across every handler. Passive (zero-cost) skills short-
+		/// circuit cleanly. HP_MANARECHARGE's <c>dsprate -= 4*level</c>
+		/// reduction is applied here too (eAthena status.c:2360), since this
+		/// is the only site that knows the final per-cast cost.
+		/// </summary>
+		private static bool TryDeductSkillCost(PlayerCharacter character, Sabine.Zone.Skills.Skill skill, int castLevel)
+		{
+			var cost = skill.Data.GetSpCost(castLevel);
+			if (cost <= 0)
+				return true;
+
+			var manaRecharge = character.Skills?.GetLevel(SkillId.HP_MANARECHARGE) ?? 0;
+			if (manaRecharge > 0)
+			{
+				var rate = Math.Max(0, 100 - 4 * manaRecharge);
+				cost = cost * rate / 100;
+				if (cost <= 0)
+					return true;
+			}
+
+			if (!character.TrySpendSp(cost))
+			{
+				character.ServerMessage(Localization.Get("Not enough SP."));
+				return false;
+			}
+
+			return true;
+		}
+
 		[PacketHandler(Op.CZ_USE_SKILL)]
 		public void CZ_USE_SKILL(ZoneConnection conn, Packet packet)
 		{
@@ -1490,6 +1524,9 @@ namespace Sabine.Zone.Network
 				Log.Debug("CZ_USE_SKILL: No handler found for skill '{0}'.", skill.Id);
 				return;
 			}
+
+			if (!TryDeductSkillCost(character, skill, level))
+				return;
 
 			handler.Handle(new UseSkillParams(character, target, skill, level));
 		}
@@ -1542,6 +1579,9 @@ namespace Sabine.Zone.Network
 				Log.Debug("CZ_USE_SKILL: No handler found for skill '{0}'.", skill.Id);
 				return;
 			}
+
+			if (!TryDeductSkillCost(character, skill, level))
+				return;
 
 			handler.Handle(new UseGroundSkillParams(character, targetPos, skill, level));
 		}
