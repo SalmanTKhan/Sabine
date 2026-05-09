@@ -1037,6 +1037,17 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			// Mercenary contract cards: same shortcut as pet eggs. The
+			// contract-card item is shaped as a Usable so it flows
+			// through CZ_USE_ITEM; the lookup keys off ContractItemId
+			// to find the matching merc row.
+			if (TryHireMercFromContract(character, item))
+			{
+				character.Inventory.DecrementItem(item, 1);
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				return;
+			}
+
 			if (!ItemScript.TryGetScript(item.ClassId, out var script))
 			{
 				character.ServerMessage(Localization.Get("This item has not been implemented yet."));
@@ -1050,6 +1061,41 @@ namespace Sabine.Zone.Network
 			}
 
 			Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+		}
+
+		/// <summary>
+		/// Resolves a mercenary contract-card item into a contract and
+		/// spawns the merc. Returns true iff the item was a registered
+		/// contract card AND the hire succeeded; the caller decrements
+		/// the item only on true. False covers both "not a contract
+		/// card" (item is something else entirely — let the script
+		/// path handle it) and "card refused" (already contracted, no
+		/// map, etc.) — in the latter case we keep the card so the
+		/// player can try again.
+		/// </summary>
+		private static bool TryHireMercFromContract(Sabine.Zone.World.Actors.PlayerCharacter character, Sabine.Zone.World.Actors.Item item)
+		{
+			var data = Sabine.Shared.Game.CurrentData?.Mercenaries?.Entries;
+			if (data == null) return false;
+
+			Sabine.Shared.Data.Databases.MercenaryData match = null;
+			foreach (var entry in data.Values)
+			{
+				if (entry.ContractItemId == item.ClassId)
+				{
+					match = entry;
+					break;
+				}
+			}
+			if (match == null) return false;
+
+			if (character.Mercenary?.HasContract == true)
+			{
+				character.ServerMessage(Sabine.Shared.Util.Localization.Get("Already under contract; dismiss the current mercenary first."));
+				return false;
+			}
+
+			return Sabine.Zone.Skills.Mercenaries.MercenaryService.Hire(character, match.MobId);
 		}
 
 		/// <summary>
