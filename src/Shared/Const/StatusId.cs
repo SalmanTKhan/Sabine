@@ -210,5 +210,15 @@ namespace Sabine.Shared.Const
 		// slots from breakage; marker until the on-hit equip-break
 		// listener exists (tied to the WS_MELTDOWN deferral).
 		FullProtection = 257,
+
+		// Reborn 2-2 — Clown / Gypsy. Marionette is a paired buff that
+		// transfers stat caps between two performers; LongingFreedom
+		// cancels ensemble lock; Hermode is dispel immunity.
+		// All marker today — the read sites in eAthena live in
+		// status.c stat-cap rebuilds, the ensemble timer, and the
+		// dispel guard, none of which are wired in Sabine.
+		Marionette = 258,
+		LongingFreedom = 259,
+		Hermode = 260,
 	}
 }
