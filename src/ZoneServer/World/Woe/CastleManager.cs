@@ -167,6 +167,55 @@ namespace Sabine.Zone.World.Woe
 		}
 
 		/// <summary>
+		/// Resolves a castle by template id. Linear scan; the castle
+		/// table is small (≤30 entries) so the cost is negligible.
+		/// Returns null when no castle with that id exists.
+		/// </summary>
+		public Castle GetById(int castleId)
+		{
+			lock (_syncLock)
+				return _castles.Values.FirstOrDefault(c => c.Template.Id == castleId);
+		}
+
+		/// <summary>
+		/// Transfers castle ownership to <paramref name="newGuildId"/>
+		/// and persists the row. Mirrors eAthena's WoE on-break
+		/// transition where the breaking guild becomes the new owner;
+		/// resets daily investment / treasure flags so the new owner
+		/// starts the day with a clean slate.
+		/// </summary>
+		public bool TransferOwner(int castleId, int newGuildId)
+		{
+			Castle castle;
+			lock (_syncLock)
+				castle = _castles.Values.FirstOrDefault(c => c.Template.Id == castleId);
+			if (castle == null)
+				return false;
+			return this.TransferOwner(castle, newGuildId);
+		}
+
+		/// <summary>
+		/// Castle-instance overload of <see cref="TransferOwner(int, int)"/>.
+		/// </summary>
+		public bool TransferOwner(Castle castle, int newGuildId)
+		{
+			if (castle == null)
+				return false;
+
+			var prevOwner = castle.OwnerGuildId;
+			castle.OwnerGuildId = newGuildId;
+			castle.TriggerE = 0;
+			castle.TriggerD = 0;
+			castle.TreasureFlags = 0;
+			ZoneServer.Instance.Database.UpsertCastle(castle.ToRow());
+
+			if (prevOwner != newGuildId)
+				_ = this.RaiseOnRecvCastle(castle.MapStringId);
+
+			return true;
+		}
+
+		/// <summary>
 		/// Returns a snapshot of every active castle. Cosmetic /
 		/// admin use; runtime queries should prefer
 		/// <see cref="Get"/> / <see cref="GetData"/>.

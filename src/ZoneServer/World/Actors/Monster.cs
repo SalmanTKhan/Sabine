@@ -134,6 +134,54 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Emperium-specific damage gate: incoming damage from a
+		/// player only counts during active WoE, when the player is in
+		/// a guild, and when that guild is *not* the current owner of
+		/// the castle the Emperium sits on. All other paths (NPC
+		/// damage, GM kills, scripts) are unaffected.
+		/// </summary>
+		/// <remarks>
+		/// Mirrors eAthena's <c>battle_check_target</c> handling for
+		/// emperium: outside WoE the mob is invulnerable; inside, the
+		/// owning guild can't break their own crystal.
+		/// </remarks>
+		public override int TakeDamage(int amount, Character attacker)
+		{
+			if ((int)this.Data.Id == Sabine.Shared.Const.MonsterId.EMPERIUM)
+			{
+				if (!this.IsEmperiumDamageAllowed(attacker))
+					return this.Parameters.Hp;
+			}
+
+			return base.TakeDamage(amount, attacker);
+		}
+
+		private bool IsEmperiumDamageAllowed(Character attacker)
+		{
+			// Engine-driven damage paths (status DoT, scripts) pass
+			// null attackers — let those through so GM cleanup still
+			// works.
+			if (attacker is not PlayerCharacter playerCharacter)
+				return true;
+
+			var woe = ZoneServer.Instance.World.Woe;
+			if (!woe.IsActive)
+				return false;
+
+			if (playerCharacter.Guild == null)
+				return false;
+
+			if (this.Map == null)
+				return true;
+
+			var castle = ZoneServer.Instance.World.Castles.Get(this.Map.StringId);
+			if (castle == null)
+				return true;
+
+			return castle.OwnerGuildId != playerCharacter.Guild.Id;
+		}
+
+		/// <summary>
 		/// Kills the monster and removes it from the map with a death
 		/// animation.
 		/// </summary>
@@ -163,6 +211,22 @@ namespace Sabine.Zone.World.Actors
 
 				this.Killed?.Invoke(this);
 				Sabine.Zone.Battle.CombatEvents.RaiseMonsterKilled(this, killer);
+
+				// WoE Emperium-broken hook — transfers castle ownership to
+				// the killer's guild and fans out the per-castle
+				// `OnGuildBreak` event before the mob is removed from the
+				// map. Guarded on identity id so the path is a no-op for
+				// every other mob.
+				if ((int)this.Data.Id == Sabine.Shared.Const.MonsterId.EMPERIUM
+					&& killer is PlayerCharacter killerPc
+					&& killerPc.Guild != null
+					&& this.Map != null)
+				{
+					var castle = ZoneServer.Instance.World.Castles.Get(this.Map.StringId);
+					if (castle != null)
+						ZoneServer.Instance.World.Woe.OnEmperiumBroken(castle, killerPc.Guild.Id);
+				}
+
 				this.Map.RemoveNpc(this);
 			}
 			catch (Exception ex)

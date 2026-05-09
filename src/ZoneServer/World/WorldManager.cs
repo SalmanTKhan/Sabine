@@ -107,6 +107,21 @@ namespace Sabine.Zone.World
 		public Woe.WoeService Woe { get; } = new();
 
 		/// <summary>
+		/// Castle guardian spawn/despawn manager; subscribes to
+		/// <see cref="Woe"/> lifecycle to populate guardians on agit
+		/// start and clean them up on agit end.
+		/// </summary>
+		public Woe.GuardianService Guardians { get; } = new();
+
+		/// <summary>
+		/// Daily castle treasure-box spawn loop. Polls every 30s and
+		/// spawns N treasure NPCs in each castle's treasure room when
+		/// the day's bit on <c>Castle.TreasureFlags</c> hasn't fired
+		/// yet.
+		/// </summary>
+		public Woe.TreasureSpawnService Treasures { get; } = new();
+
+		/// <summary>
 		/// Active Battleground (Flavius / KVM / Tierra) team registry.
 		/// In-memory only; matches reset on restart. See
 		/// <see cref="Battlegrounds.BattlegroundManager"/>.
@@ -265,6 +280,14 @@ namespace Sabine.Zone.World
 
 			this.Heartbeat.Start();
 			this.Scheduler.Start();
+
+			// WoE finishers — guardian + treasure services subscribe
+			// to the agit lifecycle, and the schedule timer fires
+			// Start/End at the configured wall-clock window.
+			this.Guardians.Attach(this.Woe);
+			this.Treasures.Attach(this.Woe);
+			this.Treasures.StartPolling();
+			this.Woe.StartSchedule();
 		}
 
 		/// <summary>
