@@ -57,12 +57,15 @@ namespace Sabine.Zone.Skills.Handlers.HighWizard
 	}
 
 	/// <summary>
-	/// HW_NAPALMVULCAN — targeted Ghost-element magic damage. eAthena
-	/// battle.c:2479 sets <c>skillratio += 10*level - 30</c> →
-	/// multiplier <c>0.7 + 0.1*level</c>. The on-hit Curse roll
-	/// (alpha was 25% per level) is deferred — Sabine has no per-skill
-	/// status-inflict dispatcher yet, mirroring the TigerFist Stun
-	/// note.
+	/// HW_NAPALMVULCAN — targeted Ghost-element magic damage with a
+	/// per-cast Curse roll. eAthena battle.c:2479 sets
+	/// <c>skillratio += 10*level - 30</c> → multiplier
+	/// <c>0.7 + 0.1*level</c>. eAthena skill.c:872 fires
+	/// <c>sc_start(SC_CURSE, 5*level, ...)</c> on the target after the
+	/// hit lands, with the duration coming from <c>skill_get_time2</c>.
+	/// Curse already has a status handler (DebuffStatusHandlers) so the
+	/// roll can land inline; the duration follows the eA classic
+	/// skill_cast_db.txt:670 (45000ms / 45s).
 	/// </summary>
 	[SkillHandler(SkillId.HW_NAPALMVULCAN)]
 	public class NapalmVulcanHandler : ITargetedSkillHandler
@@ -85,7 +88,13 @@ namespace Sabine.Zone.Skills.Handlers.HighWizard
 			};
 			var result = BattleCalculator.Calc(ctx);
 			if (!result.IsMiss)
+			{
 				target.TakeDamage(result.Damage, caster);
+
+				var rnd = Yggdrasil.Util.RandomProvider.Get();
+				if (rnd.Next(100) < 5 * level)
+					target.StatusEffects.Start(StatusId.Curse, level, TimeSpan.FromSeconds(45), caster);
+			}
 
 			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 1, result.ActionType);
 		}
