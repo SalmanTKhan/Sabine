@@ -138,6 +138,14 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (meditatio > 0)
 				this.SpMax += this.SpMax * meditatio / 100;
 
+			// HW_SOULDRAIN (HighWizard): passive +2% MaxSP per level.
+			// eAthena status.c:2178 applies it adjacent to Meditatio in
+			// the same `max_sp += max_sp * 2*skill / 100` shape, so the
+			// two stack additively rather than multiplicatively.
+			var soulDrain = this.Character.Skills?.GetLevel(SkillId.HW_SOULDRAIN) ?? 0;
+			if (soulDrain > 0)
+				this.SpMax += this.SpMax * 2 * soulDrain / 100;
+
 			this.SpMax += this.Character.Modifiers.BonusMaxSp;
 			if (this.SpMax < 1) this.SpMax = 1;
 
