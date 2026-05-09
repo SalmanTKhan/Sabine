@@ -176,5 +176,15 @@ namespace Sabine.Shared.Const
 		// thin: snapshot the bonus on Val* at start, revert on end.
 		WindWalk = 247,
 		TrueSight = 248,
+
+		// Reborn 2-1 — Whitesmith. CartBoost rides the Speed bucket
+		// (mirrors IncreaseAgi); MaxOverThrust shares the OverThrust
+		// damage-rate path in BattleCalculator (cancels OverThrust on
+		// start per eAthena status.c:5061); MeltDown is marker-only —
+		// the gear-break listener it needs lives in the on-hit pipeline
+		// and isn't wired yet.
+		CartBoost = 249,
+		MaxOverThrust = 250,
+		MeltDown = 251,
 	}
 }

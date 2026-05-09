@@ -511,7 +511,12 @@ namespace Sabine.Zone.Battle
 			if (attacker.StatusEffects == null)
 				return damage;
 
-			var effect = attacker.StatusEffects.Get(StatusId.OverThrust);
+			// WS_OVERTHRUSTMAX cancels and supersedes BS_OVERTHRUST when
+			// active (eAthena status.c:5060-5063). Read MaxOverThrust
+			// first so a parallel application (which shouldn't happen
+			// after the cancel) still picks the larger bonus.
+			var effect = attacker.StatusEffects.Get(StatusId.MaxOverThrust)
+				?? attacker.StatusEffects.Get(StatusId.OverThrust);
 			if (effect == null || effect.Val3 <= 0)
 				return damage;
 
