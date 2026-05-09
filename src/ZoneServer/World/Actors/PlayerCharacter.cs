@@ -251,6 +251,14 @@ namespace Sabine.Zone.World.Actors
 		public HomunculusComponent Homunculus { get; private set; }
 
 		/// <summary>
+		/// Pet-state bookkeeping. Created with the player; State=None
+		/// means no contract yet. Hatch / summon / feed handlers in
+		/// follow-up commits drive the state transitions; the live
+		/// companion entity slots into <c>Pet.Entity</c> when it lands.
+		/// </summary>
+		public PetComponent Pet { get; private set; }
+
+		/// <summary>
 		/// Creates a new character.
 		/// </summary>
 		public PlayerCharacter(JobId jobId)
@@ -264,6 +272,8 @@ namespace Sabine.Zone.World.Actors
 			this.Components.Add(new RegenComponent(this));
 			this.Homunculus = new HomunculusComponent(this);
 			this.Components.Add(this.Homunculus);
+			this.Pet = new PetComponent(this);
+			this.Components.Add(this.Pet);
 
 			this.LoadJobData(jobId);
 		}
