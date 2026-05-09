@@ -70,7 +70,15 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		internal void MarkActive() => this.State = PetState.Active;
-		internal void MarkDespawned() => this.State = PetState.Despawned;
+		public void MarkDespawned() => this.State = PetState.Despawned;
+
+		/// <summary>GM / debug setter; the feed flow uses this through the
+		/// scoring path in the hunger-tick commit.</summary>
+		public void SetIntimacy(int value) => this.Intimacy = Math.Max(0, Math.Min(1000, value));
+
+		/// <summary>GM / debug setter; the feed flow uses this through
+		/// the food-item path in the hunger-tick commit.</summary>
+		public void SetHunger(int value) => this.Hunger = Math.Max(0, Math.Min(100, value));
 
 		/// <summary>
 		/// Drops the contract entirely (pet ran away from low intimacy
