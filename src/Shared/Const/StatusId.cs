@@ -220,5 +220,13 @@ namespace Sabine.Shared.Const
 		Marionette = 258,
 		LongingFreedom = 259,
 		Hermode = 260,
+
+		// Movement root — eAthena SC_STOP. The target keeps acting
+		// (basic attacks, skill casts) but can't move from the cell
+		// they were standing on at apply. Distinct from
+		// IsImmobilized which blocks actions too. Read by
+		// <see cref="Sabine.Zone.World.Actors.Character.IsRooted"/>
+		// and the movement-controller move guard.
+		Stop = 261,
 	}
 }

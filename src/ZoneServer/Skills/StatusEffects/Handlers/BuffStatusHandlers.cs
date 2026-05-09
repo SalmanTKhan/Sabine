@@ -159,4 +159,24 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 		public void OnStart(Character target, StatusEffect effect) { }
 		public void OnEnd(Character target, StatusEffect effect) { }
 	}
+
+	/// <summary>
+	/// SC_STOP — flag-only handler. The actual movement root is read by
+	/// <see cref="Sabine.Zone.World.Actors.Character.IsRooted"/> and
+	/// short-circuited in <c>MovementController.MoveTo</c>; the status
+	/// handler exists so the standard sc lifecycle (start / expire /
+	/// dispel) drives the flag on and off through the same pipeline as
+	/// every other status. Inflicted by CH_TIGERFIST and the Tarot
+	/// Wheel of Fortune outcome today.
+	/// </summary>
+	[StatusEffectHandler(StatusId.Stop)]
+	public class StopStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			target.StopAttacking();
+		}
+
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
 }

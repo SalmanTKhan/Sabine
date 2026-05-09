@@ -239,6 +239,15 @@ namespace Sabine.Zone.World.Actors
 		public bool IsSilenced => this.StatusEffects?.Has(StatusId.Silence) == true;
 
 		/// <summary>
+		/// True when movement is locked but actions still flow — eAthena
+		/// SC_STOP. Distinct from <see cref="IsImmobilized"/>, which
+		/// blocks action too. CH_TIGERFIST inflicts this; the
+		/// MovementController checks it on every MoveTo to short-circuit
+		/// pathing while the cast / attack pipelines stay open.
+		/// </summary>
+		public bool IsRooted => this.StatusEffects?.Has(StatusId.Stop) == true;
+
+		/// <summary>
 		/// Returns the character's components.
 		/// </summary>
 		public CharacterComponents Components { get; } = new CharacterComponents();

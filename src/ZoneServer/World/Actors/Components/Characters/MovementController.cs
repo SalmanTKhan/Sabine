@@ -76,7 +76,9 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 			// Stone/Freeze/Sleep/Stun lock movement — the cast/attack paths
 			// already check this, but the move path was missing the guard.
-			if (character.IsImmobilized)
+			// SC_STOP / IsRooted is movement-only (actions still flow), so
+			// it lives in its own check rather than IsImmobilized.
+			if (character.IsImmobilized || character.IsRooted)
 				return TimeSpan.Zero;
 
 			_finalDestination = toPos;

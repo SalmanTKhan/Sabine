@@ -43,11 +43,12 @@ namespace Sabine.Zone.Skills.Handlers.Champion
 
 	/// <summary>
 	/// CH_TIGERFIST (Glacier Fist) — combo finisher with a chance to
-	/// inflict Stun. eAthena battle.c:1591 sets
+	/// root the target. eAthena battle.c:1591 sets
 	/// <c>skillratio += 100*level - 60</c>, so the multiplier becomes
-	/// <c>0.4 + 1.0*level</c>. The Stun roll lives on the on-hit
-	/// pipeline; Sabine doesn't have a per-skill status-inflict
-	/// dispatcher yet, so the Stun arm is deferred.
+	/// <c>0.4 + 1.0*level</c>. eAthena skill.c:828 fires
+	/// <c>sc_start(SC_STOP, 10 + 10*level, ...)</c> after the hit,
+	/// rooting the target in place while leaving actions free.
+	/// Duration follows the eA skill_get_time2 (~3s).
 	/// </summary>
 	[SkillHandler(SkillId.CH_TIGERFIST)]
 	public class TigerFistHandler : ITargetedSkillHandler
@@ -70,7 +71,13 @@ namespace Sabine.Zone.Skills.Handlers.Champion
 			};
 			var result = BattleCalculator.Calc(ctx);
 			if (!result.IsMiss)
+			{
 				target.TakeDamage(result.Damage, caster);
+
+				var rnd = Yggdrasil.Util.RandomProvider.Get();
+				if (rnd.Next(100) < 10 + 10 * level)
+					target.StatusEffects.Start(StatusId.Stop, level, TimeSpan.FromSeconds(3), caster);
+			}
 
 			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 1, result.ActionType);
 		}

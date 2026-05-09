@@ -172,10 +172,15 @@ namespace Sabine.Zone.Skills.Handlers.CrescentGypsy
 					case 6:  // Hermit — draw two extra outcomes (eA "count=3" path).
 						draws += 2;
 						break;
-					case 7:  // Wheel of Fortune — random hard CC: Freeze / Stone.
+					case 7:  // Wheel of Fortune — eA random Stop / Freeze / Stone.
 						{
-							var which = rnd.Next(2);
-							var sid = which == 0 ? StatusId.Freeze : StatusId.Stone;
+							var pick = rnd.Next(3);
+							var sid = pick switch
+							{
+								0 => StatusId.Stop,
+								1 => StatusId.Freeze,
+								_ => StatusId.Stone,
+							};
 							target.StatusEffects.Start(sid, level, EffectDuration, caster);
 						}
 						break;
