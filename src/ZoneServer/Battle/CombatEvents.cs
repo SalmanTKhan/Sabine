@@ -41,5 +41,16 @@ namespace Sabine.Zone.Battle
 
 		internal static void RaiseSkillCast(Sabine.Zone.World.Actors.Character caster, Sabine.Zone.Skills.Skill skill)
 			=> SkillCast?.Invoke(caster, skill);
+
+		/// <summary>
+		/// Fired after a monster's death pipeline runs (EXP / drops
+		/// already issued). Listeners react to "I just killed something"
+		/// — HW_SOULDRAIN's SP refund, future kill quests / achievement
+		/// counters. Killer may be null (timed despawn, GM kill).
+		/// </summary>
+		public static event Action<Sabine.Zone.World.Actors.Monster, Sabine.Zone.World.Actors.Character> MonsterKilled;
+
+		internal static void RaiseMonsterKilled(Sabine.Zone.World.Actors.Monster monster, Sabine.Zone.World.Actors.Character killer)
+			=> MonsterKilled?.Invoke(monster, killer);
 	}
 }

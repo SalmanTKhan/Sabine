@@ -141,8 +141,10 @@ namespace Sabine.Zone.Skills.Handlers.HighWizard
 	/// damage as <c>200 + 200*level</c>. Sabine spawns a 3×3 grid of
 	/// <see cref="GravitationUnit"/> cells (no eA splash radius value
 	/// handy on the alpha cast db, picked 1 to match Magnus / Sanctuary
-	/// shapes); the caster-side movement lock is deferred — Sabine has
-	/// no "caster pinned" flag on the status pipeline yet.
+	/// shapes). The caster gets the StatusId.Gravity flag for the
+	/// field's lifetime — that flag is already a member of
+	/// <see cref="Sabine.Zone.World.Actors.Character.IsImmobilized"/>,
+	/// so movement and skill use both lock out for the cast duration.
 	/// Duration: 5s + 1s/level (skill_cast_db.txt:815).
 	/// </summary>
 	[SkillHandler(SkillId.HW_GRAVITATION)]
@@ -165,6 +167,7 @@ namespace Sabine.Zone.Skills.Handlers.HighWizard
 				}
 			}
 
+			caster.StatusEffects.Start(StatusId.Gravity, level, duration, caster);
 			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, center.X, center.Y, 0);
 		}
 	}

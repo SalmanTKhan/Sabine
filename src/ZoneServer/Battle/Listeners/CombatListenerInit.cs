@@ -19,6 +19,7 @@ namespace Sabine.Zone.Battle.Listeners
 			PoisonReactListener.Subscribe();
 			AutoBlitzListener.Subscribe();
 			DrainListener.Subscribe();
+			SoulDrainListener.Subscribe();
 		}
 	}
 }

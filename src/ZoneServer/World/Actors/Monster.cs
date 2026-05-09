@@ -161,6 +161,7 @@ namespace Sabine.Zone.World.Actors
 				this.DropFixedItems(killer);
 
 				this.Killed?.Invoke(this);
+				Sabine.Zone.Battle.CombatEvents.RaiseMonsterKilled(this, killer);
 				this.Map.RemoveNpc(this);
 			}
 			catch (Exception ex)
