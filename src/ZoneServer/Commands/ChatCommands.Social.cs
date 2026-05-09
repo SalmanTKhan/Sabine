@@ -312,9 +312,34 @@ namespace Sabine.Zone.Commands
 			return CommandResult.Okay;
 		}
 
+		// eAthena atcommand_produce: GM-bypass craft. Looks up the
+		// produce_db recipe whose output is the given item id and
+		// hands the item to the target without checking skill,
+		// materials, or success chance — useful for testing forging /
+		// brewing flows without farming materials. Players use the
+		// real skill (AM_PHARMACY / BS_HAMMERFALL etc.) and pay the
+		// material / SP cost normally.
 		private CommandResult Produce(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Produce is not implemented."));
+			if (args.Count < 1)
+				return CommandResult.InvalidArgument;
+
+			if (!int.TryParse(args.Get(0), out var itemId) || itemId <= 0)
+				return CommandResult.InvalidArgument;
+
+			var recipe = ZoneServer.Instance.Data.Produce.FindByOutput(itemId);
+			if (recipe == null)
+			{
+				sender.ServerMessage(Localization.Get("No produce_db recipe outputs item {0}."), itemId);
+				return CommandResult.Okay;
+			}
+
+			target.Inventory.AddItem(new Item(recipe.TargetItemId, 1));
+
+			sender.ServerMessage(Localization.Get("Produced {0} for {1}."), recipe.TargetItemId, target.Name);
+			if (sender != target)
+				target.ServerMessage(Localization.Get("{0} produced item {1} for you."), sender.Name, recipe.TargetItemId);
+
 			return CommandResult.Okay;
 		}
 
