@@ -130,4 +130,29 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Modifiers.AddRace[(int)RaceType.Angel] -= 20;
 	}
+
+	/// <summary>
+	/// Deviace Card (4125): +7% damage vs DemiHuman / Brute / Plant / Insect.
+	/// The classic four-race universal hunting card — eAthena bonus2
+	/// bAddRace,RC_DemiHuman/Brute/Plant/Insect,7 stacked.
+	/// </summary>
+	[CardHandler(4125)]
+	public class DeviaceCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+		{
+			character.Modifiers.AddRace[(int)RaceType.DemiHuman] += 7;
+			character.Modifiers.AddRace[(int)RaceType.Brute] += 7;
+			character.Modifiers.AddRace[(int)RaceType.Plant] += 7;
+			character.Modifiers.AddRace[(int)RaceType.Insect] += 7;
+		}
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+		{
+			character.Modifiers.AddRace[(int)RaceType.DemiHuman] -= 7;
+			character.Modifiers.AddRace[(int)RaceType.Brute] -= 7;
+			character.Modifiers.AddRace[(int)RaceType.Plant] -= 7;
+			character.Modifiers.AddRace[(int)RaceType.Insect] -= 7;
+		}
+	}
 }

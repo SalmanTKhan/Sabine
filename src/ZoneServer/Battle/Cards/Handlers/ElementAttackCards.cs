@@ -51,4 +51,26 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Modifiers.AddElement[(int)ElementType.Earth] -= 20;
 	}
+
+	/// <summary>Drainliar Card (4069): +20% damage vs Water targets.</summary>
+	[CardHandler(4069)]
+	public class DrainliarCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddElement[(int)ElementType.Water] += 20;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddElement[(int)ElementType.Water] -= 20;
+	}
+
+	/// <summary>Orc Skeleton Card (4085): +20% damage vs Holy targets.</summary>
+	[CardHandler(4085)]
+	public class OrcSkeletonCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddElement[(int)ElementType.Holy] += 20;
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddElement[(int)ElementType.Holy] -= 20;
+	}
 }

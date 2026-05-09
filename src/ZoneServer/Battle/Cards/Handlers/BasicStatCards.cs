@@ -481,4 +481,26 @@ namespace Sabine.Zone.Battle.Cards.Handlers
 		public void OnUnequip(Character character, World.Actors.Item item)
 			=> character.Modifiers.AddBonus(ParameterType.LongAtkRate, -10);
 	}
+
+	/// <summary>Mummy Card (4106): +20 Hit.</summary>
+	[CardHandler(4106)]
+	public class MummyCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.Hit, 20);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.Hit, -20);
+	}
+
+	/// <summary>Phreeoni Card (4121): +100 Hit. The classic always-hit card.</summary>
+	[CardHandler(4121)]
+	public class PhreeoniCardHandler : ICardHandler
+	{
+		public void OnEquip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.Hit, 100);
+
+		public void OnUnequip(Character character, World.Actors.Item item)
+			=> character.Modifiers.AddBonus(ParameterType.Hit, -100);
+	}
 }
