@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Linq;
+using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.Skills.Forging;
@@ -94,25 +97,58 @@ namespace Sabine.Zone.Skills.Handlers.Blacksmith
 		}
 	}
 
+	/// <summary>
+	/// BS_REPAIRWEAPON — Blacksmith repair-weapon skill. Targets a
+	/// player (typically the caster, but party members are valid),
+	/// shows the caster a picker of the target's broken items, and on
+	/// confirm consumes one same-tier ore to clear Item.IsBroken and
+	/// re-equip the item if it was equipped before the break.
+	/// Mirrors eAthena skill.c:skill_repairweapon plus the
+	/// clif_item_repair_list / clif_item_repaireffect exchange.
+	/// </summary>
 	[SkillHandler(SkillId.BS_REPAIRWEAPON)]
 	public class RepairWeaponHandler : ITargetedSkillHandler
 	{
-		// TODO(repair-weapon): Full implementation requires modeling a
-		// "broken" state on Item (refine-break currently deletes the
-		// item, so there are no broken weapons to repair) and wiring
-		// the ZC_REPAIRITEMLIST / CZ_REQ_ITEMREPAIR / ZC_ACK_ITEMREPAIR
-		// exchange. The CZ_REQ_ITEMREPAIR opcode is EP4+ (0x01FD); the
-		// alpha client this server primarily targets does not carry
-		// the repair packet at all, so even a partial wire-up would
-		// only benefit higher-version clients. Until both prerequisites
-		// land we acknowledge the cast and tell the player it is not
-		// available.
+		/// <summary>
+		/// Vars.Temp key on the caster pointing at the account id of
+		/// the target whose broken items the picker is showing. Cleared
+		/// on completion or when the caster casts again.
+		/// </summary>
+		internal const string PendingTargetVar = "Sabine.Repair.PendingTargetAid";
+
 		public void Handle(UseSkillParams p)
 		{
 			var caster = p.Character;
 			Send.ZC_NOTIFY_SKILL(caster, caster.Handle, p.Skill.Id, p.SkillLevel, 0, 0, 0, ActionType.Skill);
-			if (caster is PlayerCharacter pc)
-				pc.ServerMessage("Weapon Repair is not yet available.");
+
+			if (caster is not PlayerCharacter pc)
+				return;
+
+			// EP4+ only: the alpha / Beta1 / Beta2 clients don't carry
+			// the repair opcodes (first appear in EP4 / packet table
+			// 0600). On those, keep the original "not yet available"
+			// path so the existing tests / smoke flows are unaffected.
+			if (Game.Version < Versions.S600)
+			{
+				pc.ServerMessage("Weapon Repair is not yet available on this client version.");
+				return;
+			}
+
+			if (p.Target is not PlayerCharacter targetPc)
+			{
+				pc.ServerMessage("Weapon Repair must target a player.");
+				return;
+			}
+
+			var broken = targetPc.Inventory.GetItems(static i => i.IsBroken).ToList();
+			if (broken.Count == 0)
+			{
+				pc.ServerMessage("{0} has no broken items.", targetPc == pc ? "You" : targetPc.Name);
+				return;
+			}
+
+			pc.Vars.Temp.SetInt(PendingTargetVar, targetPc.Connection.Account.Id);
+			Send.ZC_REPAIRITEMLIST(pc, broken);
 		}
 	}
 }
