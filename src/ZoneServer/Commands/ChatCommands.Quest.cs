@@ -18,32 +18,42 @@ namespace Sabine.Zone.Commands
 		private CommandResult SetQuest(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
 			if (args.Count < 1) return CommandResult.InvalidArgument;
-			target.Vars.Perm.SetInt("Sabine.Quest." + args.Get(0), 1);
-			sender.ServerMessage(Localization.Get("Quest {0} marked as started."), args.Get(0));
+			if (!int.TryParse(args.Get(0), out var questId)) return CommandResult.InvalidArgument;
+			target.Quests.Add(questId);
+			sender.ServerMessage(Localization.Get("Quest {0} marked as started."), questId);
 			return CommandResult.Okay;
 		}
 
 		private CommandResult EraseQuest(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
 			if (args.Count < 1) return CommandResult.InvalidArgument;
-			target.Vars.Perm.SetInt("Sabine.Quest." + args.Get(0), 0);
-			sender.ServerMessage(Localization.Get("Quest {0} erased."), args.Get(0));
+			if (!int.TryParse(args.Get(0), out var questId)) return CommandResult.InvalidArgument;
+			target.Quests.Erase(questId);
+			sender.ServerMessage(Localization.Get("Quest {0} erased."), questId);
 			return CommandResult.Okay;
 		}
 
 		private CommandResult CompleteQuest(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
 			if (args.Count < 1) return CommandResult.InvalidArgument;
-			target.Vars.Perm.SetInt("Sabine.Quest." + args.Get(0), 2);
-			sender.ServerMessage(Localization.Get("Quest {0} marked complete."), args.Get(0));
+			if (!int.TryParse(args.Get(0), out var questId)) return CommandResult.InvalidArgument;
+			target.Quests.Complete(questId);
+			sender.ServerMessage(Localization.Get("Quest {0} marked complete."), questId);
 			return CommandResult.Okay;
 		}
 
 		private CommandResult CheckQuest(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
 			if (args.Count < 1) return CommandResult.InvalidArgument;
-			var v = target.Vars.Perm.GetInt("Sabine.Quest." + args.Get(0), 0);
-			sender.ServerMessage(Localization.Get("Quest {0}: state = {1}"), args.Get(0), v);
+			if (!int.TryParse(args.Get(0), out var questId)) return CommandResult.InvalidArgument;
+			var state = target.Quests.GetStatus(questId);
+			var accepted = target.Quests.GetAcceptedAt(questId);
+			var c0 = target.Quests.GetCount(questId, 0);
+			var c1 = target.Quests.GetCount(questId, 1);
+			var c2 = target.Quests.GetCount(questId, 2);
+			sender.ServerMessage(
+				Localization.Get("Quest {0}: state={1}, accepted={2}, counts={3}/{4}/{5}"),
+				questId, state, accepted == default ? "—" : accepted.ToString("u"), c0, c1, c2);
 			return CommandResult.Okay;
 		}
 
