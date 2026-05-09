@@ -11,7 +11,7 @@ namespace Sabine.Zone.Commands
 		private void LoadMisc()
 		{
 			this.Add("mail", "<to> <title> <body>", Localization.Get("Sends a mail message."), this.Mail);
-			this.Add("auction", "", Localization.Get("Opens the auction interface."), this.Auction);
+			this.Add("auction", "<list|sell|bid|cancel|info> [args]", Localization.Get("Auction house (text-mode)."), this.Auction);
 			this.Add("adoption", "<child>", Localization.Get("Initiates an adoption."), this.Adoption);
 			this.Add("adopt", "<child>", Localization.Get("Completes an adoption."), this.Adoption);
 			this.Add("clan", "<create|disband|info> [name]", Localization.Get("Clan administration."), this.Clan);
@@ -38,8 +38,141 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult Auction(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Auction subsystem is not yet implemented."));
-			return CommandResult.Okay;
+			if (args.Count < 1)
+				return CommandResult.InvalidArgument;
+
+			var auctions = ZoneServer.Instance.World.Auctions;
+			var sub = args.Get(0).ToLowerInvariant();
+
+			switch (sub)
+			{
+				case "list":
+				{
+					var open = auctions.ListOpen();
+					if (open.Count == 0)
+					{
+						sender.ServerMessage(Localization.Get("No open auctions."));
+						return CommandResult.Okay;
+					}
+					foreach (var a in open)
+					{
+						var bid = a.HasBid ? a.CurrentBid.ToString() : Localization.Get("(no bid)");
+						sender.ServerMessage("[{0}] {1} x{2} +{3} | bid {4} | buyout {5} | by {6} | ends {7:u}",
+							a.Id, a.ItemClassId, a.ItemAmount, a.ItemRefine,
+							bid, a.BuyoutPrice == 0 ? "-" : a.BuyoutPrice.ToString(),
+							a.SellerName, a.Deadline);
+					}
+					return CommandResult.Okay;
+				}
+
+				case "info":
+				{
+					if (args.Count < 2 || !int.TryParse(args.Get(1), out var infoId))
+						return CommandResult.InvalidArgument;
+					var entry = auctions.Get(infoId);
+					if (entry == null)
+					{
+						sender.ServerMessage(Localization.Get("Auction not found."));
+						return CommandResult.Okay;
+					}
+					sender.ServerMessage("#{0} {1} x{2} +{3} | starting {4}, current {5}, buyout {6} | seller {7} | ends {8:u}",
+						entry.Id, entry.ItemClassId, entry.ItemAmount, entry.ItemRefine,
+						entry.StartingPrice, entry.CurrentBid,
+						entry.BuyoutPrice == 0 ? "-" : entry.BuyoutPrice.ToString(),
+						entry.SellerName, entry.Deadline);
+					return CommandResult.Okay;
+				}
+
+				case "sell":
+				{
+					if (args.Count < 5)
+					{
+						sender.ServerMessage(Localization.Get("Usage: @auction sell <invSlot> <starting> <buyout> <hours>"));
+						return CommandResult.InvalidArgument;
+					}
+					if (!int.TryParse(args.Get(1), out var invId) ||
+						!int.TryParse(args.Get(2), out var starting) ||
+						!int.TryParse(args.Get(3), out var buyout) ||
+						!int.TryParse(args.Get(4), out var hours))
+						return CommandResult.InvalidArgument;
+
+					if (!target.Inventory.TryGetItem(invId, out var item))
+					{
+						sender.ServerMessage(Localization.Get("Item not found in slot {0}."), invId);
+						return CommandResult.Okay;
+					}
+
+					var result = auctions.Register(target, item, starting, buyout, hours, out var entry);
+					switch (result)
+					{
+						case World.Auctions.AuctionManager.RegisterResult.Success:
+							sender.ServerMessage(Localization.Get("Listed as auction #{0} (deadline {1:u})."), entry.Id, entry.Deadline);
+							break;
+						case World.Auctions.AuctionManager.RegisterResult.InvalidPrice:
+							sender.ServerMessage(Localization.Get("Invalid price."));
+							break;
+						case World.Auctions.AuctionManager.RegisterResult.InvalidDuration:
+							sender.ServerMessage(Localization.Get("Duration must be 1-48 hours."));
+							break;
+					}
+					return CommandResult.Okay;
+				}
+
+				case "bid":
+				{
+					if (args.Count < 3 ||
+						!int.TryParse(args.Get(1), out var bidId) ||
+						!int.TryParse(args.Get(2), out var bidAmount))
+						return CommandResult.InvalidArgument;
+
+					var result = auctions.Bid(target, bidId, bidAmount);
+					switch (result)
+					{
+						case World.Auctions.AuctionManager.BidResult.Success:
+							sender.ServerMessage(Localization.Get("Bid placed."));
+							break;
+						case World.Auctions.AuctionManager.BidResult.NotFound:
+							sender.ServerMessage(Localization.Get("Auction not found."));
+							break;
+						case World.Auctions.AuctionManager.BidResult.TooLow:
+							sender.ServerMessage(Localization.Get("Bid too low."));
+							break;
+						case World.Auctions.AuctionManager.BidResult.NotEnoughZeny:
+							sender.ServerMessage(Localization.Get("Not enough zeny."));
+							break;
+						case World.Auctions.AuctionManager.BidResult.OwnAuction:
+							sender.ServerMessage(Localization.Get("Cannot bid on your own auction."));
+							break;
+					}
+					return CommandResult.Okay;
+				}
+
+				case "cancel":
+				{
+					if (args.Count < 2 || !int.TryParse(args.Get(1), out var cancelId))
+						return CommandResult.InvalidArgument;
+
+					var result = auctions.Cancel(target, cancelId);
+					switch (result)
+					{
+						case World.Auctions.AuctionManager.CancelResult.Success:
+							sender.ServerMessage(Localization.Get("Auction cancelled. Item returned via mail."));
+							break;
+						case World.Auctions.AuctionManager.CancelResult.NotFound:
+							sender.ServerMessage(Localization.Get("Auction not found."));
+							break;
+						case World.Auctions.AuctionManager.CancelResult.NotSeller:
+							sender.ServerMessage(Localization.Get("You are not the seller."));
+							break;
+						case World.Auctions.AuctionManager.CancelResult.HasBids:
+							sender.ServerMessage(Localization.Get("Cannot cancel an auction with active bids."));
+							break;
+					}
+					return CommandResult.Okay;
+				}
+			}
+
+			return CommandResult.InvalidArgument;
 		}
 
 		private CommandResult Adoption(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
