@@ -100,6 +100,7 @@ namespace Sabine.Zone.World.Actors
 		/// </summary>
 		public int[] Cards { get; private set; } = Array.Empty<int>();
 
+
 		/// <summary>
 		/// Personalised name engraved on this item, when it was
 		/// produced via `getnameditem` (eAthena's wedding rings,

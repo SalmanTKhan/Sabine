@@ -51,10 +51,12 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	/// SC_MELTDOWN (WS_MELTDOWN) — chance per hit to break the target's
 	/// weapon or armor. Mirrors eAthena status.c:5867: val2 = 100*level
 	/// (weapon-break per-1000), val3 = 70*level (armor-break per-1000).
-	/// Pure flag handler today — the on-hit listener that would roll the
-	/// break and dispatch <c>skill_break_equip</c> isn't present in
-	/// Sabine's battle pipeline yet. The vals are still snapshotted so
-	/// the listener can land without changing the wire format.
+	/// The roll is fired from
+	/// <see cref="Sabine.Zone.Battle.Listeners.EquipBreakListener"/>
+	/// on every successful AttackResolved; CR_FULLPROTECTION on the
+	/// target shields the slot. Damaged equipment skips its stat
+	/// bonuses on the next equip recalc (see Inventory.OnEquippedItem)
+	/// and is restored by the existing /repair flow.
 	/// </summary>
 	[StatusEffectHandler(StatusId.MeltDown)]
 	public class MeltDownStatusHandler : IStatusEffectHandler

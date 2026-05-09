@@ -624,7 +624,12 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// <param name="slots">The slot(s) the item was equipped on.</param>
 		private void OnEquippedItem(Item item, EquipSlots slots)
 		{
-			CardHandlerManager.ApplyEquipped(this.Character, item);
+			// Damaged equipment goes on the body for cosmetics (the look
+			// id still applies below) but contributes no stat bonuses.
+			// Mirrors eAthena's pc_isequip_broken short-circuit on the
+			// status_calc path; refines / cards are skipped end-to-end.
+			if (!item.IsDamaged)
+				CardHandlerManager.ApplyEquipped(this.Character, item);
 
 			if ((slots & EquipSlots.RightHand) != 0)
 				this.Character.ChangeLook(SpriteType.Weapon, item.Data.LookId);

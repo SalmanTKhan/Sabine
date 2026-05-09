@@ -20,6 +20,7 @@ namespace Sabine.Zone.Battle.Listeners
 			AutoBlitzListener.Subscribe();
 			DrainListener.Subscribe();
 			SoulDrainListener.Subscribe();
+			EquipBreakListener.Subscribe();
 		}
 	}
 }
