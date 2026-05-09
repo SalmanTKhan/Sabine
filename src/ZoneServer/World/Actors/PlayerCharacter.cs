@@ -178,6 +178,15 @@ namespace Sabine.Zone.World.Actors
 		public Guild Guild { get; set; }
 
 		/// <summary>
+		/// Selects which storage the next storage-related packet
+		/// (deposit / withdraw / close) refers to. Personal storage is
+		/// the default; <see cref="OpenGuildStorage"/> flips this to
+		/// <see cref="StorageType.GuildStorage"/> while the guild
+		/// window is open. <see cref="CloseStorage"/> resets it.
+		/// </summary>
+		public StorageType ActiveStorage { get; set; } = StorageType.Storage;
+
+		/// <summary>
 		/// Returns the character's guild ID, or 0 if not in a guild.
 		/// </summary>
 		public override int GuildId

@@ -23,6 +23,14 @@ namespace Sabine.Zone.World.Groups
 		public string Notice { get; set; } = string.Empty;
 		public string MasterName { get; set; }
 
+		/// <summary>
+		/// Shared guild storage. Lifetime matches the guild record;
+		/// hydrated by <see cref="GuildManager.LoadAll"/> at startup
+		/// and persisted via <see cref="Database.ZoneDb.SaveGuildStorage"/>
+		/// on roster change / shutdown.
+		/// </summary>
+		public GuildStorage Storage { get; private set; }
+
 		private readonly List<GuildMember> _members = new();
 		public IReadOnlyList<GuildMember> Members => _members.AsReadOnly();
 
@@ -68,6 +76,19 @@ namespace Sabine.Zone.World.Groups
 				if (m.IsMaster && this.MasterName == null)
 					this.MasterName = string.Empty;
 			}
+		}
+
+		/// <summary>
+		/// Ensures <see cref="Storage"/> is allocated and bound to the
+		/// current <see cref="Id"/>. Idempotent: re-running with the
+		/// same id is a no-op. Called by <see cref="GuildManager"/>
+		/// after the DB id is known.
+		/// </summary>
+		internal void EnsureStorage()
+		{
+			if (this.Storage != null && this.Storage.GuildId == this.Id)
+				return;
+			this.Storage = new GuildStorage(this.Id);
 		}
 
 		/// <summary>

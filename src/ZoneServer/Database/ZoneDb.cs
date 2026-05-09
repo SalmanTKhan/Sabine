@@ -535,6 +535,77 @@ namespace Sabine.Zone.Database
 			cmd.ExecuteNonQuery();
 		}
 
+		// ----- Guild storage persistence -------------------------------
+		// Guild storage rows live on `guild_storage_items` and are keyed
+		// by `guildId`. Mirrors the personal `storage_items` shape; the
+		// only difference is the owner column. Schema lives in
+		// `sql/updates/2026-05-08_002.sql`.
+
+		/// <summary>
+		/// Returns every persisted item for the given guild's storage.
+		/// Caller is responsible for seeding the in-memory
+		/// <c>GuildStorage</c> with the result.
+		/// </summary>
+		public List<Item> LoadGuildStorage(int guildId)
+		{
+			var items = new List<Item>();
+
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand("SELECT * FROM `guild_storage_items` WHERE `guildId` = @guildId", conn);
+			cmd.AddParameter("@guildId", guildId);
+
+			using var reader = cmd.ExecuteReader();
+			while (reader.Read())
+			{
+				var item = new Item(reader.GetInt32("classId"));
+				item.Amount = reader.GetInt32("amount");
+				item.RefineLevel = (byte)reader.GetInt32("refine");
+				item.IsIdentified = reader.GetInt32("identified") != 0;
+				item.IsDamaged = reader.GetInt32("damaged") != 0;
+
+				items.Add(item);
+			}
+
+			return items;
+		}
+
+		/// <summary>
+		/// Replaces every persisted row for the given guild's storage
+		/// with the supplied snapshot. Mirrors the personal-storage
+		/// `DELETE` + batched-insert pattern from <see cref="SaveCharacter"/>.
+		/// </summary>
+		public void SaveGuildStorage(int guildId, IEnumerable<Item> items)
+		{
+			using var conn = this.GetConnection();
+			using var trans = conn.BeginTransaction();
+
+			using (var cmd = new MySqlCommand("DELETE FROM `guild_storage_items` WHERE `guildId` = @guildId", conn, trans))
+			{
+				cmd.AddParameter("@guildId", guildId);
+				cmd.ExecuteNonQuery();
+			}
+
+			using (var cmd = new BatchedInsertCommand("guild_storage_items", conn, trans))
+			{
+				foreach (var item in items)
+				{
+					cmd.Set("guildId", guildId);
+					cmd.Set("classId", item.ClassId);
+					cmd.Set("amount", item.Amount);
+					cmd.Set("refine", (int)item.RefineLevel);
+					cmd.Set("identified", item.IsIdentified ? 1 : 0);
+					cmd.Set("damaged", item.IsDamaged ? 1 : 0);
+
+					cmd.AddRow();
+					cmd.ExecuteOn(200);
+				}
+
+				cmd.Execute();
+			}
+
+			trans.Commit();
+		}
+
 		// ----- Party persistence ---------------------------------------
 		// Parties survive across restarts. The schema is in
 		// `sql/updates/2026-05-07_001.sql`. `InsertParty` mutates the

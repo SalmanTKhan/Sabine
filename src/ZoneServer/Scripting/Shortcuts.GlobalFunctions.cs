@@ -125,6 +125,18 @@ namespace Sabine.Zone.Scripting
 		}
 
 		/// <summary>
+		/// Opens the player's guild storage window. The caller is
+		/// responsible for verifying guild membership and the
+		/// permission gate before invoking this -- the v1 gate is
+		/// "guild master only". Equivalent to rAthena's
+		/// <c>guildopenstorage</c>.
+		/// </summary>
+		public static void OpenGuildStorage(PlayerCharacter player)
+		{
+			player.OpenGuildStorage();
+		}
+
+		/// <summary>
 		/// Checks if the player has learned all basic skills required for a job change.
 		/// Assumes 'basicskillcheck()' corresponds to a server configuration.
 		/// </summary>
