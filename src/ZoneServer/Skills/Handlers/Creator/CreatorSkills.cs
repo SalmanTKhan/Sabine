@@ -130,18 +130,24 @@ namespace Sabine.Zone.Skills.Handlers.Creator
 	internal static class AlchemyPassive { }
 
 	/// <summary>
-	/// CR_CULTIVATION — places a plant monster (Black/Red/Yellow/Blue/
-	/// White/Mandragora plant) on the target cell with a 50% success
-	/// roll. eAthena skill.c:6442 spawns via
-	/// <c>mob_once_spawn_sub</c> and starts a timed despawn.
-	/// Sabine doesn't have a "spawn-as-skill" entry on its mob spawn
-	/// API yet, so this lands as a no-op marker — the cast is
-	/// acknowledged but nothing spawns. Wire-up happens when the
-	/// SpawnService grows a transient one-shot path.
+	/// CR_CULTIVATION — places a plant monster on the target cell with a
+	/// 50% success roll. eAthena skill.c:6451-6463: at level 1 the spawn
+	/// rolls between Black Mushroom (1084) and Red Mushroom (1085); at
+	/// level 2+ it rolls one of the six standard plants (1078-1083).
+	/// The plant is tagged with master_id so the caster's friendly
+	/// filter excludes it, and a timed despawn matches
+	/// <c>skill_get_time</c> (300s per skill_cast_db.txt:829).
+	///
+	/// Sabine reuses the AlchemistSummon helper that already drives
+	/// AM_CANNIBALIZE / AM_SPHEREMINE — same Master tag, same Lifespan
+	/// auto-despawn, same friendly-filter behaviour.
 	/// </summary>
 	[SkillHandler(SkillId.CR_CULTIVATION)]
 	public class CultivationHandler : Skills.Handlers.IGroundSkillHandler
 	{
+		private const int SuccessRate = 50;
+		private static readonly TimeSpan PlantLifespan = TimeSpan.FromSeconds(300);
+
 		public void Handle(UseGroundSkillParams parameters)
 		{
 			var caster = parameters.Character;
@@ -150,6 +156,23 @@ namespace Sabine.Zone.Skills.Handlers.Creator
 			var level = parameters.SkillLevel;
 
 			Send.ZC_NOTIFY_GROUNDSKILL(caster, skill.Id, caster.Handle, level, center.X, center.Y, 0);
+
+			if (caster is not PlayerCharacter pc) return;
+			if (Random.Shared.Next(100) >= SuccessRate) return;
+
+			Sabine.Shared.Const.IdentityId mobId;
+			if (level < 2)
+			{
+				// 1084 (Black Mushroom) or 1085 (Red Mushroom)
+				mobId = (Sabine.Shared.Const.IdentityId)(1084 + Random.Shared.Next(2));
+			}
+			else
+			{
+				// 1078..1083 — Red / Blue / Green / Yellow / White / Shining Plant
+				mobId = (Sabine.Shared.Const.IdentityId)(1078 + Random.Shared.Next(6));
+			}
+
+			Sabine.Zone.Skills.Handlers.Alchemist.AlchemistSummon.Spawn(pc, mobId, PlantLifespan);
 		}
 	}
 }
