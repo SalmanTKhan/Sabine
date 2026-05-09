@@ -152,5 +152,13 @@ namespace Sabine.Shared.Const
 		MentalSensing = 224,
 		ServiceForYou = 225,
 		FortuneKiss = 226,
+
+		// Reborn 2-1 — eAthena reuses the SC_CONCENTRATION name
+		// across AC_CONCENTRATION (id 11 above) and LK_CONCENTRATION,
+		// but the gameplay payload is different, so the LK variant
+		// gets its own slot.
+		AuraBlade = 240,
+		LkConcentration = 241,
+		MagicPower = 242,
 	}
 }
