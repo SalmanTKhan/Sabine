@@ -62,9 +62,26 @@ namespace Sabine.Zone.World.Actors
 		public bool IsIdentified { get; set; } = true;
 
 		/// <summary>
-		/// Gets or sets whether the item has been damaged.
+		/// Gets or sets whether the item has been damaged. This is the
+		/// underlying flag for the "broken" state (see <see cref="IsBroken"/>),
+		/// kept under the historical name to match the persisted SQL
+		/// column (`damaged`) and the wire byte sent to clients.
 		/// </summary>
 		public bool IsDamaged { get; set; } = false;
+
+		/// <summary>
+		/// Alias of <see cref="IsDamaged"/> exposed under the eA name for
+		/// the durability model. An item is "broken" when it has been
+		/// shattered by a refine-break, by an on-hit equip-break roll
+		/// (WS_MELTDOWN, Hanged Man), or other future skill_destroy_equip
+		/// callers, and stays in the inventory until BS_REPAIRWEAPON
+		/// (or the @repair GM command) clears the flag.
+		/// </summary>
+		public bool IsBroken
+		{
+			get => this.IsDamaged;
+			set => this.IsDamaged = value;
+		}
 
 		/// <summary>
 		/// Returns true if the item is currently equipped.
