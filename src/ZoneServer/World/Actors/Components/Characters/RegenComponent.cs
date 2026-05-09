@@ -89,6 +89,15 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (hpRecov > 0)
 				amount += hpRecov * 5 + hpRecov * hpMax / 500f;
 
+			// SC_TENSIONRELAX (LK_TENSIONRELAX): boosts the natural HP
+			// regen tick. eAthena status.c stacks the buff on top of
+			// every other regen contribution as a flat multiplier
+			// (~3x classic; the sit-vs-stand split is already handled
+			// by the tick-delay branch above). Applied last so card
+			// and skill bonuses are all amplified together.
+			if (this.Character.StatusEffects?.Has(StatusId.TensionRelax) == true)
+				amount *= 3;
+
 			this.Character.HealHp((int)amount);
 		}
 

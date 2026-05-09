@@ -100,8 +100,10 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	}
 
 	/// <summary>
-	/// SC_TENSIONRELAX (LK_TENSIONRELAX) — accelerated HP regen
-	/// while sitting. Marker; the regen tick doesn't yet read it.
+	/// SC_TENSIONRELAX (LK_TENSIONRELAX) — accelerated HP regen.
+	/// The 3x amplification on the natural HP tick lives in
+	/// <c>RegenComponent.RegenHp</c>, which reads the status by
+	/// Has, so this handler stays a marker.
 	/// </summary>
 	[StatusEffectHandler(StatusId.TensionRelax)]
 	public class TensionRelaxStatusHandler : IStatusEffectHandler
