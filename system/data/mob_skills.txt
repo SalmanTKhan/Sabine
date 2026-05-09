@@ -1,43 +1,124 @@
 // Sabine
 // Mob Skill Database
 //
-// Slim subset of eAthena's `db/mob_skill_db.txt`. Each row attaches a
-// skill to a mob class; the reactive AI's combat tick consults this
-// table, rolls the per-tick rate, and casts via the standard skill
+// Subset of eAthena's `db/mob_skill_db.txt` covering iconic mobs and
+// boss casters that exist in Sabine's monsters.txt. Each row attaches
+// a skill to a mob class; the reactive AI's combat tick consults this
+// table, rolls the per-100 rate, and casts via the standard skill
 // handler registry. Multiple entries per mob are allowed — the AI
 // rolls each one independently per tick.
 //
 // Fields:
 //   mobId, skillId        — mob class id, SkillId enum name
-//   level                  — skill level for the cast
-//   rate                   — per-100 chance per AI tick (default 50)
-//   cooldownMs             — minimum ms between casts of this skill
-//   target                 — "target" / "self" (default "target")
+//   level                 — skill level for the cast
+//   rate                  — per-100 chance per AI tick (eA per-10000 / 100)
+//   cooldownMs            — minimum ms between casts of this skill
+//   target                — "target" / "self" (default "target")
 //
-// Omitted from eAthena: state / condition / val1-5 / emotion / chat —
-// the v1 schema treats every entry as "always-true while in combat".
+// Sourced from eAthena db/mob_skill_db.txt (attack-state rows).
+// Rates here are the eAthena per-10000 value divided by 100 to fit
+// Sabine's per-100 schema; cooldowns lifted as-is. NPC_* skills (mob-
+// only attacks, no Sabine handler) are intentionally excluded.
 //---------------------------------------------------------------------------
 
 [
-// Poring family — eA classic example: TF_POISON
-{ mobId: 1002, skillId: "TF_POISON", level: 3, rate: 30, cooldownMs: 10000 },
-{ mobId: 1031, skillId: "TF_POISON", level: 5, rate: 30, cooldownMs: 8000 },
+// === Common dungeon casters (1-50 level range) ===
+{ mobId: 1009, skillId: "BS_ADRENALINE", level: 1, rate: 5, cooldownMs: 300000, target: "self" },   // Condor
+{ mobId: 1014, skillId: "MG_FROSTDIVER", level: 3, rate: 10, cooldownMs: 8000 },                    // Spore (substituted from sleep cast)
+{ mobId: 1015, skillId: "TF_POISON", level: 3, rate: 20, cooldownMs: 6000 },                        // Zombie
+{ mobId: 1016, skillId: "AC_DOUBLE", level: 1, rate: 5, cooldownMs: 5000 },                         // Archer Skeleton
+{ mobId: 1018, skillId: "AL_TELEPORT", level: 1, rate: 5, cooldownMs: 5000, target: "self" },       // Creamy
+{ mobId: 1019, skillId: "AS_SONICBLOW", level: 5, rate: 5, cooldownMs: 5000 },                      // Peco Peco
+{ mobId: 1026, skillId: "MG_STONECURSE", level: 3, rate: 10, cooldownMs: 8000 },                    // Munak
+{ mobId: 1033, skillId: "MG_FIREBOLT", level: 3, rate: 5, cooldownMs: 5000 },                       // Elder Willow
+{ mobId: 1037, skillId: "KN_PIERCE", level: 5, rate: 5, cooldownMs: 5000 },                         // Side Winder
+{ mobId: 1041, skillId: "MG_STONECURSE", level: 5, rate: 25, cooldownMs: 10000 },                   // Mummy — iconic Pyramids hazard
+{ mobId: 1041, skillId: "AS_SONICBLOW", level: 3, rate: 10, cooldownMs: 8000 },                     // Mummy
+{ mobId: 1044, skillId: "PR_LEXDIVINA", level: 5, rate: 5, cooldownMs: 5000 },                      // Obeaune
+{ mobId: 1056, skillId: "TF_HIDING", level: 1, rate: 5, cooldownMs: 5000, target: "self" },         // Smokie
+{ mobId: 1065, skillId: "MG_FROSTDIVER", level: 9, rate: 10, cooldownMs: 5000 },                    // Strouf
+{ mobId: 1065, skillId: "MG_LIGHTNINGBOLT", level: 3, rate: 5, cooldownMs: 5000 },                  // Strouf
+{ mobId: 1065, skillId: "WZ_WATERBALL", level: 3, rate: 5, cooldownMs: 5000 },                      // Strouf
+{ mobId: 1066, skillId: "CR_AUTOGUARD", level: 2, rate: 5, cooldownMs: 300000, target: "self" },    // Vadon
+{ mobId: 1067, skillId: "CR_AUTOGUARD", level: 2, rate: 5, cooldownMs: 300000, target: "self" },    // Cornutus
+{ mobId: 1069, skillId: "WZ_WATERBALL", level: 3, rate: 5, cooldownMs: 5000 },                      // Swordfish
+{ mobId: 1071, skillId: "SM_BASH", level: 5, rate: 10, cooldownMs: 5000 },                          // Pirate Skeleton
+{ mobId: 1072, skillId: "MG_FIREBOLT", level: 3, rate: 5, cooldownMs: 5000 },                       // Kaho
+{ mobId: 1106, skillId: "TF_SPRINKLESAND", level: 1, rate: 10, cooldownMs: 5000 },                  // Desert Wolf
+{ mobId: 1108, skillId: "WZ_WATERBALL", level: 3, rate: 5, cooldownMs: 5000 },                      // Deviace
+{ mobId: 1110, skillId: "BS_ADRENALINE", level: 1, rate: 5, cooldownMs: 300000, target: "self" },   // Dokebi
+{ mobId: 1117, skillId: "WZ_HEAVENDRIVE", level: 5, rate: 10, cooldownMs: 8000 },                   // Evil Druid
+{ mobId: 1119, skillId: "AS_CLOAKING", level: 3, rate: 5, cooldownMs: 30000, target: "self" },      // Frilldora
+{ mobId: 1120, skillId: "AL_TELEPORT", level: 1, rate: 5, cooldownMs: 5000, target: "self" },       // Ghostring
+{ mobId: 1121, skillId: "TF_SPRINKLESAND", level: 1, rate: 10, cooldownMs: 5000 },                  // Giearth
+{ mobId: 1127, skillId: "AS_CLOAKING", level: 3, rate: 5, cooldownMs: 30000, target: "self" },      // Hode
+{ mobId: 1140, skillId: "MG_FIREBOLT", level: 5, rate: 10, cooldownMs: 5000 },                      // Marduk
+{ mobId: 1145, skillId: "TF_HIDING", level: 1, rate: 5, cooldownMs: 5000, target: "self" },         // Martin
+{ mobId: 1145, skillId: "TF_SPRINKLESAND", level: 1, rate: 10, cooldownMs: 5000 },                  // Martin
+{ mobId: 1146, skillId: "AS_SONICBLOW", level: 5, rate: 10, cooldownMs: 5000 },                     // Matyr
+{ mobId: 1148, skillId: "MG_STONECURSE", level: 5, rate: 15, cooldownMs: 8000 },                    // Medusa
+{ mobId: 1149, skillId: "BS_HAMMERFALL", level: 5, rate: 10, cooldownMs: 5000 },                    // Minorous
+{ mobId: 1149, skillId: "WZ_HEAVENDRIVE", level: 3, rate: 10, cooldownMs: 8000 },                   // Minorous
+{ mobId: 1154, skillId: "SM_BASH", level: 10, rate: 10, cooldownMs: 5000 },                         // Pasana
+{ mobId: 1163, skillId: "BS_MAXIMIZE", level: 5, rate: 5, cooldownMs: 60000, target: "self" },      // Raydric
+{ mobId: 1163, skillId: "CR_AUTOGUARD", level: 5, rate: 5, cooldownMs: 300000, target: "self" },    // Raydric
+{ mobId: 1163, skillId: "SM_MAGNUM", level: 5, rate: 10, cooldownMs: 5000 },                        // Raydric
+{ mobId: 1165, skillId: "AS_CLOAKING", level: 3, rate: 5, cooldownMs: 30000, target: "self" },      // Sandman
+{ mobId: 1165, skillId: "TF_SPRINKLESAND", level: 1, rate: 10, cooldownMs: 5000 },                  // Sandman
+{ mobId: 1176, skillId: "AM_POTIONPITCHER", level: 1, rate: 5, cooldownMs: 5000, target: "self" },  // Vitata
+{ mobId: 1179, skillId: "AS_CLOAKING", level: 3, rate: 5, cooldownMs: 30000, target: "self" },      // Whisper
+{ mobId: 1188, skillId: "KN_SPEARSTAB", level: 5, rate: 10, cooldownMs: 5000 },                     // Bon Gun
+{ mobId: 1189, skillId: "AC_SHOWER", level: 5, rate: 10, cooldownMs: 5000 },                        // Orc Archer
+{ mobId: 1190, skillId: "CR_SHIELDCHARGE", level: 5, rate: 10, cooldownMs: 5000 },                  // Orc Lord
+{ mobId: 1191, skillId: "CR_AUTOGUARD", level: 5, rate: 5, cooldownMs: 300000, target: "self" },    // Mimic
+{ mobId: 1200, skillId: "AS_SONICBLOW", level: 5, rate: 10, cooldownMs: 5000 },                     // Zherlthsh
+{ mobId: 1201, skillId: "AS_SONICBLOW", level: 5, rate: 10, cooldownMs: 5000 },                     // Rybio
+{ mobId: 1203, skillId: "BS_MAXIMIZE", level: 5, rate: 5, cooldownMs: 60000, target: "self" },      // Mysteltainn
+{ mobId: 1203, skillId: "CR_AUTOGUARD", level: 5, rate: 5, cooldownMs: 300000, target: "self" },    // Mysteltainn
+{ mobId: 1204, skillId: "AS_SONICBLOW", level: 5, rate: 10, cooldownMs: 5000 },                     // Tyrfing
+{ mobId: 1205, skillId: "BS_MAXIMIZE", level: 5, rate: 5, cooldownMs: 60000, target: "self" },      // Executioner
 
-// Magnolia — Provoke (the canonical mob debuff in classic)
-{ mobId: 1115, skillId: "SM_PROVOKE", level: 5, rate: 30, cooldownMs: 12000 },
-
-// Hode — buffs itself with Two-Hand Quicken (eA mob_skill_db row)
-{ mobId: 1088, skillId: "KN_TWOHANDQUICKEN", level: 5, rate: 30, cooldownMs: 30000, target: "self" },
-
-// Mummy — Stone Curse on contact (the famous Pyramids hazard)
-{ mobId: 1041, skillId: "MG_STONECURSE", level: 5, rate: 25, cooldownMs: 10000 },
-
-// Boa / Argiope-style — Frost Diver application via mage spell mobs
-{ mobId: 1015, skillId: "MG_FROSTDIVER", level: 3, rate: 25, cooldownMs: 8000 },
-
-// Skeleton archers — Arrow Shower
-{ mobId: 1059, skillId: "AC_SHOWER", level: 3, rate: 30, cooldownMs: 6000 },
-
-// Munak / Bongun — Body Relocation (substituted with TF_HIDING for now)
-{ mobId: 1026, skillId: "TF_HIDING", level: 3, rate: 15, cooldownMs: 30000, target: "self" }
+// === Iconic boss / MVP casters ===
+{ mobId: 1038, skillId: "AS_VENOMDUST", level: 5, rate: 20, cooldownMs: 5000 },                     // Osiris MVP
+{ mobId: 1038, skillId: "MG_STONECURSE", level: 10, rate: 20, cooldownMs: 5000 },                   // Osiris MVP
+{ mobId: 1038, skillId: "SM_BASH", level: 10, rate: 20, cooldownMs: 5000 },                         // Osiris MVP
+{ mobId: 1038, skillId: "WZ_QUAGMIRE", level: 5, rate: 20, cooldownMs: 5000 },                      // Osiris MVP
+{ mobId: 1039, skillId: "MO_BODYRELOCATION", level: 1, rate: 20, cooldownMs: 1000, target: "self" },// Baphomet MVP
+{ mobId: 1039, skillId: "KN_BRANDISHSPEAR", level: 10, rate: 20, cooldownMs: 5000 },                // Baphomet MVP
+{ mobId: 1039, skillId: "WZ_VERMILION", level: 10, rate: 20, cooldownMs: 2000 },                    // Baphomet MVP
+{ mobId: 1040, skillId: "CR_AUTOGUARD", level: 2, rate: 5, cooldownMs: 300000, target: "self" },    // Golem
+{ mobId: 1046, skillId: "AL_DECAGI", level: 10, rate: 5, cooldownMs: 20000 },                       // Doppelganger MVP
+{ mobId: 1046, skillId: "BS_HAMMERFALL", level: 10, rate: 20, cooldownMs: 5000 },                   // Doppelganger MVP
+{ mobId: 1046, skillId: "CR_AUTOGUARD", level: 10, rate: 20, cooldownMs: 300000, target: "self" },  // Doppelganger MVP
+{ mobId: 1046, skillId: "KN_TWOHANDQUICKEN", level: 10, rate: 100, cooldownMs: 120000, target: "self" }, // Doppel
+{ mobId: 1046, skillId: "LK_SPIRALPIERCE", level: 5, rate: 100, cooldownMs: 10000 },                // Doppelganger MVP
+{ mobId: 1059, skillId: "AL_PNEUMA", level: 1, rate: 20, cooldownMs: 5000, target: "self" },        // Mistress MVP
+{ mobId: 1059, skillId: "WZ_JUPITEL", level: 10, rate: 20, cooldownMs: 5000 },                      // Mistress MVP
+{ mobId: 1086, skillId: "CR_REFLECTSHIELD", level: 5, rate: 20, cooldownMs: 60000, target: "self" },// Golden Thief Bug MVP
+{ mobId: 1086, skillId: "HP_ASSUMPTIO", level: 5, rate: 20, cooldownMs: 30000, target: "self" },    // GTB MVP
+{ mobId: 1086, skillId: "SM_MAGNUM", level: 10, rate: 20, cooldownMs: 5000 },                       // GTB MVP
+{ mobId: 1087, skillId: "CR_AUTOGUARD", level: 10, rate: 20, cooldownMs: 300000, target: "self" },  // Orc Hero
+{ mobId: 1087, skillId: "KN_TWOHANDQUICKEN", level: 10, rate: 100, cooldownMs: 120000, target: "self" }, // Orc Hero
+{ mobId: 1087, skillId: "LK_SPIRALPIERCE", level: 5, rate: 100, cooldownMs: 10000 },                // Orc Hero
+{ mobId: 1087, skillId: "MG_THUNDERSTORM", level: 10, rate: 20, cooldownMs: 8000 },                 // Orc Hero
+{ mobId: 1098, skillId: "AS_SONICBLOW", level: 10, rate: 20, cooldownMs: 5000 },                    // Anubis
+{ mobId: 1098, skillId: "MG_THUNDERSTORM", level: 10, rate: 20, cooldownMs: 8000 },                 // Anubis
+{ mobId: 1098, skillId: "WZ_JUPITEL", level: 10, rate: 20, cooldownMs: 5000 },                      // Anubis
+{ mobId: 1099, skillId: "AS_VENOMDUST", level: 5, rate: 20, cooldownMs: 5000 },                     // Argiope
+{ mobId: 1112, skillId: "BS_MAXIMIZE", level: 5, rate: 100, cooldownMs: 60000, target: "self" },    // Drake MVP
+{ mobId: 1112, skillId: "WZ_WATERBALL", level: 5, rate: 20, cooldownMs: 5000 },                     // Drake MVP
+{ mobId: 1115, skillId: "AM_DEMONSTRATION", level: 5, rate: 20, cooldownMs: 5000 },                 // Eddga MVP
+{ mobId: 1115, skillId: "SM_MAGNUM", level: 10, rate: 20, cooldownMs: 5000 },                       // Eddga MVP
+{ mobId: 1116, skillId: "CR_AUTOGUARD", level: 5, rate: 5, cooldownMs: 300000, target: "self" },    // Eggyra
+{ mobId: 1132, skillId: "BS_MAXIMIZE", level: 5, rate: 5, cooldownMs: 60000, target: "self" },      // Khalitzburg
+{ mobId: 1147, skillId: "CR_AUTOGUARD", level: 10, rate: 20, cooldownMs: 300000, target: "self" },  // Maya MVP
+{ mobId: 1147, skillId: "KN_BRANDISHSPEAR", level: 10, rate: 20, cooldownMs: 5000 },                // Maya MVP
+{ mobId: 1147, skillId: "WZ_HEAVENDRIVE", level: 10, rate: 20, cooldownMs: 8000 },                  // Maya MVP
+{ mobId: 1150, skillId: "BS_HAMMERFALL", level: 10, rate: 20, cooldownMs: 5000 },                   // Moonlight Flower MVP
+{ mobId: 1150, skillId: "SA_DISPELL", level: 5, rate: 5, cooldownMs: 30000 },                       // Moonlight Flower MVP
+{ mobId: 1150, skillId: "ST_FULLSTRIP", level: 5, rate: 5, cooldownMs: 30000 },                     // Moonlight Flower MVP
+{ mobId: 1157, skillId: "AC_CHARGEARROW", level: 1, rate: 20, cooldownMs: 5000 },                   // Pharaoh MVP
+{ mobId: 1159, skillId: "TF_HIDING", level: 1, rate: 5, cooldownMs: 30000, target: "self" },        // Phreeoni MVP
+{ mobId: 1101, skillId: "SA_DISPELL", level: 5, rate: 5, cooldownMs: 30000 },                       // Baphomet Jr.
+{ mobId: 1096, skillId: "MG_SAFETYWALL", level: 5, rate: 20, cooldownMs: 5000, target: "self" }     // Angeling
 ]
