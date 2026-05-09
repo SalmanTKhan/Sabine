@@ -56,6 +56,17 @@ namespace Sabine.Zone.World.Groups
 		public PartyExpShareOption ExpShareOption { get; set; } = PartyExpShareOption.Individual;
 		public PartyItemShareOption ItemShareOption { get; set; } = PartyItemShareOption.Individual;
 
+		/// <summary>
+		/// Maximum base-level gap a member can have from the sharer
+		/// and still receive a slice of the EvenShare EXP / loot pool.
+		/// Mirrors eAthena's <c>battle_config.party_member_share_lvl</c>
+		/// (default 15). Read-side enforcement lands when the EXP /
+		/// loot distribution code does — the field is plumbed today so
+		/// /partysharelvl persists the cap and the future filter has
+		/// one place to consult.
+		/// </summary>
+		public int ShareLevel { get; set; } = 15;
+
 		public Party(PlayerCharacter leader, string name)
 		{
 			// Id is left at 0 here; PartyManager.CreateParty assigns

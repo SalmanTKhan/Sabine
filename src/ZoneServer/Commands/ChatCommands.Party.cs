@@ -97,9 +97,37 @@ namespace Sabine.Zone.Commands
 			return CommandResult.Okay;
 		}
 
+		// eAthena atcommand_partysharelvl: caps the base-level gap a
+		// member can have from the sharer and still get a slice of the
+		// EvenShare pool. The level cap is plumbed onto Party today;
+		// EXP / loot distribution doesn't yet consult it (the
+		// distribution code itself isn't wired yet — same gap as
+		// /alootid). No-arg prints the current cap.
 		private CommandResult PartyShareLvl(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
-			sender.ServerMessage(Localization.Get("Party share level not implemented."));
+			if (target.Party == null)
+			{
+				sender.ServerMessage(Localization.Get("Not in a party."));
+				return CommandResult.Okay;
+			}
+
+			if (args.Count == 0)
+			{
+				sender.ServerMessage(Localization.Get("Party share level cap: {0}"), target.Party.ShareLevel);
+				return CommandResult.Okay;
+			}
+
+			if (!target.Party.IsLeader(target))
+			{
+				sender.ServerMessage(Localization.Get("Only the leader may change party options."));
+				return CommandResult.Okay;
+			}
+
+			if (!int.TryParse(args.Get(0), out var level) || level < 0)
+				return CommandResult.InvalidArgument;
+
+			target.Party.ShareLevel = level;
+			sender.ServerMessage(Localization.Get("Party share level cap set to {0}."), level);
 			return CommandResult.Okay;
 		}
 
