@@ -56,7 +56,7 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	/// on every successful AttackResolved; CR_FULLPROTECTION on the
 	/// target shields the slot. Damaged equipment skips its stat
 	/// bonuses on the next equip recalc (see Inventory.OnEquippedItem)
-	/// and is restored by the existing /repair flow.
+	/// and is restored by BS_REPAIRWEAPON (or the @repair GM command).
 	/// </summary>
 	[StatusEffectHandler(StatusId.MeltDown)]
 	public class MeltDownStatusHandler : IStatusEffectHandler

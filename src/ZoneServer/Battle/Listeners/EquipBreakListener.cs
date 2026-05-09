@@ -14,10 +14,12 @@ namespace Sabine.Zone.Battle.Listeners
 	/// from the roll, mirroring eAthena's pc_skill_isequip_break
 	/// guard.
 	///
-	/// Works through the existing Item.IsDamaged flag (already
-	/// persisted as the <c>damaged</c> column); flipping it triggers
-	/// stat-bonus skip on the next equip recalc, and BS_REPAIRWEAPON
-	/// (already wired in ChatCommands /repair) clears it.
+	/// Works through the existing Item.IsDamaged flag (aliased as
+	/// Item.IsBroken in the durability model and persisted via the
+	/// <c>damaged</c> column); flipping it triggers stat-bonus skip
+	/// on the next equip recalc, and BS_REPAIRWEAPON (real handler in
+	/// ForgeHandlers / PacketHandler.Repair) or the @repair GM command
+	/// clears it.
 	/// </summary>
 	public static class EquipBreakListener
 	{
