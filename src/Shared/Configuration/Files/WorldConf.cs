@@ -24,6 +24,14 @@ namespace Sabine.Shared.Configuration.Files
 		// skills.conf
 		public bool CheckBasicSkills { get; set; }
 
+		// items.conf — durability model
+		// When true, retains the legacy behaviour of destroying an item
+		// on a refine-break failure. When false (the default), the item
+		// is force-unequipped and flagged as broken (Item.IsBroken),
+		// preserving it in the player's inventory so BS_REPAIRWEAPON or
+		// the @repair GM command can restore it.
+		public bool RefineBreakDestroys { get; set; }
+
 		/// <summary>
 		/// Loads the conf file and its options from the given path.
 		/// </summary>
@@ -42,6 +50,8 @@ namespace Sabine.Shared.Configuration.Files
 			this.PartyEvenShareBonus = this.GetInt("party_even_share_bonus", 0);
 
 			this.CheckBasicSkills = this.GetBool("check_basic_skills", true);
+
+			this.RefineBreakDestroys = this.GetBool("refine_break_destroys", false);
 		}
 	}
 

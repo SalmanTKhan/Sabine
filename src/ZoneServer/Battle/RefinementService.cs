@@ -206,7 +206,27 @@ namespace Sabine.Zone.Battle
 			// destroying the item.
 			if (chance.BreakingRate > 0 && rng.Next(100) < chance.BreakingRate)
 			{
-				player.Inventory.RemoveItem(item);
+				// Two paths, gated by world.conf:
+				//   refine_break_destroys = true  → legacy behaviour, the
+				//     item is removed from the inventory entirely. Kept
+				//     for back-compat with servers that don't want a
+				//     repair-weapon flow.
+				//   refine_break_destroys = false (default) → durability
+				//     model: force-unequip the item, flag it as broken,
+				//     and persist. The item stays in the inventory and
+				//     can be restored via BS_REPAIRWEAPON / @repair.
+				if (ZoneServer.Instance.Conf.World.RefineBreakDestroys)
+				{
+					player.Inventory.RemoveItem(item);
+				}
+				else
+				{
+					if (item.IsEquipped)
+						player.Inventory.UnequipItem(item);
+					item.IsBroken = true;
+					player.Inventory.RefreshClient();
+					player.Parameters.RecalculateAll();
+				}
 				return RefineResult.Broken;
 			}
 
