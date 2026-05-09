@@ -221,6 +221,12 @@ namespace Sabine.Shared.Const
 		LongingFreedom = 259,
 		Hermode = 260,
 
+		// Marionette receiver — eAthena SC_MARIONETTE2. Distinct from
+		// the caster-side flag so the stat-transfer math knows which
+		// side of the pair to apply, and so each side ends when its
+		// counterpart does.
+		Marionette2 = 262,
+
 		// Movement root — eAthena SC_STOP. The target keeps acting
 		// (basic attacks, skill casts) but can't move from the cell
 		// they were standing on at apply. Distinct from

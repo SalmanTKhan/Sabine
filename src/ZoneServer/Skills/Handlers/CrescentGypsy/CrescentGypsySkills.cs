@@ -76,20 +76,71 @@ namespace Sabine.Zone.Skills.Handlers.CrescentGypsy
 
 	/// <summary>
 	/// CG_MARIONETTE (Marionette Control) — paired buff between two
-	/// performers; eAthena status.c transfers half of each side's
-	/// primary stats to the other. Marker today — the stat-transfer
-	/// arm depends on a "linked partner" status pair Sabine doesn't
-	/// model yet, and the cast-fail check (no-self, partner must
-	/// also be a performer) lives in the cast pipeline. The status
-	/// flag still applies so future linkage can read it. Duration:
-	/// 60s flat (cast db: 1000ms cooldown only; full SC duration
-	/// inferred from eAthena classic skill_db).
+	/// performers. Halves each of the caster's primary stats (STR / AGI
+	/// / VIT / INT / DEX / LUK), capping each donation at 99 per stat,
+	/// and grants the same amount to the partner. Mirrors eAthena
+	/// status.c:5668: caster carries SC_MARIONETTE with val1 = partner
+	/// id and val2 / val3 / val4 = the snapshot of donated stats;
+	/// partner carries SC_MARIONETTE2 reading the same vals. When
+	/// either side ends, the counterpart ends with it. Duration: 60s.
+	/// Refuses on non-performer partners and self-cast — the cast
+	/// pipeline gates only on Target != null today, so the gender /
+	/// performer check happens here.
 	/// </summary>
 	[SkillHandler(SkillId.CG_MARIONETTE)]
-	public class MarionetteHandler : BuffSkillHandler
+	public class MarionetteHandler : ITargetedSkillHandler
 	{
-		protected override StatusId StatusId => StatusId.Marionette;
-		protected override TimeSpan GetDuration(int level) => TimeSpan.FromSeconds(60);
+		private static readonly TimeSpan Duration = TimeSpan.FromSeconds(60);
+
+		public void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			var skill = parameters.Skill;
+			var level = parameters.SkillLevel;
+
+			if (target == null || target == caster) return;
+			if (target is not Sabine.Zone.World.Actors.PlayerCharacter pc) return;
+			if (caster is not Sabine.Zone.World.Actors.PlayerCharacter pcCaster) return;
+
+			// Both sides must be performers; partner must be opposite-
+			// gender (Bard ↔ Dancer / Clown ↔ Gypsy / baby variants).
+			if (!IsPerformer(pcCaster.JobId) || !IsPerformer(pc.JobId)) return;
+			if (IsBardSide(pcCaster.JobId) == IsBardSide(pc.JobId)) return;
+
+			// Snapshot caster's halved stats. eAthena packs them into
+			// val3 / val4 byte-fields; Sabine's StatusEffect.Val* are
+			// already int-wide so we use one byte per stat field.
+			var str = Math.Min(99, caster.Parameters.Str / 2);
+			var agi = Math.Min(99, caster.Parameters.Agi / 2);
+			var vit = Math.Min(99, caster.Parameters.Vit / 2);
+			var intl = Math.Min(99, caster.Parameters.Int / 2);
+			var dex = Math.Min(99, caster.Parameters.Dex / 2);
+			var luk = Math.Min(99, caster.Parameters.Luk / 2);
+			var v3 = (str << 16) | (agi << 8) | vit;
+			var v4 = (intl << 16) | (dex << 8) | luk;
+
+			// Caster carries Marionette (donor); partner carries
+			// Marionette2 (receiver). Val1 stores the partner's
+			// character id on both sides for the paired-end check.
+			pcCaster.StatusEffects.Start(StatusId.Marionette, level, Duration, pcCaster, pc.Id, 0, v3, v4);
+			pc.StatusEffects.Start(StatusId.Marionette2, level, Duration, pcCaster, pcCaster.Id, 0, v3, v4);
+
+			Send.ZC_NOTIFY_SKILL(pcCaster, pc.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
+		}
+
+		private static bool IsPerformer(Sabine.Shared.Const.JobId job)
+			=> job == Sabine.Shared.Const.JobId.Bard
+			|| job == Sabine.Shared.Const.JobId.Dancer
+			|| job == Sabine.Shared.Const.JobId.Clown
+			|| job == Sabine.Shared.Const.JobId.Gypsy
+			|| job == Sabine.Shared.Const.JobId.BabyBard
+			|| job == Sabine.Shared.Const.JobId.BabyDancer;
+
+		private static bool IsBardSide(Sabine.Shared.Const.JobId job)
+			=> job == Sabine.Shared.Const.JobId.Bard
+			|| job == Sabine.Shared.Const.JobId.Clown
+			|| job == Sabine.Shared.Const.JobId.BabyBard;
 	}
 
 	/// <summary>
