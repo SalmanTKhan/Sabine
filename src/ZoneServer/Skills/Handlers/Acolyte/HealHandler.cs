@@ -21,6 +21,14 @@ namespace Sabine.Zone.Skills.Handlers.Acolyte
 
 			var healAmount = (caster.Parameters.BaseLevel + caster.Parameters.Int) / 8 * (4 + (8 * level));
 
+			// HP_MEDITATIO (HighPriest): +2% per level to AL_HEAL output
+			// when the caster has it. eAthena skill.c:296 applies the
+			// bonus on the heal magnitude itself, before the undead-target
+			// damage branch, so an undead-targeted cast hits harder too.
+			var meditatio = caster.Skills?.GetLevel(SkillId.HP_MEDITATIO) ?? 0;
+			if (meditatio > 0)
+				healAmount += healAmount * meditatio * 2 / 100;
+
 			// Heal cast on an Undead-element / Undead-race target deals
 			// Holy magic damage instead. The healAmount is reused as the
 			// base damage so the magnitude of healing/damage stays

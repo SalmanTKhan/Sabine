@@ -128,6 +128,16 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 			this.SpMax = (int)Math.Floor((Math.Floor((baseVal + this.BaseLevel * statFactor) * (1 + this.Vit / 100f)) + statAdditions) * itemStatMultiplier);
 			this.SpMax *= 2;
+
+			// HP_MEDITATIO (HighPriest): passive +1% MaxSP per level on top
+			// of the natural recalc. eAthena status.c:2176 applies it as
+			// `max_sp += max_sp * skill / 100` between the natural pool
+			// and the flat BonusMaxSp term, so it scales with level/job
+			// growth and stacks additively with flat card bonuses.
+			var meditatio = this.Character.Skills?.GetLevel(SkillId.HP_MEDITATIO) ?? 0;
+			if (meditatio > 0)
+				this.SpMax += this.SpMax * meditatio / 100;
+
 			this.SpMax += this.Character.Modifiers.BonusMaxSp;
 			if (this.SpMax < 1) this.SpMax = 1;
 
