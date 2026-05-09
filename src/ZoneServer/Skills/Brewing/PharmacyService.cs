@@ -49,6 +49,16 @@ namespace Sabine.Zone.Skills.Brewing
 				+ pc.Parameters.Dex / 4
 				+ pc.Parameters.Int / 8
 				+ pc.Parameters.JobLevel / 2;
+
+			// CR_ALCHEMY (Bioethics) — Creator's passive that bumps the
+			// brew-success rate by 5% per level. eAthena threads this as
+			// an additive bonus on the produce-success roll. Read here
+			// rather than at the cast site so both AM_PHARMACY and
+			// CR_SYNTHESISPOTION pick it up uniformly.
+			var alchemy = pc.Skills?.GetLevel(Sabine.Shared.Const.SkillId.CR_ALCHEMY) ?? 0;
+			if (alchemy > 0)
+				rate += 5 * alchemy;
+
 			return System.Math.Clamp(rate, 5, 95);
 		}
 
