@@ -43,6 +43,17 @@ namespace Sabine.Shared.Data.Databases
 
 		/// <summary>Faith penalty if the merc dies. Negative.</summary>
 		public int FaithPenaltyOnDeath { get; set; } = -1;
+
+		/// <summary>
+		/// Optional offensive-skill override (SkillId enum name). When
+		/// non-empty, the AI casts this skill instead of the faction
+		/// default. eAthena's per-rank merc skill mapping translates to
+		/// this column. Empty / "None" means "use the faction default".
+		/// </summary>
+		public string OffensiveSkill { get; set; } = "";
+
+		/// <summary>Override skill level. 0 means "use the rank-based default".</summary>
+		public int OffensiveSkillLevel { get; set; } = 0;
 	}
 
 	/// <summary>
@@ -67,6 +78,8 @@ namespace Sabine.Shared.Data.Databases
 				ContractSeconds = entry.ReadInt("contractSeconds", 1800),
 				FaithRewardOnComplete = entry.ReadInt("faithRewardOnComplete", 1),
 				FaithPenaltyOnDeath = entry.ReadInt("faithPenaltyOnDeath", -1),
+				OffensiveSkill = entry.ReadString("offensiveSkill", ""),
+				OffensiveSkillLevel = entry.ReadInt("offensiveSkillLevel", 0),
 			};
 
 			this.AddOrReplace(data.MobId, data);

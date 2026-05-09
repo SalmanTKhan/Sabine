@@ -141,20 +141,33 @@ namespace Sabine.Zone.Ais.Impl
 
 		private static (SkillId skillId, int level) ResolveSkill(Mercenary merc)
 		{
-			// Rank 1-10 → skill level 1-5 (clamped halve). Higher rank
-			// mercs hit harder via the standard skill ratio.
 			var data = Sabine.Shared.Game.CurrentData?.Mercenaries?.Entries;
 			if (data == null) return (SkillId.None, 0);
 			if (!data.TryGetValue(merc.State.MobId, out var entry)) return (SkillId.None, 0);
 
-			var level = Math.Max(1, Math.Min(5, (entry.Rank + 1) / 2));
+			// Per-row override: when the data entry names an explicit
+			// skill, parse and use it instead of the faction default.
+			// Lets per-rank mercs in mercenaries.txt carry signature
+			// skills (e.g. rank-10 archer using DoubleStrafing while
+			// lower ranks stay on Double).
+			var rankLevel = Math.Max(1, Math.Min(5, (entry.Rank + 1) / 2));
 
+			if (!string.IsNullOrEmpty(entry.OffensiveSkill)
+				&& Enum.TryParse<SkillId>(entry.OffensiveSkill, true, out var overrideSkill)
+				&& overrideSkill != SkillId.None)
+			{
+				var lvl = entry.OffensiveSkillLevel > 0 ? entry.OffensiveSkillLevel : rankLevel;
+				return (overrideSkill, lvl);
+			}
+
+			// Faction defaults — same mapping as before, applied when
+			// no per-row override is set.
 			return entry.Faction switch
 			{
-				MercenaryFaction.Archer => (SkillId.AC_DOUBLE, level),
-				MercenaryFaction.Sword => (SkillId.SM_BASH, level),
-				MercenaryFaction.Spearman => (SkillId.KN_PIERCE, level),
-				MercenaryFaction.Lancer => (SkillId.KN_BRANDISHSPEAR, level),
+				MercenaryFaction.Archer => (SkillId.AC_DOUBLE, rankLevel),
+				MercenaryFaction.Sword => (SkillId.SM_BASH, rankLevel),
+				MercenaryFaction.Spearman => (SkillId.KN_PIERCE, rankLevel),
+				MercenaryFaction.Lancer => (SkillId.KN_BRANDISHSPEAR, rankLevel),
 				_ => (SkillId.None, 0),
 			};
 		}

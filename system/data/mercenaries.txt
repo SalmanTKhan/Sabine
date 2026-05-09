@@ -31,8 +31,8 @@
 { mobId: 6022, name: "Archer Mercenary 6", faction: "Archer", rank: 6, contractItemId: 12158, contractSeconds: 1800, faithRewardOnComplete: 2 },
 { mobId: 6023, name: "Archer Mercenary 7", faction: "Archer", rank: 7, contractItemId: 12159, contractSeconds: 1800, faithRewardOnComplete: 2 },
 { mobId: 6024, name: "Archer Mercenary 8", faction: "Archer", rank: 8, contractItemId: 12160, contractSeconds: 1800, faithRewardOnComplete: 2 },
-{ mobId: 6025, name: "Archer Mercenary 9", faction: "Archer", rank: 9, contractItemId: 12161, contractSeconds: 1800, faithRewardOnComplete: 3 },
-{ mobId: 6026, name: "Archer Mercenary 10", faction: "Archer", rank: 10, contractItemId: 12162, contractSeconds: 1800, faithRewardOnComplete: 3 },
+{ mobId: 6025, name: "Archer Mercenary 9", faction: "Archer", rank: 9, contractItemId: 12161, contractSeconds: 1800, faithRewardOnComplete: 3, offensiveSkill: "AC_SHOWER", offensiveSkillLevel: 5 },
+{ mobId: 6026, name: "Archer Mercenary 10", faction: "Archer", rank: 10, contractItemId: 12162, contractSeconds: 1800, faithRewardOnComplete: 3, offensiveSkill: "AC_SHOWER", offensiveSkillLevel: 7 },
 
 // Sword mercenaries.
 { mobId: 6037, name: "Sword Mercenary 1", faction: "Sword", rank: 1, contractItemId: 12163, contractSeconds: 1800, faithRewardOnComplete: 1 },
@@ -43,8 +43,8 @@
 { mobId: 6042, name: "Sword Mercenary 6", faction: "Sword", rank: 6, contractItemId: 12168, contractSeconds: 1800, faithRewardOnComplete: 2 },
 { mobId: 6043, name: "Sword Mercenary 7", faction: "Sword", rank: 7, contractItemId: 12169, contractSeconds: 1800, faithRewardOnComplete: 2 },
 { mobId: 6044, name: "Sword Mercenary 8", faction: "Sword", rank: 8, contractItemId: 12170, contractSeconds: 1800, faithRewardOnComplete: 2 },
-{ mobId: 6045, name: "Sword Mercenary 9", faction: "Sword", rank: 9, contractItemId: 12171, contractSeconds: 1800, faithRewardOnComplete: 3 },
-{ mobId: 6046, name: "Sword Mercenary 10", faction: "Sword", rank: 10, contractItemId: 12172, contractSeconds: 1800, faithRewardOnComplete: 3 },
+{ mobId: 6045, name: "Sword Mercenary 9", faction: "Sword", rank: 9, contractItemId: 12171, contractSeconds: 1800, faithRewardOnComplete: 3, offensiveSkill: "SM_MAGNUM", offensiveSkillLevel: 5 },
+{ mobId: 6046, name: "Sword Mercenary 10", faction: "Sword", rank: 10, contractItemId: 12172, contractSeconds: 1800, faithRewardOnComplete: 3, offensiveSkill: "SM_MAGNUM", offensiveSkillLevel: 7 },
 
 // Spearman mercenaries (Lancer in some translations).
 { mobId: 6027, name: "Spearman Mercenary 1", faction: "Spearman", rank: 1, contractItemId: 12173, contractSeconds: 1800, faithRewardOnComplete: 1 },
@@ -55,6 +55,6 @@
 { mobId: 6032, name: "Spearman Mercenary 6", faction: "Spearman", rank: 6, contractItemId: 12178, contractSeconds: 1800, faithRewardOnComplete: 2 },
 { mobId: 6033, name: "Spearman Mercenary 7", faction: "Spearman", rank: 7, contractItemId: 12179, contractSeconds: 1800, faithRewardOnComplete: 2 },
 { mobId: 6034, name: "Spearman Mercenary 8", faction: "Spearman", rank: 8, contractItemId: 12180, contractSeconds: 1800, faithRewardOnComplete: 2 },
-{ mobId: 6035, name: "Spearman Mercenary 9", faction: "Spearman", rank: 9, contractItemId: 12181, contractSeconds: 1800, faithRewardOnComplete: 3 },
-{ mobId: 6036, name: "Spearman Mercenary 10", faction: "Spearman", rank: 10, contractItemId: 12182, contractSeconds: 1800, faithRewardOnComplete: 3 }
+{ mobId: 6035, name: "Spearman Mercenary 9", faction: "Spearman", rank: 9, contractItemId: 12181, contractSeconds: 1800, faithRewardOnComplete: 3, offensiveSkill: "KN_BOWLINGBASH", offensiveSkillLevel: 5 },
+{ mobId: 6036, name: "Spearman Mercenary 10", faction: "Spearman", rank: 10, contractItemId: 12182, contractSeconds: 1800, faithRewardOnComplete: 3, offensiveSkill: "KN_BOWLINGBASH", offensiveSkillLevel: 7 }
 ]
