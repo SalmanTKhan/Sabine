@@ -1,69 +1,75 @@
-//--- Sabine Script Conversion ------------------------------------------
-// Automatically converted by convert_spawns.py utility.
+﻿//--- Sabine Script ---------------------------------------------------------
+// Morocc Monster Spawns
+//--- Description -----------------------------------------------------------
+// Sets up monster spawners in and around Morocc.
+//--- Credits ---------------------------------------------------------------
+// Athena (Dev 2.1.1), Prontera.net
 //---------------------------------------------------------------------------
 
-using System;
 using Sabine.Zone.Scripting;
+using static Sabine.Shared.Const.IdentityId;
 using static Sabine.Zone.Scripting.Shortcuts;
 
-public class MoroccMonstersScriptBeta1 : GeneralScript
+[RequiresMaps("moc_fild01", "moc_fild07")]
+public class MoroccMonstersScript_200 : GeneralScript
 {
 	public override void Load()
 	{
-		if (!MapsExist("moc_fild01", "moc_fild02", "moc_fild03", "moc_fild07"))
-			return;
+		AddSpawner("moc_fild01", "Condor", JT_CONDOR, 5);
+		AddSpawner("moc_fild01", "Peco Peco Egg", JT_PECOPECO_EGG, 5);
+		AddSpawner("moc_fild01", "Peco Peco", JT_PECOPECO, 10);
+		AddSpawner("moc_fild01", "Picky", JT_PICKY, 10);
+		AddSpawner("moc_fild01", "Picky", JT_PICKY_, 10);
 
-		// Spawns for moc_fild01
-		AddSpawner("moc_fild01", "Baby Desert Wolf", 1107, 70);
-		AddSpawner("moc_fild01", "Ant Egg", 1097, 20);
-		AddSpawner("moc_fild01", "Peco Peco Egg", 1047, 20);
-		AddSpawner("moc_fild01", "Picky", 1049, 10);
-		AddSpawner("moc_fild01", "Drops", 1113, 30);
-		AddSpawner("moc_fild01", "Poring", 1002, 10);
-		AddSpawner("moc_fild01", "Yellow Plant", 1081, 10, 194, 51, 10, 10, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(15));
+		AddSpawner("moc_fild02", "Picky", JT_PICKY, 10);
+		AddSpawner("moc_fild02", "Picky", JT_PICKY_, 10);
+		AddSpawner("moc_fild02", "Peco Peco Egg", JT_PECOPECO_EGG, 15);
+		AddSpawner("moc_fild02", "Condor", JT_CONDOR, 10);
+		AddSpawner("moc_fild02", "Scorpion", JT_SCORPION, 5);
 
-		// Spawns for moc_fild02
-		AddSpawner("moc_fild02", "Peco Peco", 1019, 70);
-		AddSpawner("moc_fild02", "Ant Egg", 1097, 10);
-		AddSpawner("moc_fild02", "Peco Peco Egg", 1047, 40);
-		AddSpawner("moc_fild02", "Picky", 1049, 10);
-		AddSpawner("moc_fild02", "Drops", 1113, 30);
-		AddSpawner("moc_fild02", "Yellow Plant", 1081, 1, 89, 315, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Yellow Plant", 1081, 1, 99, 261, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Yellow Plant", 1081, 1, 94, 195, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Yellow Plant", 1081, 1, 139, 222, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Yellow Plant", 1081, 1, 132, 307, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Yellow Plant", 1081, 1, 194, 294, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Yellow Plant", 1081, 1, 275, 241, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Green Plant", 1080, 1, 342, 267, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Green Plant", 1080, 1, 359, 215, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Green Plant", 1080, 1, 313, 149, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Green Plant", 1080, 1, 230, 62, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Green Plant", 1080, 1, 299, 61, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Green Plant", 1080, 1, 353, 103, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild02", "Green Plant", 1080, 1, 337, 35, 0, 0, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
+		AddSpawner("moc_fild03", "Poring", JT_PORING, 5);
+		AddSpawner("moc_fild03", "Lunatic", JT_LUNATIC, 15);
+		AddSpawner("moc_fild03", "Wilow", JT_WILOW, 15);
+		AddSpawner("moc_fild03", "Roda Frog", JT_RODA_FROG, 5);
+		AddSpawner("moc_fild03", "Snake", JT_SNAKE, 10);
 
-		// Spawns for moc_fild03
-		AddSpawner("moc_fild03", "Elder Willow", 1033, 70);
-		AddSpawner("moc_fild03", "Greatest General", 1277, 30);
-		AddSpawner("moc_fild03", "Poporing", 1031, 20);
-		AddSpawner("moc_fild03", "Eggyra", 1116, 10);
-		AddSpawner("moc_fild03", "Willow", 1010, 20);
-		AddSpawner("moc_fild03", "Vagabond Wolf", 1092, 1, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(30));
-		AddSpawner("moc_fild03", "Green Plant", 1080, 2, 77, 311, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild03", "Green Plant", 1080, 2, 108, 199, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild03", "Green Plant", 1080, 2, 96, 65, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild03", "Green Plant", 1080, 2, 216, 69, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild03", "Green Plant", 1080, 2, 261, 161, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild03", "Green Plant", 1080, 2, 213, 201, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
-		AddSpawner("moc_fild03", "Green Plant", 1080, 2, 200, 263, 5, 5, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(3));
+		AddSpawner("moc_fild04", "Chonchon", JT_CHONCHON, 5);
+		AddSpawner("moc_fild04", "Condor", JT_CONDOR, 10);
+		AddSpawner("moc_fild04", "Peco Peco Egg", JT_PECOPECO_EGG, 10);
+		AddSpawner("moc_fild04", "Peco Peco", JT_PECOPECO, 15);
+		AddSpawner("moc_fild04", "Picky", JT_PICKY, 15);
+		AddSpawner("moc_fild04", "Picky", JT_PICKY_, 15);
+		AddSpawner("moc_fild04", "Wolf", JT_WOLF, 5);
 
-		// Spawns for moc_fild07
-		AddSpawner("moc_fild07", "Drops", 1113, 70);
-		AddSpawner("moc_fild07", "Peco Peco Egg", 1047, 50);
-		AddSpawner("moc_fild07", "Picky", 1050, 30);
-		AddSpawner("moc_fild07", "Picky", 1049, 30);
-		AddSpawner("moc_fild07", "Yellow Plant", 1081, 5, 162, 333, 12, 12, initialDelay: TimeSpan.Zero, respawnDelay: Minutes(6));
+		AddSpawner("moc_fild05", "Chonchon", JT_CHONCHON, 5);
+		AddSpawner("moc_fild05", "Condor", JT_CONDOR, 10);
+		AddSpawner("moc_fild05", "Peco Peco Egg", JT_PECOPECO_EGG, 10);
+		AddSpawner("moc_fild05", "Picky", JT_PICKY, 15);
+		AddSpawner("moc_fild05", "Picky", JT_PICKY_, 15);
+		AddSpawner("moc_fild05", "Steel Chonchon", JT_STEEL_CHONCHON, 5);
+		AddSpawner("moc_fild05", "Wolf", JT_WOLF, 10);
 
+		AddSpawner("moc_fild06", "Chonchon", JT_CHONCHON, 10);
+		AddSpawner("moc_fild06", "Condor", JT_CONDOR, 10);
+		AddSpawner("moc_fild06", "Peco Peco Egg", JT_PECOPECO_EGG, 10);
+		AddSpawner("moc_fild06", "Picky", JT_PICKY, 10);
+		AddSpawner("moc_fild06", "Picky", JT_PICKY_, 10);
+		AddSpawner("moc_fild06", "Anacondaq", JT_ANACONDAQ, 10);
+
+		AddSpawner("moc_fild07", "Chonchon", JT_CHONCHON, 10);
+		AddSpawner("moc_fild07", "Peco Peco Egg", JT_PECOPECO_EGG, 10);
+		AddSpawner("moc_fild07", "Picky", JT_PICKY, 5);
+		AddSpawner("moc_fild07", "Picky", JT_PICKY_, 5);
+		AddSpawner("moc_fild07", "Golem", JT_GOLEM, 5);
+		AddSpawner("moc_fild07", "Metaller", JT_METALLER, 5);
+
+		AddSpawner("moc_prydb1", "Farmiliar", JT_FARMILIAR, 10);
+		AddSpawner("moc_prydb1", "Poporing", JT_POPORING, 10);
+		AddSpawner("moc_prydb1", "Zombie", JT_ZOMBIE, 5);
+		AddSpawner("moc_prydb1", "Ghoul", JT_GHOUL, 5);
+		AddSpawner("moc_prydb1", "Verit", JT_VERIT, 5);
+		AddSpawner("moc_prydb1", "Isis", JT_ISIS, 5);
+		AddSpawner("moc_prydb1", "Mummy", JT_MUMMY, 5);
+		AddSpawner("moc_prydb1", "Osiris", JT_OSIRIS, 1, initialDelay: Hours(3), respawnDelay: Hours(6));
 	}
 }
