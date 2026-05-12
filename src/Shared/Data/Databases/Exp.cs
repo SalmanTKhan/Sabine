@@ -25,7 +25,13 @@ namespace Sabine.Shared.Data.Databases
 		/// <returns></returns>
 		public int GetExpNeededAtLevel(int level)
 		{
-			level = Math2.Clamp(1, this.MaxLevel, level);
+			if (this.Exp == null || this.Exp.Length == 0)
+				return 0;
+
+			var cap = Math.Min(this.MaxLevel > 0 ? this.MaxLevel : this.Exp.Length, this.Exp.Length);
+			if (level < 1) level = 1;
+			else if (level > cap) level = cap;
+
 			return this.Exp[level - 1];
 		}
 	}

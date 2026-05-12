@@ -154,9 +154,22 @@ namespace Sabine.Zone.Commands
 		private CommandResult Job(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{
 			if (args.Count == 0) return CommandResult.InvalidArgument;
-			if (!Enum.TryParse<JobId>(args.Get(0), out var jobId))
+
+			// JobId is an int enum, so Enum.TryParse accepts any integer
+			// (e.g. "99") even when no name maps to it. Reject names we
+			// can't resolve, and reject ids that have no jobs.txt row —
+			// otherwise we'd write a bad JobId to the DB and brick the
+			// character on next login.
+			var raw = args.Get(0);
+			JobId jobId;
+			if (!Enum.TryParse<JobId>(raw, true, out jobId) || (int.TryParse(raw, out _) && !Enum.IsDefined(typeof(JobId), jobId)))
 			{
-				sender.ServerMessage(Localization.Get("Unknown job '{0}'."), args.Get(0));
+				sender.ServerMessage(Localization.Get("Unknown job '{0}'."), raw);
+				return CommandResult.Okay;
+			}
+			if (!Sabine.Zone.ZoneServer.Instance.Data.Jobs.TryFind(jobId, out _))
+			{
+				sender.ServerMessage(Localization.Get("Job '{0}' has no data row in jobs.txt; refusing to change."), jobId);
 				return CommandResult.Okay;
 			}
 			target.ChangeJob(jobId);

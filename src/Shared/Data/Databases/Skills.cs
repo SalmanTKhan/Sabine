@@ -305,6 +305,22 @@ namespace Sabine.Shared.Data.Databases
 				data.Behavior.Knockback = new[] { flagsObj.ReadInt("knockback", 0) };
 			}
 
+			if (entry.ContainsKey("propertyFlags"))
+			{
+				var propsObj = (JObject)entry["propertyFlags"];
+
+				if (propsObj.ReadBool("isQuest", false))
+					data.PropertyFlags |= SkillPropertyFlags.IsQuest;
+				if (propsObj.ReadBool("isNpc", false))
+					data.PropertyFlags |= SkillPropertyFlags.IsNpc;
+				if (propsObj.ReadBool("isWedding", false))
+					data.PropertyFlags |= SkillPropertyFlags.IsWedding;
+				if (propsObj.ReadBool("isSpirit", false))
+					data.PropertyFlags |= SkillPropertyFlags.IsSpirit;
+				if (propsObj.ReadBool("isGuild", false))
+					data.PropertyFlags |= SkillPropertyFlags.IsGuild;
+			}
+
 			if (entry.ContainsKey("cast"))
 			{
 				var castObj = (JObject)entry["cast"];

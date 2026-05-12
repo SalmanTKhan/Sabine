@@ -305,9 +305,22 @@ namespace Sabine.Zone.World.Actors
 		/// <exception cref="ArgumentException"></exception>
 		private void LoadJobData(JobId jobId)
 		{
-			if (!ZoneServer.Instance.Data.Jobs.TryFind(jobId, out var jobData))
-				throw new ArgumentException($"No data found for job {jobId}.");
+			if (ZoneServer.Instance.Data.Jobs.TryFind(jobId, out var jobData))
+			{
+				this.JobData = jobData;
+				return;
+			}
 
+			// Don't throw — that would brick the character on every login
+			// if a bad JobId was ever written (e.g. someone ran "/job 99").
+			// Reset to Novice so the player can log in and a GM can fix
+			// the job from in-game. JobId itself must be reset, not just
+			// JobData, because exp tables and other lookups key off JobId.
+			Log.Warning("PlayerCharacter: no job data for JobId {0}, falling back to Novice.", jobId);
+			if (!ZoneServer.Instance.Data.Jobs.TryFind(JobId.Novice, out jobData))
+				throw new ArgumentException($"No data found for job {jobId}, and Novice fallback is also missing.");
+
+			this.JobId = JobId.Novice;
 			this.JobData = jobData;
 		}
 
@@ -633,6 +646,14 @@ namespace Sabine.Zone.World.Actors
 			this.JobId = jobId;
 			this.LoadJobData(jobId);
 
+			// Drop the previous job's skills so the client's skill tree
+			// reflects the new job. UpdateClassSkills below will repopulate
+			// the dict from the new tree, and RefreshClient pushes the
+			// resulting list. Note: this also clears any quest/platinum
+			// skills granted via scripting; re-grant them through their
+			// NPC if needed.
+			this.Skills.Clear();
+
 			// Reset Job Level and Job Exp for the new job
 			this.Parameters.JobLevel = 1;
 			this.Parameters.JobExp = 0;
@@ -664,6 +685,7 @@ namespace Sabine.Zone.World.Actors
 			Send.ZC_PAR_CHANGE(this, ParameterType.BaseLevel);
 
 			this.Skills.UpdateClassSkills();
+			this.Skills.RefreshClient();
 		}
 
 		/// <summary>

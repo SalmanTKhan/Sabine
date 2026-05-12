@@ -181,9 +181,23 @@ namespace Sabine.Zone.Commands
 		{
 			if (args.Count < 1) return CommandResult.InvalidArgument;
 			if (!int.TryParse(args.Get(0), out var lvl)) return CommandResult.InvalidArgument;
+
+			var oldLevel = target.Parameters.JobLevel;
 			target.Parameters.JobLevel = lvl;
+
+			// Grant 1 skill point per gained job level, matching the
+			// natural GainJobExp path. Without this, /joblvl was useless
+			// for skill-tree testing.
+			var gained = lvl - oldLevel;
+			if (gained > 0)
+				target.Parameters.Modify(ParameterType.SkillPoints, gained);
+
+			target.Parameters.RecalculateAll();
+
 			Send.ZC_PAR_CHANGE(target, ParameterType.JobLevel);
-			sender.ServerMessage(Localization.Get("Job level set to {0}."), lvl);
+			target.Skills.RefreshClient();
+
+			sender.ServerMessage(Localization.Get("Job level set to {0} (+{1} skill points)."), lvl, System.Math.Max(0, gained));
 			return CommandResult.Okay;
 		}
 

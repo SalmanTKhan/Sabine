@@ -614,6 +614,16 @@ namespace Sabine.Zone.Network
 				character.Warp(character.SaveLocation);
 				character.State = CharacterState.Standing;
 			}
+			else if (type == RestartType.CharacterSelection)
+			{
+				// Mirror rAthena's clif_parse_Restart for type=1: ack the
+				// request, then close the zone connection. The client
+				// reconnects to the char server using the session it
+				// already holds; OnClosed despawns and saves the
+				// character. Without this close, the client sits in
+				// limbo after the ack — never returning to char-select.
+				conn.Close();
+			}
 		}
 
 		/// <summary>
@@ -1539,7 +1549,7 @@ namespace Sabine.Zone.Network
 		/// reduction is applied here too (eAthena status.c:2360), since this
 		/// is the only site that knows the final per-cast cost.
 		/// </summary>
-		private static bool TryDeductSkillCost(PlayerCharacter character, Sabine.Zone.Skills.Skill skill, int castLevel)
+		internal static bool TryDeductSkillCost(PlayerCharacter character, Sabine.Zone.Skills.Skill skill, int castLevel)
 		{
 			var cost = skill.Data.GetSpCost(castLevel);
 			if (cost <= 0)
@@ -1610,10 +1620,10 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
-			if (!TryDeductSkillCost(character, skill, level))
-				return;
-
-			handler.Handle(new UseSkillParams(character, target, skill, level));
+			// Defer cost + handler invocation to BeginSkillCast so the caster
+			// walks into range first if needed; SP only burns once the skill
+			// actually fires.
+			character.BeginSkillCast(target, skill, level, handler);
 		}
 
 		/// <summary>

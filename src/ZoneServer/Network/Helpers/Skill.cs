@@ -21,7 +21,12 @@ namespace Sabine.Zone.Network.Helpers
 			packet.PutShort((short)skill.Id);
 
 			// 'inf' is a bitmask of skill properties (e.g., passive, targeted).
-			packet.PutInt((int)skill.Data.TypeFlags);
+			// The classic client packs inf2 (quest/wedding/spirit etc.) into the
+			// upper 16 bits of the same field, so set bits flag those skills as
+			// not-part-of-the-class-tree.
+			var inf = (int)skill.Data.TypeFlags;
+			var inf2 = (int)((uint)skill.Data.PropertyFlags & 0xFFFF);
+			packet.PutInt(inf | (inf2 << 16));
 			packet.PutShort((short)skill.Level);
 			packet.PutShort((short)skillData.GetSpCost(skill.Level));
 			packet.PutShort((short)skillData.GetRange(skill.Level));

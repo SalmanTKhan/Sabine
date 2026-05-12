@@ -106,6 +106,29 @@ namespace Sabine.Shared.Data.Databases
 				}
 			}
 
+			// Per-row "skip on this exact version" gate. Lets a single
+			// item that exists in both older and newer client data tables
+			// be hidden from one specific build that doesn't ship it
+			// (e.g. items renamed away in jRO Beta1 but present in Alpha
+			// and Beta2). versionMin/versionMax express ranges; this
+			// expresses a hole inside a range.
+			if (entry.ContainsKey("versionExclude"))
+			{
+				var excluded = entry["versionExclude"];
+				if (excluded.Type == Newtonsoft.Json.Linq.JTokenType.Array)
+				{
+					foreach (var v in excluded)
+					{
+						if ((int)v == Game.Version)
+							return;
+					}
+				}
+				else if ((int)excluded == Game.Version)
+				{
+					return;
+				}
+			}
+
 			entry.AssertNotMissing("id", "name", "type", "weight");
 
 			var data = new ItemData();

@@ -190,6 +190,17 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Removes all skills. Doesn't update the client; call
+		/// <see cref="RefreshClient"/> after repopulating to push the
+		/// new list.
+		/// </summary>
+		public void Clear()
+		{
+			lock (_skills)
+				_skills.Clear();
+		}
+
+		/// <summary>
 		/// Clears any active per-skill cooldowns on the character. Today
 		/// this is a no-op hook — Sabine doesn't yet track per-skill
 		/// reuse timestamps (Skill.GetCooldown only reads the static

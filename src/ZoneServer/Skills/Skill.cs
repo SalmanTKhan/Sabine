@@ -58,6 +58,21 @@ namespace Sabine.Zone.Skills
 		}
 
 		/// <summary>
+		/// Returns the skill's effective range for the given caster, falling
+		/// back to the caster's weapon range when the skill defines no range
+		/// of its own (range == 0) or marks itself as weapon-range (range &lt; 0).
+		/// </summary>
+		public int GetEffectiveRange(Character caster)
+		{
+			var range = this.Range;
+
+			if (range <= 0 && caster != null)
+				return caster.GetAttackRange();
+
+			return range;
+		}
+
+		/// <summary>
 		/// Returns the skill's SP cost for the current level.
 		/// </summary>
 		public int SpCost => this.Data.GetSpCost(this.Level);

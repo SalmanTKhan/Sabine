@@ -5,10 +5,15 @@ using Xunit;
 
 namespace Tests.Sabine.Shared.Network
 {
+	[Collection("PacketTable")]
 	public class RoFramerTests
 	{
-		static RoFramerTests()
+		public RoFramerTests()
 		{
+			// Re-seat the static PacketTable to Alpha for every
+			// test in this class — other [Collection("PacketTable")]
+			// classes leave it pointed at whichever version they
+			// were exercising last.
 			Game.Version = Versions.Alpha;
 			PacketTable.Load();
 		}

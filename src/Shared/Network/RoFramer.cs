@@ -19,6 +19,15 @@ namespace Sabine.Shared.Network
 		public int MaxMessageSize { get; }
 
 		/// <summary>
+		/// Optional inbound opcode deobfuscator. When set and active,
+		/// every header's first 2 bytes are XOR-decoded before size
+		/// lookup, and the decoded opcode is written back into the
+		/// message buffer so downstream consumers see the plaintext
+		/// opcode. Outbound is not transformed.
+		/// </summary>
+		public PacketObfuscation Obfuscation { get; set; }
+
+		/// <summary>
 		/// Creates new instance.
 		/// </summary>
 		/// <param name="maxMessageSize">Maximum size of messages</param>
@@ -104,6 +113,13 @@ namespace Sabine.Shared.Network
 					if (_bytesReceived >= _headerLength)
 					{
 						var op = BitConverter.ToUInt16(_headerBuffer, 0);
+
+						if (this.Obfuscation != null && this.Obfuscation.IsActive && _headerLength == 2)
+						{
+							op = (ushort)this.Obfuscation.DecodeOpcode(op);
+							BitConverter.TryWriteBytes(_headerBuffer.AsSpan(0), op);
+						}
+
 						var messageSize = PacketTable.GetSize(op);
 
 						// If the packet size is 0, the size is dynamic and

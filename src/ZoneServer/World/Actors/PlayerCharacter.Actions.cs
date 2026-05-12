@@ -1,6 +1,10 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using Sabine.Shared.Const;
+using Sabine.Shared.World;
 using Sabine.Zone.Network;
+using Sabine.Zone.Skills;
+using Sabine.Zone.Skills.Handlers;
 using Sabine.Zone.World.Groups;
 
 namespace Sabine.Zone.World.Actors
@@ -11,6 +15,21 @@ namespace Sabine.Zone.World.Actors
 		private bool _isAutoAttacking;
 		private CancellationTokenSource _castCts;
 		private ActionState _currentAction = ActionState.Idle;
+		private PendingSkillCast _pendingSkillCast;
+
+		/// <summary>
+		/// Targeted skill cast that's currently waiting for the caster to
+		/// walk into range. SP/items are deducted at fire-time, not when
+		/// the cast is queued, so a cancelled chase doesn't burn resources.
+		/// </summary>
+		private sealed class PendingSkillCast
+		{
+			public Character Target;
+			public Skill Skill;
+			public int Level;
+			public ITargetedSkillHandler Handler;
+			public Position LastMoveDestination;
+		}
 
 		/// <summary>
 		/// Represents the type of action the character is currently performing.
@@ -47,6 +66,7 @@ namespace Sabine.Zone.World.Actors
 			this.Controller.StopMove();
 			this.CancelAttack();
 			this.StopCasting();
+			_pendingSkillCast = null;
 
 			if (_currentAction == ActionState.Sitting)
 				return; // Don't change state if sitting
@@ -146,13 +166,62 @@ namespace Sabine.Zone.World.Actors
 			if (target == null || target == this || target.IsDead)
 				return;
 
-			// Stop any current actions except movement (we'll move to target)
+			// Stop any current actions except movement (we'll move to target).
+			// Order matters: MoveTo internally clears StopAttacking, so set
+			// the pending-attack state *after* the walk request is issued.
 			this.StopCasting();
 			this.StopAttacking();
 
+			this.Controller.MoveTo(target.Position);
+
 			_attackTarget = target;
 			_isAutoAttacking = autoAttack;
-			_currentAction = ActionState.Attacking;
+			_currentAction = ActionState.Moving;
+		}
+
+		/// <summary>
+		/// Queues a targeted-skill cast. If the caster is already within the
+		/// skill's effective range, the skill fires immediately. Otherwise
+		/// the caster walks toward <paramref name="target"/> and the handler
+		/// is dispatched once the range check passes (see
+		/// <see cref="UpdateSkillCastAction"/>). SP and item costs are
+		/// deducted at fire-time only, so a cancelled chase doesn't waste
+		/// resources.
+		/// </summary>
+		public void BeginSkillCast(Character target, Skill skill, int level, ITargetedSkillHandler handler)
+		{
+			if (target == null || skill == null || handler == null)
+				return;
+
+			var range = skill.GetEffectiveRange(this);
+
+			if (this.Position.InRange(target.Position, range))
+			{
+				if (!Sabine.Zone.Network.PacketHandler.TryDeductSkillCost(this, skill, level))
+					return;
+
+				_pendingSkillCast = null;
+				handler.Handle(new UseSkillParams(this, target, skill, level));
+				return;
+			}
+
+			// Out of range: chase the target. Issue MoveTo first because it
+			// clears StopAttacking / casting state internally, then stash the
+			// pending cast so the update tick can finish the job.
+			this.StopCasting();
+			this.StopAttacking();
+
+			this.Controller.MoveTo(target.Position);
+
+			_pendingSkillCast = new PendingSkillCast
+			{
+				Target = target,
+				Skill = skill,
+				Level = level,
+				Handler = handler,
+				LastMoveDestination = target.Position,
+			};
+			_currentAction = ActionState.Moving;
 		}
 
 		/// <summary>
@@ -174,6 +243,85 @@ namespace Sabine.Zone.World.Actors
 
 			if (_currentAction == ActionState.Attacking)
 				_currentAction = ActionState.Idle;
+		}
+
+		/// <summary>
+		/// Per-tick driver for player-driven actions: walk-into-range for
+		/// both basic attacks and queued skill casts.
+		/// </summary>
+		public override void Update(TimeSpan elapsed)
+		{
+			base.Update(elapsed);
+
+			this.UpdateAttackAction();
+			this.UpdateSkillCastAction();
+		}
+
+		/// <summary>
+		/// Drives a pending skill cast: while the caster is still walking
+		/// toward the target, this method waits; once in range, it deducts
+		/// the cast cost and invokes the handler. Cleans up on death,
+		/// map change, sit, immobilization, or a new cast request.
+		/// </summary>
+		private void UpdateSkillCastAction()
+		{
+			var cast = _pendingSkillCast;
+			if (cast == null)
+				return;
+
+			if (cast.Target.IsDead || cast.Target.Map != this.Map)
+			{
+				_pendingSkillCast = null;
+				this.Controller.StopMove();
+				if (_currentAction == ActionState.Moving)
+					_currentAction = ActionState.Idle;
+				return;
+			}
+
+			if (this.State == CharacterState.Sitting
+				|| this.IsImmobilized
+				|| this.IsSilenced
+				|| this.SkillBlocked
+				|| this.IsDead)
+			{
+				_pendingSkillCast = null;
+				this.Controller.StopMove();
+				if (_currentAction == ActionState.Moving)
+					_currentAction = ActionState.Idle;
+				return;
+			}
+
+			// A new cast has started in the meantime; the existing cast was
+			// already swapped out by BeginSkillCast (or StopCasting), so
+			// nothing more to do here.
+			if (_currentAction == ActionState.Casting)
+				return;
+
+			var range = cast.Skill.GetEffectiveRange(this);
+
+			if (!this.Position.InRange(cast.Target.Position, range))
+			{
+				// Target moved — re-issue the chase so we don't end up
+				// walking to a stale tile.
+				if (cast.LastMoveDestination != cast.Target.Position)
+				{
+					this.Controller.MoveTo(cast.Target.Position);
+					cast.LastMoveDestination = cast.Target.Position;
+				}
+				return;
+			}
+
+			// In range: stop, charge the cost, fire the handler.
+			this.Controller.StopMove();
+			_pendingSkillCast = null;
+
+			if (_currentAction == ActionState.Moving)
+				_currentAction = ActionState.Idle;
+
+			if (!Sabine.Zone.Network.PacketHandler.TryDeductSkillCost(this, cast.Skill, cast.Level))
+				return;
+
+			cast.Handler.Handle(new UseSkillParams(this, cast.Target, cast.Skill, cast.Level));
 		}
 
 		/// <summary>

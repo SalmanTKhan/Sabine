@@ -1509,7 +1509,14 @@ namespace Sabine.Zone.Network
 			// ZC_ADD_SKILL is a fixed-size packet (33 in Alpha, 39 in Beta1+),
 			// so the payload here must match AddSkillData's layout exactly.
 			packet.PutShort((short)skillId);
-			packet.PutInt((int)skillData.TypeFlags);
+
+			// Keep packing in sync with PacketSkillHelpers.AddSkillData: low 16
+			// bits = inf, high 16 bits = inf2 so the classic client can identify
+			// quest/wedding/etc. skills.
+			var inf = (int)skillData.TypeFlags;
+			var inf2 = (int)((uint)skillData.PropertyFlags & 0xFFFF);
+			packet.PutInt(inf | (inf2 << 16));
+
 			packet.PutShort((short)level);
 			packet.PutShort((short)skillData.GetSpCost(level));
 			packet.PutShort((short)skillData.GetRange(level));

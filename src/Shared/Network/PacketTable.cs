@@ -30,14 +30,23 @@ namespace Sabine.Shared.Network
 			[Versions.S900] = LoadVersion900,
 			[Versions.S2000] = LoadVersion2000,
 			[Versions.S2500] = LoadVersion2500,
+			[Versions.Ragexe20211103] = LoadVersion21103,
 		};
 
 		/// <summary>
 		/// Loads all tables defined up until the latest one for the
-		/// current version.
+		/// current version. Safe to call repeatedly — internal state
+		/// is cleared first so tests and version switches don't get
+		/// duplicate-registration errors.
 		/// </summary>
 		public static void Load()
 		{
+			Entries.Clear();
+			Sizes.Clear();
+			Names.Clear();
+			NetworkToHost.Clear();
+			HostToNetwork.Clear();
+
 			foreach (var (version, loadTable) in Tables.OrderBy(static a => a.Key))
 			{
 				if (Game.Version < version)
@@ -131,6 +140,19 @@ namespace Sabine.Shared.Network
 
 			existing.OpNetwork = opNetwork;
 			existing.Size = size;
+		}
+
+		/// <summary>
+		/// Removes an op from the table entirely. Intended for use
+		/// by version overlays that need to retire placeholder or
+		/// obsolete entries so a later <see cref="Redefine"/> can
+		/// claim a wire opcode without collision in the lookup
+		/// dictionaries.
+		/// </summary>
+		/// <param name="op"></param>
+		private static void Unregister(Op op)
+		{
+			Entries.RemoveAll(a => a.Op == op);
 		}
 
 		/// <summary>

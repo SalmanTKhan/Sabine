@@ -15,6 +15,35 @@ namespace Sabine.Shared.Network
 	{
 		protected readonly RoFramer _framer = new(1024);
 
+		private ProtocolProfile _profile;
+
+		/// <summary>
+		/// The protocol profile this connection speaks. Resolves
+		/// lazily from <see cref="ProtocolProfiles.Default"/> on
+		/// first read so connections constructed before server
+		/// startup completes still pick up the configured profile.
+		/// Later phases may switch it when the login handler
+		/// detects a different PACKETVER on the wire (e.g. Ragexe
+		/// 20211103 vs Alpha). Setting the profile reattaches the
+		/// inbound obfuscation transform.
+		/// </summary>
+		public ProtocolProfile Profile
+		{
+			get
+			{
+				if (_profile == null)
+					this.Profile = ProtocolProfiles.Default;
+				return _profile;
+			}
+			set
+			{
+				_profile = value;
+				_framer.Obfuscation = (value != null && value.ObfuscationKeys.HasValue)
+					? new PacketObfuscation(value.ObfuscationKeys.Value)
+					: null;
+			}
+		}
+
 		/// <summary>
 		/// Called when new data was sent from the client.
 		/// </summary>

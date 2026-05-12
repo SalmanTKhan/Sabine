@@ -136,6 +136,20 @@ namespace Sabine.Shared
 		/// Sabine packet version 2500, based on kRO Sak EP12 2008-09-10.
 		/// </summary>
 		public const int S2500 = 2500;
+
+		/// <summary>
+		/// Modern client anchor: 2018-03-07bRagexeRE, the last build
+		/// before kRO disabled packet obfuscation. Used as a regression
+		/// fixture for the obfuscation/shuffle infrastructure.
+		/// </summary>
+		public const int RagexeRE20180307 = 18307;
+
+		/// <summary>
+		/// rAthena's default modern PACKETVER (2021-11-03 RagexeRE).
+		/// Phase 1 target. Obfuscation is disabled at this version
+		/// (post-2018 clients send opcodes in the clear).
+		/// </summary>
+		public const int Ragexe20211103 = 21103;
 	}
 
 	/// <summary>
