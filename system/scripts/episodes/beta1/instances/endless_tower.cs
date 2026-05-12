@@ -26,6 +26,7 @@ using Sabine.Zone;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Actors;
+using Yggdrasil.Collections;
 using Yggdrasil.Util;
 using static Sabine.Zone.Scripting.Shortcuts;
 using static Sabine.Shared.Const.IdentityId;
@@ -182,14 +183,14 @@ public class Beta1EndlessTowerScript : GeneralScript
 			for (var i = 0; i < MobsPerFloor; i++)
 			{
 				var pos = entry.GetRandomInRange(4, 8);
-				var monster = new Monster((int)mobId);
+				var monster = new Monster(mobId);
 				monster.Warp(clone.Id, pos);
 			}
 
 			// Top-floor boss.
 			if (floorIdx == Floors.Length - 1)
 			{
-				var boss = new Monster((int)IdentityId.JT_OSIRIS);
+				var boss = new Monster(IdentityId.JT_OSIRIS);
 				boss.Warp(clone.Id, entry);
 			}
 		}
