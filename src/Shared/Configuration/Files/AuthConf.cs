@@ -13,6 +13,14 @@ namespace Sabine.Shared.Configuration.Files
 		public bool AllowAccountCreation { get; set; }
 
 		/// <summary>
+		/// When true, the auth server emits <c>AC_REQUEST_SECOND_PASSWORD</c>
+		/// with flag=0 after a successful login. Sabine has no PIN storage,
+		/// so the prompt is short-circuited — this exists so PV23 clients
+		/// configured to expect the packet do not stall.
+		/// </summary>
+		public bool PincodeEnable { get; set; }
+
+		/// <summary>
 		/// Loads the conf file and its options from the given path.
 		/// </summary>
 		/// <param name="filePath"></param>
@@ -23,6 +31,7 @@ namespace Sabine.Shared.Configuration.Files
 			this.BindIp = this.GetString("auth_bind_ip", "0.0.0.0");
 			this.BindPorts = this.GetBindPorts("auth_bind_ports", [6900, 7000]);
 			this.AllowAccountCreation = this.GetBool("allow_account_creation", true);
+			this.PincodeEnable = this.GetBool("pincode_enable", false);
 		}
 
 		private int[] GetBindPorts(string option, int[] defaultValue)

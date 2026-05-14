@@ -13,8 +13,10 @@ using Sabine.Shared.World;
 using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Skills;
 using Sabine.Zone.World.Actors;
+using Sabine.Zone.World.Actors.Components.Characters;
 using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Shops;
+using Yggdrasil.Logging;
 using Yggdrasil.Util;
 
 namespace Sabine.Zone.Network
@@ -81,12 +83,29 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ACCEPT_ENTER);
 
-			packet.PutInt(character.Id);
-			packet.AddPackedPosition(character.Position, character.Direction);
-			packet.PutShort(0);
-
-			if (Game.Version >= Versions.S2500)
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_ACCEPT_ENTER 0xa18 at PACKETVER >= 20141022
+				// (except the 20141022-20160329 window which uses 0x2eb
+				// without sex) — see packets.hpp:573, map/clif.cpp
+				// clif_authok. 12-byte body: startTime + posDir + xSize +
+				// ySize + font + sex.
+				packet.PutInt(Game.GetTick());                                     // startTime
+				packet.AddPackedPosition(character.Position, character.Direction); // posDir
+				packet.PutByte(5);                                                 // xSize
+				packet.PutByte(5);                                                 // ySize
+				packet.PutShort(0);                                                // font
+				packet.PutByte((byte)character.Sex);                               // sex
+			}
+			else
+			{
+				packet.PutInt(character.Id);
+				packet.AddPackedPosition(character.Position, character.Direction);
 				packet.PutShort(0);
+
+				if (Game.Version >= Versions.S2500)
+					packet.PutShort(0);
+			}
 
 			conn.Send(packet);
 		}
@@ -294,7 +313,6 @@ namespace Sabine.Zone.Network
 		/// Makes character move from one position to the other on clients
 		/// of players around it.
 		/// </summary>
-		/// <param name="conn"></param>
 		/// <param name="character"></param>
 		/// <param name="from"></param>
 		/// <param name="to"></param>
@@ -663,7 +681,21 @@ namespace Sabine.Zone.Network
 
 			packet.PutInt(character.Handle);
 			packet.PutByte((byte)type);
-			packet.PutByte((byte)value);
+
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_SPRITE_CHANGE at PACKETVER_MAIN_NUM >=
+				// 20181121 widens val to uint32 and adds a second uint32
+				// val2 (used for the weapon+shield combined update).
+				// Sabine routes single-value changes with val2 = 0.
+				// Ref: rathena packets_struct.hpp:2591.
+				packet.PutInt(value);
+				packet.PutInt(0);
+			}
+			else
+			{
+				packet.PutByte((byte)value);
+			}
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);
 		}
@@ -797,6 +829,15 @@ namespace Sabine.Zone.Network
 			packet.PutInt(IPAddress.Parse(ip));
 			packet.PutShort((short)port);
 
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_NPCACK_SERVERMOVE 0xac7 at PACKETVER >= 20170315
+				// adds a 128-byte domain field for hostname-based zone
+				// routing. Sabine leaves it empty — IP-only routing.
+				// Ref: rathena packets.hpp:706, map/clif.cpp clif_changemapserver.
+				packet.PutString("", 128);
+			}
+
 			character.Connection.Send(packet);
 		}
 
@@ -851,13 +892,51 @@ namespace Sabine.Zone.Network
 			{
 				using var packet = Packet.Rent(Op.ZC_NOTIFY_ACT);
 
+				if (Game.Version >= Versions.Sabine)
+				{
+					// rA PACKET_ZC_NOTIFY_ACT 0x8c8 at PACKETVER >= 20131223:
+					// damage and damage2 widened to int32, isSPDamage byte
+					// inserted between damage and div. Body = 4 srcID + 4
+					// targetID + 4 serverTick + 4 srcSpeed + 4 dmgSpeed +
+					// 4 damage + 1 isSPDamage + 2 div + 1 type + 4 damage2,
+					// wire = 34.
+					// Ref: rathena packets.hpp:1413, map/clif.cpp clif_damage.
+					packet.PutInt(handleSource);
+					packet.PutInt(handleTarget);
+					packet.PutInt(tick);
+					packet.PutInt(ScaleToKroAnimationSpeed(arg2));
+					packet.PutInt(arg3);
+					packet.PutInt(arg1);
+					packet.PutByte(0);
+					packet.PutShort((short)arg4);
+					packet.PutByte((byte)type);
+					packet.PutInt(arg5);
+
+					character.Map.Broadcast(packet, character, BroadcastTargets.All);
+					return;
+				}
+
 				packet.PutInt(handleSource);
 				packet.PutInt(handleTarget);
 				packet.PutInt(tick);
 
 				if (Game.Version >= Versions.Beta1)
 				{
-					packet.PutInt(arg2);
+					// kRO Sak EP12+ clients reinterpret srcSpeed as an
+					// inverted animation modifier (rA clif.cpp:5213,
+					// DEFAULT_ANIMATION_SPEED = 432; >432 caps to 1x,
+					// lower = faster). Sabine's AttackMotionDelay is
+					// calibrated in raw ms for alpha/beta clients
+					// (Novice bare-hand = 800ms), which the EP12
+					// client clamps to 1x and renders extra slow.
+					// Map ms → modifier so amotion=800 ⇒ 432 (1x) and
+					// faster amotions speed up the animation
+					// proportionally. Pre-S2500 wire is unchanged.
+					var srcSpeed = arg2;
+					if (Game.Version >= Versions.S2500)
+						srcSpeed = ScaleToKroAnimationSpeed(arg2);
+
+					packet.PutInt(srcSpeed);
 					packet.PutInt(arg3);
 				}
 
@@ -872,6 +951,33 @@ namespace Sabine.Zone.Network
 					packet.PutShort((short)arg5);
 
 				character.Map.Broadcast(packet, character, BroadcastTargets.All);
+			}
+
+			// rAthena's DEFAULT_ANIMATION_SPEED. 432 = 1x animation
+			// on the modern kRO client; below caps to faster.
+			private const int KroDefaultAnimationSpeed = 432;
+
+			// Sabine's bare-hand Novice amotion. Anchors the mapping
+			// so the legacy default (800ms) lines up exactly with the
+			// client's 1x.
+			private const int SabineBaselineAmotionMs = 800;
+
+			/// <summary>
+			/// Maps a Sabine amotion (ms) onto kRO's inverted animation
+			/// modifier scale used by Sak EP12+ clients. Linear: 800ms
+			/// ⇒ 432 (1x cap), 400ms ⇒ 216 (2x), 200ms ⇒ 108 (4x). Capped
+			/// at <c>KroDefaultAnimationSpeed</c> so larger amotions
+			/// don't underflow into the &gt;432 ignore-band.
+			/// </summary>
+			internal static int ScaleToKroAnimationSpeed(int amotionMs)
+			{
+				if (amotionMs <= 0)
+					return KroDefaultAnimationSpeed;
+
+				var scaled = amotionMs * KroDefaultAnimationSpeed / SabineBaselineAmotionMs;
+				if (scaled < 1) scaled = 1;
+				if (scaled > KroDefaultAnimationSpeed) scaled = KroDefaultAnimationSpeed;
+				return scaled;
 			}
 		}
 
@@ -989,6 +1095,42 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ITEM_PICKUP_ACK);
 
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_ITEM_PICKUP_ACK at PACKETVER_MAIN_NUM >=
+				// 20181121: 61-byte body — Index(2) + count(2) + nameid(4)
+				// + IsIdentified(1) + IsDamaged(1) + refiningLevel(1) +
+				// slot[8] + location(4) + type(1) + result(1) +
+				// HireExpireDate(4) + bindOnEquipType(2) +
+				// option_data[5](25) + favorite(1) + look(2). Wire = 63.
+				// Ref: rathena packets_struct.hpp:540, map/clif.cpp clif_additem.
+				packet.PutShort((short)item.InventoryId);
+				packet.PutShort((short)amount);
+				packet.PutInt(item.ClassId);
+				packet.PutByte(item.IsIdentified);
+				packet.PutByte(item.IsDamaged);
+				packet.PutByte(item.RefineLevel);
+				packet.AddSlotInfoForPickupAck(item);
+				packet.PutInt((int)item.GetSlotsFor(character));
+				packet.PutByte((byte)item.Type);
+				packet.PutByte((byte)result);
+				packet.PutInt(item.HireExpireDate);
+				packet.PutShort((short)item.BindOnEquipType);
+				packet.AddItemOptionsForPickupAck(item);
+				packet.PutByte((byte)(item.IsFavorite ? 1 : 0));
+				packet.PutShort((short)(item.SpriteNumber != 0 ? item.SpriteNumber : item.ClassId));
+
+				character.Connection.Send(packet);
+				return;
+			}
+
+			// eA at PV >= 20071002 widens the pickup ack body to add
+			// L expire_time + W bindOnEquipType — historical-era tables
+			// route the base Op through wire 0x02D4 size 29 at S2500+,
+			// older clients keep the legacy 0x003B/23 layout.
+			// Ref: eA src/map/clif.c clif_additem (line 2078).
+			var useV3 = Game.Version >= Versions.S2500;
+
 			packet.PutShort((short)item.InventoryId);
 			packet.PutShort((short)amount);
 
@@ -1002,7 +1144,7 @@ namespace Sabine.Zone.Network
 			{
 				packet.PutShort((short)item.ClassId);
 				packet.PutByte(item.IsIdentified);
-				packet.PutByte(0);   // Attribute
+				packet.PutByte(0);   // Attribute / IsDamaged
 				packet.PutByte(0);   // Refine
 				packet.PutShort(0);  // Card1
 				packet.PutShort(0);  // Card2
@@ -1013,6 +1155,12 @@ namespace Sabine.Zone.Network
 			}
 
 			packet.PutByte((byte)result);
+
+			if (useV3)
+			{
+				packet.PutInt(0);    // expire_time (rental)
+				packet.PutShort(0);  // bindOnEquipType
+			}
 
 			character.Connection.Send(packet);
 		}
@@ -1025,6 +1173,11 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_NORMAL_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
+			// Sabine writes rA V6 26-byte entries (uint32 ITID + bonus
+			// options block). S2500 writes the 22-byte V3 layout. Older
+			// clients keep the legacy 18-byte entry shape.
+			var useV6 = Game.Version >= Versions.Sabine;
+			var useV3 = !useV6 && Game.Version >= Versions.S2500;
 			using var packet = Packet.Rent(Op.ZC_NORMAL_ITEMLIST);
 
 			foreach (var item in items)
@@ -1032,7 +1185,9 @@ namespace Sabine.Zone.Network
 				if (item.Type.IsEquip())
 					continue;
 
-				packet.AddNormalItem(item);
+				if (useV6) packet.AddNormalItemV6(item);
+				else if (useV3) packet.AddNormalItemV3(item);
+				else packet.AddNormalItem(item);
 			}
 
 			character.Connection.Send(packet);
@@ -1046,6 +1201,8 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_STORE_NORMAL_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
+			var useV6 = Game.Version >= Versions.Sabine;
+			var useV3 = !useV6 && Game.Version >= Versions.S2500;
 			using var packet = Packet.Rent(Op.ZC_STORE_NORMAL_ITEMLIST);
 
 			foreach (var item in items)
@@ -1053,7 +1210,9 @@ namespace Sabine.Zone.Network
 				if (item.Type.IsEquip())
 					continue;
 
-				packet.AddNormalItem(item);
+				if (useV6) packet.AddNormalItemV6(item);
+				else if (useV3) packet.AddNormalItemV3(item);
+				else packet.AddNormalItem(item);
 			}
 
 			character.Connection.Send(packet);
@@ -1078,10 +1237,22 @@ namespace Sabine.Zone.Network
 
 				packet.PutByte(0);
 
-				if (Game.Version < Versions.Beta2)
+				if (Game.Version >= Versions.Sabine)
+				{
+					// rA PACKET_ZC_PC_PURCHASE_ITEMLIST_sub at PACKETVER_MAIN
+					// >= 20181121 widens itemId to uint32. Per-entry body =
+					// 4 price + 4 discountPrice + 1 itemType + 4 itemId = 13.
+					// Ref: rathena packets_struct.hpp:3065.
+					packet.PutInt(item.ClassId);
+				}
+				else if (Game.Version < Versions.Beta2)
+				{
 					packet.PutString(item.StringId, Sizes.ItemNames);
+				}
 				else
+				{
 					packet.PutShort((short)item.ClassId);
+				}
 			}
 
 			character.Connection.Send(packet);
@@ -1152,6 +1323,8 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_EQUIPMENT_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
+			var useV6 = Game.Version >= Versions.Sabine;
+			var useV3 = !useV6 && Game.Version >= Versions.S2500;
 			using var packet = Packet.Rent(Op.ZC_EQUIPMENT_ITEMLIST);
 
 			foreach (var item in items)
@@ -1159,7 +1332,9 @@ namespace Sabine.Zone.Network
 				if (!item.Type.IsEquip())
 					continue;
 
-				packet.AddEquipItem(item, item.GetSlotsFor(character));
+				if (useV6) packet.AddEquipItemV6(item, item.GetSlotsFor(character));
+				else if (useV3) packet.AddEquipItemV3(item, item.GetSlotsFor(character));
+				else packet.AddEquipItem(item, item.GetSlotsFor(character));
 			}
 
 			character.Connection.Send(packet);
@@ -1173,6 +1348,8 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_STORE_EQUIPMENT_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
+			var useV6 = Game.Version >= Versions.Sabine;
+			var useV3 = !useV6 && Game.Version >= Versions.S2500;
 			using var packet = Packet.Rent(Op.ZC_STORE_EQUIPMENT_ITEMLIST);
 
 			foreach (var item in items)
@@ -1180,7 +1357,9 @@ namespace Sabine.Zone.Network
 				if (!item.Type.IsEquip())
 					continue;
 
-				packet.AddEquipItem(item, item.GetSlotsFor(character));
+				if (useV6) packet.AddEquipItemV6(item, item.GetSlotsFor(character));
+				else if (useV3) packet.AddEquipItemV3(item, item.GetSlotsFor(character));
+				else packet.AddEquipItem(item, item.GetSlotsFor(character));
 			}
 
 			character.Connection.Send(packet);
@@ -1194,7 +1373,26 @@ namespace Sabine.Zone.Network
 		public static void ZC_ITEM_ENTRY(PlayerCharacter character, Item item)
 		{
 			using var packet = Packet.Rent(Op.ZC_ITEM_ENTRY);
-			packet.AddEntryItem(item);
+
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_ITEM_ENTRY at PACKETVER_MAIN_NUM >=
+				// 20181121: AID + uint32 itemId + identify + x + y +
+				// amount + subX + subY. Wire = 19.
+				// Ref: rathena packets_struct.hpp:2350.
+				packet.PutInt(item.Handle);
+				packet.PutInt(item.ClassId);
+				packet.PutByte(item.IsIdentified);
+				packet.PutShort((short)item.Position.X);
+				packet.PutShort((short)item.Position.Y);
+				packet.PutShort((short)item.Amount);
+				packet.PutByte(8);
+				packet.PutByte(8);
+			}
+			else
+			{
+				packet.AddEntryItem(item);
+			}
 
 			character.Connection.Send(packet);
 		}
@@ -1206,7 +1404,30 @@ namespace Sabine.Zone.Network
 		public static void ZC_ITEM_FALL_ENTRY(Item item)
 		{
 			using var packet = Packet.Rent(Op.ZC_ITEM_FALL_ENTRY);
-			packet.AddEntryItem(item);
+
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA packet_dropflooritem at PACKETVER >= 20180418:
+				// AID + uint32 ITID + type + IsIdentified + xPos + yPos +
+				// subX + subY + count + showdropeffect + dropeffectmode.
+				// Wire = 24.
+				// Ref: rathena packets_struct.hpp:597.
+				packet.PutInt(item.Handle);
+				packet.PutInt(item.ClassId);
+				packet.PutShort(0);                         // type (dropped-item appearance flags)
+				packet.PutByte(item.IsIdentified);
+				packet.PutShort((short)item.Position.X);
+				packet.PutShort((short)item.Position.Y);
+				packet.PutByte(8);
+				packet.PutByte(8);
+				packet.PutShort((short)item.Amount);
+				packet.PutByte(0);                          // showdropeffect (off)
+				packet.PutShort(0);                         // dropeffectmode
+			}
+			else
+			{
+				packet.AddEntryItem(item);
+			}
 
 			item.Map.Broadcast(packet, item, BroadcastTargets.All);
 		}
@@ -1233,7 +1454,15 @@ namespace Sabine.Zone.Network
 			using var packet = Packet.Rent(Op.ZC_ITEM_DISAPPEAR);
 			packet.PutInt(item.Handle);
 
-			item.Map.Broadcast(packet, item, BroadcastTargets.All);
+			var map = item.Map;
+			if (map == null)
+			{
+				Log.Debug("[ItemLifecycle] ZC_ITEM_DISAPPEAR(Item) handle={0}: item.Map is NULL, NOT broadcasting", item.Handle);
+				return;
+			}
+
+			Log.Debug("[ItemLifecycle] ZC_ITEM_DISAPPEAR(Item) handle={0} pos={1} map={2} broadcasting", item.Handle, item.Position, map.StringId);
+			map.Broadcast(packet, item, BroadcastTargets.All);
 		}
 
 		/// <summary>
@@ -1259,13 +1488,29 @@ namespace Sabine.Zone.Network
 		/// <param name="character"></param>
 		/// <param name="invId"></param>
 		/// <param name="newAmount"></param>
-		public static void ZC_USE_ITEM_ACK(PlayerCharacter character, int invId, int newAmount)
+		public static void ZC_USE_ITEM_ACK(PlayerCharacter character, int invId, int newAmount, int classId = 0)
 		{
 			using var packet = Packet.Rent(Op.ZC_USE_ITEM_ACK);
 
-			packet.PutShort((short)invId);
-			packet.PutShort((short)newAmount);
-			packet.PutByte(true);
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_USE_ITEM_ACK at PACKETVER_MAIN_NUM >=
+				// 20181121 widens itemId to uint32 and adds AID.
+				// Body = 2 index + 4 itemId + 4 AID + 2 amount + 1 result,
+				// wire = 15.
+				// Ref: rathena packets_struct.hpp:2577.
+				packet.PutShort((short)invId);
+				packet.PutInt(classId);
+				packet.PutInt(character.Connection?.Account?.Id ?? character.Handle);
+				packet.PutShort((short)newAmount);
+				packet.PutByte(true);
+			}
+			else
+			{
+				packet.PutShort((short)invId);
+				packet.PutShort((short)newAmount);
+				packet.PutByte(true);
+			}
 
 			character.Connection.Send(packet);
 		}
@@ -1304,10 +1549,25 @@ namespace Sabine.Zone.Network
 
 				packet.PutShort((short)invId);
 
-				if (Game.Version < Versions.Beta2)
+				if (Game.Version >= Versions.Sabine)
+				{
+					// rA PACKET_ZC_REQ_WEAR_EQUIP_ACK 0x0999 at
+					// PACKETVER_MAIN_NUM >= 20121205 widens wearLocation
+					// to uint32 and adds wItemSpriteNumber (uint16).
+					// Body = 2 index + 4 wearLocation + 2 spriteNum + 1
+					// result, wire = 11.
+					// Ref: rathena packets_struct.hpp:1269.
+					packet.PutInt((int)equipSlot);
+					packet.PutShort(0);   // wItemSpriteNumber (sprite override)
+				}
+				else if (Game.Version < Versions.Beta2)
+				{
 					packet.PutByte((byte)equipSlot);
+				}
 				else
+				{
 					packet.PutShort((short)equipSlot);
+				}
 
 				packet.PutByte(success);
 
@@ -1328,10 +1588,22 @@ namespace Sabine.Zone.Network
 
 			packet.PutShort((short)invId);
 
-			if (Game.Version < Versions.Beta2)
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_REQ_TAKEOFF_EQUIP_ACK 0x099a at PACKETVER
+				// >= 20130000 widens wearLocation to uint32. Body = 2
+				// index + 4 wearLocation + 1 flag, wire = 9.
+				// Ref: rathena packets.hpp:1007.
+				packet.PutInt((int)equipSlot);
+			}
+			else if (Game.Version < Versions.Beta2)
+			{
 				packet.PutByte((byte)equipSlot);
+			}
 			else
+			{
 				packet.PutShort((short)equipSlot);
+			}
 
 			packet.PutByte(true);
 
@@ -1570,38 +1842,6 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Notifies players around the character about them using a skill,
-		/// displaying the skill animation and hit effects.
-		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="target"></param>
-		/// <param name="skill"></param>
-		/// <param name="skillLevel"></param>
-		/// <param name="tick"></param>
-		/// <param name="damage"></param>
-		/// <param name="attackMotionDelay"></param>
-		/// <param name="damageMotionDelay"></param>
-		/// <param name="hitCount"></param>
-		/// <param name="hitEffect"></param>
-		public static void ZC_NOTIFY_SKILL(Character character, Character target, Skill skill, int skillLevel, int damage, int tick, int attackMotionDelay, int damageMotionDelay, int hitCount, SkillHitEffect hitEffect)
-		{
-			using var packet = Packet.Rent(Op.ZC_NOTIFY_SKILL);
-
-			packet.PutShort((short)skill.Id);
-			packet.PutInt(character.Handle);
-			packet.PutInt(target.Handle);
-			packet.PutInt(tick);
-			packet.PutInt(attackMotionDelay);
-			packet.PutInt(damageMotionDelay);
-			packet.PutShort((short)damage);
-			packet.PutShort((short)skillLevel);
-			packet.PutShort((short)hitCount);
-			packet.PutByte((byte)hitEffect);
-
-			target.Map.Broadcast(packet, character, BroadcastTargets.All);
-		}
-
-		/// <summary>
 		/// Sends notification about a trade request to character.
 		/// </summary>
 		/// <param name="character"></param>
@@ -1651,6 +1891,13 @@ namespace Sabine.Zone.Network
 			{
 				using var packet = Packet.Rent(Op.ZC_ADD_EXCHANGE_ITEM);
 
+				if (Game.Version >= Versions.Sabine)
+				{
+					packet.AddExchangeItemV6(item, amount, item.GetSlotsFor(character));
+					character.Connection.Send(packet);
+					return;
+				}
+
 				packet.PutInt(amount);
 				packet.PutString(item.StringId, Sizes.ItemNames);
 
@@ -1666,6 +1913,27 @@ namespace Sabine.Zone.Network
 			public static void Zeny(PlayerCharacter character, int amount)
 			{
 				using var packet = Packet.Rent(Op.ZC_ADD_EXCHANGE_ITEM);
+
+				if (Game.Version >= Versions.Sabine)
+				{
+					// V6 fixed-size body must match the Item variant; emit
+					// a zero-id placeholder with zeny in the amount slot.
+					// The classic eA convention used a "money" string id at
+					// the same op — open-midgard recognises the 0 classId
+					// as the zeny pseudo-entry.
+					packet.PutInt(0);                  // itemId (zeny pseudo)
+					packet.PutByte(0);                 // itemType
+					packet.PutInt(amount);             // amount = zeny
+					packet.PutByte(1);                 // identified
+					packet.PutByte(0);                 // damaged
+					packet.PutByte(0);                 // refine
+					packet.PutEmpty(8);                // slot[4]
+					packet.PutEmpty(25);               // option_data[5]
+					packet.PutInt(0);                  // location
+					packet.PutShort(0);                // look
+					character.Connection.Send(packet);
+					return;
+				}
 
 				packet.PutInt(amount);
 				packet.PutString("money", Sizes.ItemNames);
@@ -1924,6 +2192,1247 @@ namespace Sabine.Zone.Network
 			=> ZC_NOTIFY_EFFECT((Character)character, effectId);
 
 		/// <summary>
+		/// Shows or hides an illustration image (cutin) on the player's
+		/// client.
+		/// </summary>
+		/// <remarks>
+		/// Single op, era-driven width: Alpha/Beta1/Beta2 use 0x0145
+		/// with a 16-byte image-name field; EP4+ remaps the op to 0x01B3
+		/// with a 64-byte field (rA <c>clif_cutin</c>). Pass
+		/// <c>type = 255</c> to clear an active cutin.
+		/// Ref: rathena packets_struct.hpp:5340, map/clif.cpp:2741.
+		/// </remarks>
+		public static void ZC_SHOW_IMAGE(PlayerCharacter character, string image, byte type)
+		{
+			using var packet = Packet.Rent(Op.ZC_SHOW_IMAGE);
+
+			packet.PutString(image, Game.Version >= Versions.S350 ? 64 : 16);
+			packet.PutByte(type);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Plays a sound effect at the source actor's position. Broadcast
+		/// to nearby players.
+		/// </summary>
+		/// <remarks>
+		/// rA <c>ZC_SOUND</c> 0x01d3 (PV>=4) — 24-byte WAV name + act +
+		/// term + AID. act = 0 plays once, 1 stops. term is the
+		/// fade/loop delay in ms (0 = default).
+		/// Ref: rathena packets_struct.hpp:5584, map/clif.cpp clif_soundeffect.
+		/// </remarks>
+		public static void ZC_SOUND(Character source, string wav, byte act, int term)
+		{
+			using var packet = Packet.Rent(Op.ZC_SOUND);
+			packet.PutString(wav, 24);
+			packet.PutByte(act);
+			packet.PutInt(term);
+			packet.PutInt(source.Handle);
+
+			source.Map.Broadcast(packet, source, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Adds or removes a marker on the player's minimap (compass /
+		/// viewpoint).
+		/// </summary>
+		/// <remarks>
+		/// rA <c>ZC_COMPASS</c> 0x0144. type = 0 add to map permanently,
+		/// 1 add as floating marker (with text), 2 remove all of type
+		/// flag from npcId. Mirrors rAthena's <c>viewpoint</c> /
+		/// <c>clif_viewpoint</c>.
+		/// Ref: rathena packets.hpp:807.
+		/// </remarks>
+		public static void ZC_COMPASS(PlayerCharacter character, int npcId, int type, int x, int y, byte id, int color)
+		{
+			using var packet = Packet.Rent(Op.ZC_COMPASS);
+			packet.PutInt(npcId);
+			packet.PutInt(type);
+			packet.PutInt(x);
+			packet.PutInt(y);
+			packet.PutByte(id);
+			packet.PutInt(color);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates the guild + emblem displayed above an actor (used for
+		/// guild master sprites, castle flag NPCs, etc.).
+		/// </summary>
+		/// <remarks>
+		/// rA <c>ZC_CHANGE_GUILD</c> 0x01b4 (pre-2019 layout: AID +
+		/// guild_id + emblem_id). Broadcast to nearby players so the
+		/// emblem renders on the actor sprite.
+		/// Ref: rathena packets_struct.hpp:5824.
+		/// </remarks>
+		public static void ZC_CHANGE_GUILD(Character actor, int guildId, int emblemId)
+		{
+			using var packet = Packet.Rent(Op.ZC_CHANGE_GUILD);
+			packet.PutInt(actor.Handle);
+			packet.PutInt(guildId);
+			packet.PutShort((short)emblemId);
+
+			actor.Map.Broadcast(packet, actor, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Sets the quest indicator (exclamation / question mark) above
+		/// an NPC's head for nearby players. Broadcast so that all
+		/// clients with the NPC in sight see the marker.
+		/// </summary>
+		/// <remarks>
+		/// rA <c>ZC_QUEST_NOTIFY_EFFECT</c> 0x0446 at PACKETVER >=
+		/// 20090218 — 14-byte body: npcId(4) + x(2) + y(2) + effect(2)
+		/// + color(2). Send <c>effect = None</c> to clear.
+		/// Ref: rathena map/clif.cpp:18171 clif_quest_show_event.
+		/// </remarks>
+		public static void ZC_QUEST_NOTIFY_EFFECT(Npc npc, QuestIconEffect effect, QuestIconColor color)
+		{
+			using var packet = Packet.Rent(Op.ZC_QUEST_NOTIFY_EFFECT);
+			packet.PutInt(npc.Handle);
+			packet.PutShort((short)npc.Position.X);
+			packet.PutShort((short)npc.Position.Y);
+			packet.PutShort((short)effect);
+			packet.PutShort((short)color);
+
+			if (npc.Map != null)
+				npc.Map.Broadcast(packet, npc, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Shows a cast-style progress bar to the player. Mirrors
+		/// rAthena's <c>clif_progressbar</c> (<c>ZC_PROGRESS</c>
+		/// 0x02f0, 10 bytes). The bar fills over <paramref name="seconds"/>
+		/// seconds; the client emits <c>CZ_PROGRESS</c> when it
+		/// completes.
+		/// </summary>
+		/// <param name="character">Recipient.</param>
+		/// <param name="color">RGB color (e.g. <c>0xFFFFFF</c> for white).</param>
+		/// <param name="seconds">Duration in seconds.</param>
+		public static void ZC_PROGRESS(PlayerCharacter character, int color, int seconds)
+		{
+			using var packet = Packet.Rent(Op.ZC_PROGRESS);
+			packet.PutInt(color);
+			packet.PutInt(seconds);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Cancels any progress bar currently displayed on the player's
+		/// client. Mirrors rAthena's <c>clif_progressbar_abort</c>
+		/// (<c>ZC_PROGRESS_CANCEL</c> 0x02f2).
+		/// </summary>
+		public static void ZC_PROGRESS_CANCEL(PlayerCharacter character)
+		{
+			using var packet = Packet.Rent(Op.ZC_PROGRESS_CANCEL);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Displays large digital-clock-style digits on the player's
+		/// screen (countdown timer / score overlay). Mirrors rAthena's
+		/// <c>clif_showdigit</c> (<c>ZC_SHOWDIGIT</c> 0x01b1).
+		/// </summary>
+		/// <param name="character">Recipient.</param>
+		/// <param name="type">Display behavior (one-shot / counters).</param>
+		/// <param name="value">Number to display; semantics depend on <paramref name="type"/>.</param>
+		public static void ZC_SHOWDIGIT(PlayerCharacter character, ShowDigitType type, int value)
+		{
+			using var packet = Packet.Rent(Op.ZC_SHOWDIGIT);
+			packet.PutByte((byte)type);
+			packet.PutInt(value);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sets the map property (PvP zone, GVG, etc.) for the player.
+		/// Mirrors rAthena's <c>clif_map_property</c>
+		/// (<c>ZC_NOTIFY_MAPPROPERTY</c> 0x0199).
+		/// </summary>
+		public static void ZC_NOTIFY_MAPPROPERTY(PlayerCharacter character, MapProperty property)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_MAPPROPERTY);
+			packet.PutShort((short)property);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens a numeric input dialog tied to the given NPC. The client
+		/// replies with <c>CZ_INPUT_EDITDLG</c> carrying the entered
+		/// integer. Mirrors rAthena's <c>clif_scriptinput</c>
+		/// (<c>ZC_OPEN_EDITDLG</c> 0x0142).
+		/// </summary>
+		public static void ZC_OPEN_EDITDLG(PlayerCharacter character, int npcHandle)
+		{
+			using var packet = Packet.Rent(Op.ZC_OPEN_EDITDLG);
+			packet.PutInt(npcHandle);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens a string input dialog tied to the given NPC. The client
+		/// replies with <c>CZ_INPUT_EDITDLGSTR</c> carrying the entered
+		/// text. Mirrors rAthena's <c>clif_scriptinputstr</c>
+		/// (<c>ZC_OPEN_EDITDLGSTR</c> 0x01d4).
+		/// </summary>
+		public static void ZC_OPEN_EDITDLGSTR(PlayerCharacter character, int npcHandle)
+		{
+			using var packet = Packet.Rent(Op.ZC_OPEN_EDITDLGSTR);
+			packet.PutInt(npcHandle);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Displays a localised system message identified by id (e.g.
+		/// "Equipment cannot be used in this place"). The client
+		/// resolves the id against its bundled msgstringtable.
+		/// Mirrors rAthena's <c>clif_msg</c> (<c>ZC_MSG</c> 0x0291).
+		/// </summary>
+		public static void ZC_MSG(PlayerCharacter character, int messageId)
+		{
+			using var packet = Packet.Rent(Op.ZC_MSG);
+			packet.PutShort((short)messageId);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Tells the client the result of a refining attempt and the
+		/// item's new refine level. Mirrors rAthena's <c>clif_refine</c>
+		/// (<c>ZC_ACK_ITEMREFINING</c> 0x0188). Result codes:
+		/// 0 = success, 1 = failure (unchanged), 2 = downgrade,
+		/// 3 = failure (alt).
+		/// </summary>
+		public static void ZC_ACK_ITEMREFINING(PlayerCharacter character, int result, int invId, int newRefineLevel)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_ITEMREFINING);
+			packet.PutShort((short)result);
+			packet.PutShort((short)invId);
+			packet.PutShort((short)newRefineLevel);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Broadcasts a chat bubble above a monster or NPC in a custom
+		/// color. Mirrors rAthena's <c>clif_messagecolor_target</c>
+		/// (<c>ZC_NPC_CHAT</c> 0x02C1).
+		/// </summary>
+		/// <param name="source">Source actor — the message floats above it.</param>
+		/// <param name="message">Chat text to display.</param>
+		/// <param name="color">RGB color (0xRRGGBB).</param>
+		public static void ZC_NPC_CHAT(Character source, string message, int color)
+		{
+			using var packet = Packet.Rent(Op.ZC_NPC_CHAT);
+			packet.PutInt(source.Handle);
+			packet.PutInt(color);
+			packet.PutString(message);
+
+			if (source.Map != null)
+				source.Map.Broadcast(packet, source, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Pushes the guild MOTD (subject + body) to a member. Sent on
+		/// login and after the guild master changes the notice.
+		/// Mirrors rAthena's <c>clif_guild_notice</c>
+		/// (<c>ZC_GUILD_NOTICE</c> 0x016F, 182 bytes).
+		/// </summary>
+		public static void ZC_GUILD_NOTICE(PlayerCharacter character, string subject, string notice)
+		{
+			using var packet = Packet.Rent(Op.ZC_GUILD_NOTICE);
+			packet.PutString(subject, 60);
+			packet.PutString(notice, 120);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Shows the talkbox dialog above an actor (used by Bard /
+		/// Dancer song chats and quest event flavor). Mirrors rA
+		/// <c>clif_talkbox</c> (<c>ZC_TALKBOX_CHATCONTENTS</c> 0x0191,
+		/// 86 bytes).
+		/// </summary>
+		public static void ZC_TALKBOX_CHATCONTENTS(Character source, string message)
+		{
+			using var packet = Packet.Rent(Op.ZC_TALKBOX_CHATCONTENTS);
+			packet.PutInt(source.Handle);
+			packet.PutString(message, 80);
+
+			if (source.Map != null)
+				source.Map.Broadcast(packet, source, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Notifies players around an actor that one of its equipped
+		/// items broke. Drives the "Equipment broken!" toast on the
+		/// affected player's client and a visual flash for onlookers.
+		/// Mirrors rA <c>clif_equipitemdamaged</c>
+		/// (<c>ZC_EQUIPITEM_DAMAGED</c> 0x02BB, 8 bytes).
+		/// </summary>
+		public static void ZC_EQUIPITEM_DAMAGED(Character source, EquipSlots equipLocation)
+		{
+			using var packet = Packet.Rent(Op.ZC_EQUIPITEM_DAMAGED);
+			packet.PutShort((short)equipLocation);
+			packet.PutInt(source.Handle);
+
+			if (source.Map != null)
+				source.Map.Broadcast(packet, source, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Pops the "This item is bound on equip — really equip?"
+		/// confirmation on the player's client. Mirrors rA
+		/// <c>clif_msg_bind</c> (<c>ZC_NOTIFY_BIND_ON_EQUIP</c> 0x02D3,
+		/// 4 bytes).
+		/// </summary>
+		public static void ZC_NOTIFY_BIND_ON_EQUIP(PlayerCharacter character, int invId)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_BIND_ON_EQUIP);
+			packet.PutShort((short)invId);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates one stat (HP, MaxHP, level, etc.) for a party member
+		/// on the party HUD. Mirrors rA <c>clif_parchanged_user</c>
+		/// (<c>ZC_PAR_CHANGE_USER</c> 0x01AB, 12 bytes).
+		/// </summary>
+		/// <param name="recipient">Member who will see the update.</param>
+		/// <param name="targetGid">Handle of the member whose stat changed.</param>
+		/// <param name="type">Stat type (matches ParameterType wire values).</param>
+		/// <param name="value">New value.</param>
+		public static void ZC_PAR_CHANGE_USER(PlayerCharacter recipient, int targetGid, short type, int value)
+		{
+			using var packet = Packet.Rent(Op.ZC_PAR_CHANGE_USER);
+			packet.PutInt(targetGid);
+			packet.PutShort(type);
+			packet.PutInt(value);
+
+			recipient.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Broadcasts a party-loot toast to all members when one of them
+		/// picks up an item. Mirrors rA <c>clif_party_show_picker</c>
+		/// (<c>ZC_ITEM_PICKUP_PARTY</c> 0x02B8). At Sabine PV 50000 the
+		/// itemId is widened to uint32 (rA PV>=20181121, 24-byte wire).
+		/// </summary>
+		public static void ZC_ITEM_PICKUP_PARTY(PlayerCharacter recipient, int pickerHandle, Item item, EquipSlots wearLocation)
+		{
+			using var packet = Packet.Rent(Op.ZC_ITEM_PICKUP_PARTY);
+			packet.PutInt(pickerHandle);
+
+			if (Game.Version >= Versions.Sabine)
+				packet.PutInt(item.ClassId);
+			else
+				packet.PutShort((short)item.ClassId);
+
+			packet.PutByte(item.IsIdentified);
+			packet.PutByte(item.IsDamaged);
+			packet.PutByte(item.RefineLevel);
+			packet.AddSlotInfoForPickupAck(item);
+			packet.PutShort((short)wearLocation);
+			packet.PutByte((byte)item.Type);
+
+			recipient.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Plays the resurrection visual effect over the target actor.
+		/// Mirrors rAthena's <c>clif_resurrection</c>
+		/// (<c>ZC_RESURRECTION</c> 0x0148, 8 bytes). type=0 is the
+		/// classic Priest resurrect; other values are unused in rA.
+		/// </summary>
+		public static void ZC_RESURRECTION(Character target, int type = 0)
+		{
+			using var packet = Packet.Rent(Op.ZC_RESURRECTION);
+			packet.PutInt(target.Handle);
+			packet.PutShort((short)type);
+
+			if (target.Map != null)
+				target.Map.Broadcast(packet, target, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Plays the dispell visual effect over the target. Mirrors
+		/// rAthena's <c>clif_dispel</c> (<c>ZC_DISPEL</c> 0x01B9,
+		/// 6 bytes). Used by Sage SA_DISPELL and similar buff-strip
+		/// effects.
+		/// </summary>
+		public static void ZC_DISPEL(Character target)
+		{
+			using var packet = Packet.Rent(Op.ZC_DISPEL);
+			packet.PutInt(target.Handle);
+
+			if (target.Map != null)
+				target.Map.Broadcast(packet, target, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Toggles a passive / auto-cast skill display on the player's
+		/// hotbar (typically triggered by item cards). Mirrors rA
+		/// <c>clif_skill_autospell</c> family
+		/// (<c>ZC_AUTORUN_SKILL</c> 0x0147, 39 bytes).
+		/// </summary>
+		public static void ZC_AUTORUN_SKILL(PlayerCharacter character, SkillId skillId, int skillType, int level, int sp, int range, string name, bool upgradable)
+		{
+			using var packet = Packet.Rent(Op.ZC_AUTORUN_SKILL);
+			packet.PutShort((short)skillId);
+			packet.PutInt(skillType);
+			packet.PutShort((short)level);
+			packet.PutShort((short)sp);
+			packet.PutShort((short)range);
+			packet.PutString(name, 24);
+			packet.PutByte(upgradable);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens the Arrow Crafting UI with the supplied source-item
+		/// list. Each entry is the class id of an item in the player's
+		/// inventory that yields arrows. Mirrors rA
+		/// <c>clif_arrow_create_list</c>
+		/// (<c>ZC_MAKINGARROW_LIST</c> 0x01AD, dynamic). Per-entry size
+		/// is uint32 at Sabine PV 50000 (rA PV>=20181121), uint16 below.
+		/// </summary>
+		public static void ZC_MAKINGARROW_LIST(PlayerCharacter character, IEnumerable<int> sourceClassIds)
+		{
+			using var packet = Packet.Rent(Op.ZC_MAKINGARROW_LIST);
+
+			var wideId = Game.Version >= Versions.Sabine;
+			foreach (var classId in sourceClassIds)
+			{
+				if (wideId)
+					packet.PutInt(classId);
+				else
+					packet.PutShort((short)classId);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends a system message from the client's <c>msgstringtable</c>
+		/// with a runtime parameter substituted into the template (e.g.
+		/// "%s has joined the party"). Mirrors rA
+		/// <c>clif_msgtable_str</c>
+		/// (<c>ZC_FORMATSTRING_MSG</c> 0x02C2, dynamic).
+		/// </summary>
+		public static void ZC_FORMATSTRING_MSG(PlayerCharacter character, int messageId, string parameter)
+		{
+			using var packet = Packet.Rent(Op.ZC_FORMATSTRING_MSG);
+			packet.PutShort((short)messageId);
+			packet.PutString(parameter);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sets the map type (drives BGM and zone iconography on the
+		/// client). Mirrors rA <c>clif_map_type</c>
+		/// (<c>ZC_NOTIFY_MAPINFO</c> 0x0189, 4 bytes). Sent on map enter
+		/// for special zones (PK servers, Battleground, jails).
+		/// </summary>
+		public static void ZC_NOTIFY_MAPINFO(PlayerCharacter character, MapInfoType type)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_MAPINFO);
+			packet.PutShort((short)type);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends a GM broadcast with custom font color, type, size, and
+		/// alignment. Mirrors rA <c>clif_broadcast2</c>
+		/// (<c>ZC_BROADCAST2</c> 0x01C3, dynamic).
+		/// </summary>
+		/// <param name="character">Recipient.</param>
+		/// <param name="message">Text to display.</param>
+		/// <param name="fontColor">RGB color (0xRRGGBB).</param>
+		/// <param name="fontType">Font face id (0 = default).</param>
+		/// <param name="fontSize">Pixel size (typically 12).</param>
+		/// <param name="fontAlign">0 = left, 1 = center, 2 = right.</param>
+		/// <param name="fontY">Vertical offset (0 = default).</param>
+		public static void ZC_BROADCAST2(PlayerCharacter character, string message, int fontColor, short fontType = 0, short fontSize = 12, short fontAlign = 0, short fontY = 0)
+		{
+			using var packet = Packet.Rent(Op.ZC_BROADCAST2);
+			packet.PutInt(fontColor);
+			packet.PutShort(fontType);
+			packet.PutShort(fontSize);
+			packet.PutShort(fontAlign);
+			packet.PutShort(fontY);
+			packet.PutString(message);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens the monster encyclopedia info window with the given
+		/// monster's stats. Mirrors rA <c>clif_monster_info</c>
+		/// (<c>ZC_MONSTER_INFO</c> 0x018C, 29 bytes).
+		/// </summary>
+		public static void ZC_MONSTER_INFO(PlayerCharacter character, Monster mob)
+		{
+			using var packet = Packet.Rent(Op.ZC_MONSTER_INFO);
+			packet.PutShort((short)mob.IdentityId);                      // class
+			packet.PutShort((short)mob.Parameters.BaseLevel);            // level
+			packet.PutShort(0);                                          // size
+			packet.PutInt(mob.Parameters.HpMax);                         // hp
+			packet.PutShort(0);                                          // def
+			packet.PutShort(0);                                          // race
+			packet.PutShort(0);                                          // mdef
+			packet.PutShort(0);                                          // element
+																		 // Element resistances (water/earth/fire/wind/poison/holy/shadow/ghost/undead).
+			for (var i = 0; i < 9; i++)
+				packet.PutByte(0);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Acknowledges a crafting attempt (AC_MAKINGARROW, BS_MAKINGITEM,
+		/// etc.) with the result + the item that was produced. Mirrors
+		/// rA <c>clif_produceeffect</c>
+		/// (<c>ZC_ACK_REQMAKINGITEM</c> 0x018F). At Sabine PV 50000 the
+		/// itemId is widened to uint32 (rA PV>=20181121, 8-byte wire).
+		/// </summary>
+		/// <param name="result">0 = success, 1 = failure.</param>
+		/// <param name="classId">Produced item class id (0 on failure).</param>
+		public static void ZC_ACK_REQMAKINGITEM(PlayerCharacter character, int result, int classId)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_REQMAKINGITEM);
+			packet.PutShort((short)result);
+
+			if (Game.Version >= Versions.Sabine)
+				packet.PutInt(classId);
+			else
+				packet.PutShort((short)classId);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens the Mastersmith forge / Whitesmith craft UI with the
+		/// list of items the player can produce given their inventory.
+		/// Per-entry layout = itemId + 3 × material ids. Mirrors rA
+		/// <c>clif_skill_produce_mix_list</c>
+		/// (<c>ZC_MAKABLEITEMLIST</c> 0x018D, dynamic). At Sabine PV
+		/// 50000 each entry widens to 16 bytes (uint32 itemId +
+		/// 3 × uint32 materials); pre-Sabine writes the 8-byte uint16
+		/// form.
+		/// </summary>
+		/// <summary>
+		/// Updates the pet detail card (name, level, fullness,
+		/// intimacy, egg item, job sprite) on the owner's client.
+		/// Mirrors rA <c>clif_send_petstatus</c>
+		/// (<c>ZC_PROPERTY_PET</c> 0x01A2). Sabine PV 50000 includes
+		/// the trailing 2-byte job field added at rA PV >= 20081126
+		/// (37-byte wire).
+		/// </summary>
+		public static void ZC_PROPERTY_PET(PlayerCharacter owner, Pet pet, int eggItemClassId)
+		{
+			var petComp = owner.Pet;
+			if (petComp == null)
+				return;
+
+			using var packet = Packet.Rent(Op.ZC_PROPERTY_PET);
+			packet.PutString(petComp.Name, 24);
+			packet.PutByte(0);                              // bModified (1 if name has been changed)
+			packet.PutShort((short)pet.Parameters.BaseLevel);
+			packet.PutShort((short)petComp.Hunger);
+			packet.PutShort((short)petComp.Intimacy);
+			packet.PutShort((short)eggItemClassId);
+
+			if (Game.Version >= Versions.Sabine)
+				packet.PutShort((short)pet.IdentityId);     // job sprite (PV>=20081126)
+
+			owner.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Confirms a pet-feed attempt and echoes which food item was
+		/// consumed. Mirrors rA <c>clif_feed_pet</c>
+		/// (<c>ZC_FEED_PET</c> 0x01A3). At Sabine PV 50000 the itemId
+		/// is widened to uint32 (7-byte wire).
+		/// </summary>
+		/// <param name="result">0 = success, 1 = fail.</param>
+		public static void ZC_FEED_PET(PlayerCharacter owner, int result, int foodClassId)
+		{
+			using var packet = Packet.Rent(Op.ZC_FEED_PET);
+			packet.PutByte((byte)result);
+
+			if (Game.Version >= Versions.Sabine)
+				packet.PutInt(foodClassId);
+			else
+				packet.PutShort((short)foodClassId);
+
+			owner.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates a single pet state field on the owner's client
+		/// (intimacy, hunger, accessory, or performance pose). Mirrors
+		/// rA <c>clif_pet_emotion</c> family
+		/// (<c>ZC_CHANGESTATE_PET</c> 0x01A4, 11 bytes).
+		/// </summary>
+		/// <param name="type">
+		/// 0 = pre-spawn, 1 = intimacy update, 2 = hunger update,
+		/// 3 = accessory update, 4 = performance / emote id.
+		/// </param>
+		public static void ZC_CHANGESTATE_PET(PlayerCharacter owner, byte type, int petHandle, int data)
+		{
+			using var packet = Packet.Rent(Op.ZC_CHANGESTATE_PET);
+			packet.PutByte(type);
+			packet.PutInt(petHandle);
+			packet.PutInt(data);
+
+			owner.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens the Sage / Mage Item Appraisal UI showing the player's
+		/// unidentified inventory items. Per-entry = 2-byte inventory
+		/// index. Mirrors rA <c>clif_item_identify_list</c>
+		/// (<c>ZC_ITEMIDENTIFY_LIST</c> 0x0177, dynamic).
+		/// </summary>
+		public static void ZC_ITEMIDENTIFY_LIST(PlayerCharacter character, IEnumerable<int> unidentifiedInvIds)
+		{
+			using var packet = Packet.Rent(Op.ZC_ITEMIDENTIFY_LIST);
+
+			foreach (var invId in unidentifiedInvIds)
+				packet.PutShort((short)invId);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// GM-tooling reply: resolves an account id to its username.
+		/// Mirrors rA <c>clif_account_name</c>
+		/// (<c>ZC_ACK_ACCOUNTNAME</c> 0x01E0, 30 bytes).
+		/// </summary>
+		public static void ZC_ACK_ACCOUNTNAME(PlayerCharacter character, int accountId, string accountName)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_ACCOUNTNAME);
+			packet.PutInt(accountId);
+			packet.PutString(accountName, 24);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates a single quest's active/inactive flag on the player's
+		/// quest log. Mirrors rA <c>clif_quest_update_status</c>
+		/// (<c>ZC_ACTIVE_QUEST</c> 0x02B7, 7 bytes).
+		/// </summary>
+		public static void ZC_ACTIVE_QUEST(PlayerCharacter character, int questId, bool active)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACTIVE_QUEST);
+			packet.PutInt(questId);
+			packet.PutByte(active);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Broadcasts a character's chosen chat font id to nearby
+		/// players so their messages render in the selected font.
+		/// Mirrors rA <c>clif_font</c> (<c>ZC_NOTIFY_FONT</c> 0x02EF,
+		/// 8 bytes). Sent on map enter and whenever
+		/// <c>CZ_REQ_CHANGE_FONT</c> updates it.
+		/// </summary>
+		public static void ZC_NOTIFY_FONT(PlayerCharacter character, int fontId)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_FONT);
+			packet.PutInt(character.Connection?.Account?.Id ?? character.Handle);
+			packet.PutShort((short)fontId);
+
+			if (character.Map != null)
+				character.Map.Broadcast(packet, character, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Tells the inviter whether the recipient accepted their guild
+		/// invitation. Mirrors rA <c>clif_guild_inviteack</c>
+		/// (<c>ZC_ACK_REQ_JOIN_GUILD</c> 0x0169, 3 bytes).
+		/// </summary>
+		/// <param name="result">0 = already in guild, 1 = rejected,
+		/// 2 = accepted, 3 = guild full.</param>
+		public static void ZC_ACK_REQ_JOIN_GUILD(PlayerCharacter inviter, byte result)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_REQ_JOIN_GUILD);
+			packet.PutByte(result);
+
+			inviter.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the leaving player + their guild that a member left
+		/// (or was expelled). Mirrors rA <c>clif_guild_leave</c>
+		/// (<c>ZC_ACK_LEAVE_GUILD</c> 0x015A, 66 bytes: 24-byte name +
+		/// 40-byte reason).
+		/// </summary>
+		public static void ZC_ACK_LEAVE_GUILD(PlayerCharacter character, string memberName, string reason)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_LEAVE_GUILD);
+			packet.PutString(memberName, 24);
+			packet.PutString(reason, 40);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Broadcasts a guild-channel chat message to a single member.
+		/// Mirrors rA <c>clif_guild_message</c>
+		/// (<c>ZC_GUILD_CHAT</c> 0x017F, dynamic). Callers typically
+		/// iterate all online members and send to each.
+		/// </summary>
+		public static void ZC_GUILD_CHAT(PlayerCharacter character, string message)
+		{
+			using var packet = Packet.Rent(Op.ZC_GUILD_CHAT);
+			packet.PutString(message);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Swaps the sprite of an NPC mid-script. Mirrors rA
+		/// <c>clif_changelook_npc</c>
+		/// (<c>ZC_NPCSPRITE_CHANGE</c> 0x01B0, 11 bytes). type = sprite
+		/// slot (LOOK_BASE=0 for body sprite, LOOK_WEAPON=1, etc.);
+		/// class is the new id for that slot.
+		/// </summary>
+		public static void ZC_NPCSPRITE_CHANGE(Character actor, byte type, int classId)
+		{
+			using var packet = Packet.Rent(Op.ZC_NPCSPRITE_CHANGE);
+			packet.PutInt(actor.Handle);
+			packet.PutByte(type);
+			packet.PutInt(classId);
+
+			if (actor.Map != null)
+				actor.Map.Broadcast(packet, actor, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Echoes a client setting back to the player after toggling
+		/// (e.g. open/close cart, equip-window). Mirrors rA
+		/// <c>clif_configuration</c>
+		/// (<c>ZC_CONFIG_NOTIFY</c> 0x02DA, 3 bytes).
+		/// </summary>
+		public static void ZC_CONFIG_NOTIFY(PlayerCharacter character, byte flag)
+		{
+			using var packet = Packet.Rent(Op.ZC_CONFIG_NOTIFY);
+			packet.PutByte(flag);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Reply to <c>CZ_REQNAME_BYGID</c>: resolves a character id to
+		/// their name. Mirrors rA <c>clif_solved_charname</c>
+		/// (<c>ZC_ACK_REQNAME_BYGID</c> 0x0194, 30 bytes).
+		/// </summary>
+		public static void ZC_ACK_REQNAME_BYGID(PlayerCharacter character, int charId, string name)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_REQNAME_BYGID);
+			packet.PutInt(charId);
+			packet.PutString(name, 24);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Reply for the unified name+party+guild+position lookup.
+		/// Mirrors rA <c>clif_charnameack</c>
+		/// (<c>ZC_ACK_REQNAMEALL</c> 0x0195, 102 bytes). Triggered when
+		/// the client hovers a character to show the full identity card.
+		/// </summary>
+		public static void ZC_ACK_REQNAMEALL(PlayerCharacter recipient, int gid, string name, string partyName, string guildName, string positionName)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_REQNAMEALL);
+			packet.PutInt(gid);
+			packet.PutString(name, 24);
+			packet.PutString(partyName, 24);
+			packet.PutString(guildName, 24);
+			packet.PutString(positionName, 24);
+
+			recipient.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens the guild info window (top-level summary tab) with
+		/// counts, levels, exp, alignment, treasury, and master name.
+		/// Mirrors rA <c>clif_guild_basicinfo</c>
+		/// (<c>ZC_GUILD_INFO2</c> 0x01B6, 114 bytes — rA's classic
+		/// 0x01b6 layout). At PV>=20161019 rA switches to 0x0a84;
+		/// Sabine PV 50000 keeps the 0x01b6 form since open-midgard
+		/// targets that layout.
+		/// </summary>
+		public static void ZC_GUILD_INFO2(PlayerCharacter character, Sabine.Zone.World.Groups.Guild guild, int onlineMemberCount, int averageLevel, int maxMembers)
+		{
+			using var packet = Packet.Rent(Op.ZC_GUILD_INFO2);
+			packet.PutInt(guild.Id);
+			packet.PutInt(guild.Level);
+			packet.PutInt(onlineMemberCount);
+			packet.PutInt(maxMembers);
+			packet.PutInt(averageLevel);
+			packet.PutInt(guild.ExpCurrent);
+			packet.PutInt(0);                            // maxExp (next level cap, lookup later)
+			packet.PutInt(0);                            // point
+			packet.PutInt(0);                            // honor
+			packet.PutInt(0);                            // virtue
+			packet.PutInt(guild.EmblemId);
+			packet.PutString(guild.Name, 24);
+			packet.PutString(guild.MasterName ?? "", 24);
+			packet.PutString("", 16);                    // manageLand (castle name)
+			packet.PutInt(0);                            // zeny (treasury)
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Pushes a guild emblem bitmap to a player so the client can
+		/// render it on member sprites, castle flags, and the guild
+		/// window. Mirrors rA <c>clif_guild_emblem</c>
+		/// (<c>ZC_GUILD_EMBLEM_IMG</c> 0x0152, dynamic). emblem_data is
+		/// the raw BMP bytes (typically &lt; 2KB).
+		/// </summary>
+		public static void ZC_GUILD_EMBLEM_IMG(PlayerCharacter character, int guildId, int emblemVersion, byte[] emblemData)
+		{
+			using var packet = Packet.Rent(Op.ZC_GUILD_EMBLEM_IMG);
+			packet.PutInt(guildId);
+			packet.PutInt(emblemVersion);
+
+			if (emblemData != null && emblemData.Length > 0)
+				packet.PutBytes(emblemData);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Pops the guild-invite popup on the target's client. Mirrors
+		/// rA <c>clif_guild_invite</c> (<c>ZC_REQ_JOIN_GUILD</c> 0x016A,
+		/// 30 bytes). Recipient replies via <c>CZ_JOIN_GUILD</c> with
+		/// the guild_id echo.
+		/// </summary>
+		public static void ZC_REQ_JOIN_GUILD(PlayerCharacter target, int guildId, string guildName)
+		{
+			using var packet = Packet.Rent(Op.ZC_REQ_JOIN_GUILD);
+			packet.PutInt(guildId);
+			packet.PutString(guildName, 24);
+
+			target.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Populates the guild Members tab with one row per online +
+		/// offline member. Per-entry layout matches rA's classic 0x0154
+		/// pre-2016 form (AID + GID + appearance + level + exp + state
+		/// + position + 50-byte intro + 24-byte name = 104 bytes).
+		/// Mirrors rA <c>clif_guild_memberlist</c>.
+		/// </summary>
+		public static void ZC_MEMBERMGR_INFO(PlayerCharacter character, IEnumerable<Sabine.Zone.World.Groups.GuildMember> members)
+		{
+			using var packet = Packet.Rent(Op.ZC_MEMBERMGR_INFO);
+
+			foreach (var member in members)
+			{
+				var player = member.Player;
+				packet.PutInt(player?.Connection?.Account?.Id ?? 0);   // AID
+				packet.PutInt(member.CharacterId);                     // GID
+				packet.PutShort(0);                                    // head
+				packet.PutShort(0);                                    // headPalette
+				packet.PutShort((short)(player?.Sex ?? Sex.Male));     // sex
+				packet.PutShort((short)(player?.JobId ?? 0));          // job
+				packet.PutShort((short)(player?.Parameters.BaseLevel ?? 0));
+				packet.PutInt(0);                                      // contributionExp
+				packet.PutInt(player != null ? 1 : 0);                 // currentState (1=online)
+				packet.PutInt(member.IsMaster ? 0 : 1);                // positionID (0=master, 1=member)
+				packet.PutString("", 50);                              // intro
+				packet.PutString(player?.Name ?? "", 24);              // char_name
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Populates the guild Skills tab. Per-entry = id + inf + level
+		/// + sp + range + name(24) + upFlag = 37 bytes. Mirrors rA
+		/// <c>clif_guild_skillinfo</c>
+		/// (<c>ZC_GUILD_SKILLINFO</c> 0x0162, dynamic).
+		/// </summary>
+		public static void ZC_GUILD_SKILLINFO(PlayerCharacter character, short skillPoints, IEnumerable<(short id, int inf, short level, short sp, short range, string name, bool upgradable)> skills)
+		{
+			using var packet = Packet.Rent(Op.ZC_GUILD_SKILLINFO);
+			packet.PutShort(skillPoints);
+
+			foreach (var (id, inf, level, sp, range, name, upgradable) in skills)
+			{
+				packet.PutShort(id);
+				packet.PutInt(inf);
+				packet.PutShort(level);
+				packet.PutShort(sp);
+				packet.PutShort(range);
+				packet.PutString(name, 24);
+				packet.PutByte(upgradable);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens the pet egg / incubator UI listing all egg items in the
+		/// player's inventory. Per-entry = 2-byte inventory index.
+		/// Mirrors rA <c>clif_sendegg</c>
+		/// (<c>ZC_PETEGG_LIST</c> 0x01A6, dynamic).
+		/// </summary>
+		public static void ZC_PETEGG_LIST(PlayerCharacter character, IEnumerable<int> eggInvIds)
+		{
+			using var packet = Packet.Rent(Op.ZC_PETEGG_LIST);
+
+			foreach (var invId in eggInvIds)
+				packet.PutShort((short)invId);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies clients near an actor that one of its skill metas
+		/// changed (level / cooldown / availability). Mirrors rA
+		/// <c>clif_skillinfo_update</c>
+		/// (<c>ZC_SKILL_UPDATE</c> 0x01AC, 6 bytes). Followed by the
+		/// usual <c>ZC_SKILLINFO_UPDATE</c> for the owner.
+		/// </summary>
+		public static void ZC_SKILL_UPDATE(Character actor)
+		{
+			using var packet = Packet.Rent(Op.ZC_SKILL_UPDATE);
+			packet.PutInt(actor.Handle);
+
+			if (actor.Map != null)
+				actor.Map.Broadcast(packet, actor, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Notifies the guild that a member was expelled (kicked).
+		/// Mirrors rA <c>clif_guild_explusion</c>
+		/// (<c>ZC_ACK_BAN_GUILD</c> 0x015C, 90 bytes — classic V1:
+		/// 24-byte name + 40-byte reason + 24-byte account_name).
+		/// </summary>
+		public static void ZC_ACK_BAN_GUILD(PlayerCharacter character, string memberName, string reason, string accountName)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_BAN_GUILD);
+			packet.PutString(memberName, 24);
+			packet.PutString(reason, 40);
+			packet.PutString(accountName, 24);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Disband prompt — sent to the guild master after they request
+		/// a break. Mirrors rA <c>clif_guild_break</c> (<c>ZC_ACK_DISORGANIZE_GUILD</c>
+		/// 0x015F, 42 bytes — 40-byte reason).
+		/// </summary>
+		public static void ZC_ACK_DISORGANIZE_GUILD(PlayerCharacter character, string reason)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_DISORGANIZE_GUILD);
+			packet.PutString(reason, 40);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Disband result. Mirrors rA <c>clif_guild_broken</c>
+		/// (<c>ZC_ACK_DISORGANIZE_GUILD_RESULT</c> 0x015E, 6 bytes).
+		/// flag: 0=success, 1=invalid key, 2=still has members.
+		/// </summary>
+		public static void ZC_ACK_DISORGANIZE_GUILD_RESULT(PlayerCharacter character, int flag)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_DISORGANIZE_GUILD_RESULT);
+			packet.PutInt(flag);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the inviter whether their alliance request was
+		/// accepted. Mirrors rA <c>clif_guild_allianceack</c>
+		/// (<c>ZC_ACK_REQ_ALLY_GUILD</c> 0x0173, 3 bytes).
+		/// </summary>
+		/// <param name="result">0 = accepted, 1 = rejected,
+		/// 2 = ally count full, 3 = guild is hostile.</param>
+		public static void ZC_ACK_REQ_ALLY_GUILD(PlayerCharacter character, byte result)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_REQ_ALLY_GUILD);
+			packet.PutByte(result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the requester whether their hostility (antagonist)
+		/// request was accepted. Mirrors rA <c>clif_guild_oppositionack</c>
+		/// (<c>ZC_ACK_REQ_HOSTILE_GUILD</c> 0x0181, 3 bytes).
+		/// </summary>
+		/// <param name="result">0 = set, 1 = too many antagonists,
+		/// 2 = already antagonist, 3 = disabled.</param>
+		public static void ZC_ACK_REQ_HOSTILE_GUILD(PlayerCharacter character, byte result)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_REQ_HOSTILE_GUILD);
+			packet.PutByte(result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Adds an ally or antagonist row to the guild's relations
+		/// list. Mirrors rA <c>clif_guild_allianceadded</c>
+		/// (<c>ZC_ADD_RELATED_GUILD</c> 0x0185, 34 bytes).
+		/// relation: 0 = ally, 1 = antagonist.
+		/// </summary>
+		public static void ZC_ADD_RELATED_GUILD(PlayerCharacter character, int relation, int otherGuildId, string otherGuildName)
+		{
+			using var packet = Packet.Rent(Op.ZC_ADD_RELATED_GUILD);
+			packet.PutInt(relation);
+			packet.PutInt(otherGuildId);
+			packet.PutString(otherGuildName, 24);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Removes an ally or antagonist row from the relations list.
+		/// Mirrors rA <c>clif_guild_delalliance</c>
+		/// (<c>ZC_DELETE_RELATED_GUILD</c> 0x0184, 10 bytes).
+		/// flag: 0 = ally, 1 = antagonist.
+		/// </summary>
+		public static void ZC_DELETE_RELATED_GUILD(PlayerCharacter character, int otherGuildId, int flag)
+		{
+			using var packet = Packet.Rent(Op.ZC_DELETE_RELATED_GUILD);
+			packet.PutInt(otherGuildId);
+			packet.PutInt(flag);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sets the bitmask of enabled guild window tabs for the
+		/// current member. Mirrors rA <c>clif_guild_masterormember</c>
+		/// (<c>ZC_ACK_GUILD_MENUINTERFACE</c> 0x014E, 6 bytes). Master
+		/// flag = 0xD7 (everything), member flag = 0x57 (no expulsion /
+		/// no notice edit).
+		/// </summary>
+		public static void ZC_ACK_GUILD_MENUINTERFACE(PlayerCharacter character, int menuFlag)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_GUILD_MENUINTERFACE);
+			packet.PutInt(menuFlag);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Result of a guild-treasury deposit attempt. Mirrors rA
+		/// <c>clif_guild_zenyack</c> (<c>ZC_GUILD_ZENY_ACK</c> 0x01B8,
+		/// 3 bytes). result: 0 = success, 1 = fail.
+		/// </summary>
+		public static void ZC_GUILD_ZENY_ACK(PlayerCharacter character, byte result)
+		{
+			using var packet = Packet.Rent(Op.ZC_GUILD_ZENY_ACK);
+			packet.PutByte(result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Replies to <c>/pvpinfo</c> with the caller's PvP stats.
+		/// Mirrors rA <c>clif_PVPInfo</c>
+		/// (<c>ZC_ACK_PVPPOINT</c> 0x0210, 22 bytes).
+		/// </summary>
+		public static void ZC_ACK_PVPPOINT(PlayerCharacter character, int wins, int losses, int points)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_PVPPOINT);
+			packet.PutInt(character.Id);
+			packet.PutInt(character.Connection?.Account?.Id ?? character.Handle);
+			packet.PutInt(wins);
+			packet.PutInt(losses);
+			packet.PutInt(points);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Detail popup for a single guild member (right-click on the
+		/// members tab). Mirrors rA <c>clif_guild_memberinfo</c>
+		/// (<c>ZC_ACK_GUILD_MEMBER_INFO</c> 0x0176, 106 bytes).
+		/// </summary>
+		public static void ZC_ACK_GUILD_MEMBER_INFO(PlayerCharacter character, int aid, int gid, int head, int hp, int sex, int job, int level, int contributionExp, int currentState, int positionId, string intro, string name)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_GUILD_MEMBER_INFO);
+			packet.PutInt(aid);
+			packet.PutInt(gid);
+			packet.PutShort((short)head);
+			packet.PutShort((short)hp);
+			packet.PutShort((short)sex);
+			packet.PutShort((short)job);
+			packet.PutShort((short)level);
+			packet.PutInt(contributionExp);
+			packet.PutInt(currentState);
+			packet.PutInt(positionId);
+			packet.PutString(intro, 50);
+			packet.PutString(name, 24);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Renders the guild ban (expel) history list. Per-entry uses
+		/// rA's classic V1 layout: 24-byte char name + 24-byte account
+		/// name + 40-byte reason = 88 bytes. Mirrors rA
+		/// <c>clif_guild_expulsionlist</c>
+		/// (<c>ZC_BAN_LIST</c> 0x0163, dynamic).
+		/// </summary>
+		public static void ZC_BAN_LIST(PlayerCharacter character, IEnumerable<(string charName, string accountName, string reason)> entries)
+		{
+			using var packet = Packet.Rent(Op.ZC_BAN_LIST);
+
+			foreach (var (charName, accountName, reason) in entries)
+			{
+				packet.PutString(charName, 24);
+				packet.PutString(accountName, 24);
+				packet.PutString(reason, 40);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Pushes one stat detail entry to the Status window — shows
+		/// base value + bonus (e.g. STR 50 (+10)). Despite the
+		/// historical name, this is the per-stat detail packet, not
+		/// marriage-related. Mirrors rA <c>clif_couplestatus</c>
+		/// (<c>ZC_COUPLESTATUS</c> 0x0141, 14 bytes).
+		/// </summary>
+		public static void ZC_COUPLESTATUS(PlayerCharacter character, int statusType, int defaultValue, int plusValue)
+		{
+			using var packet = Packet.Rent(Op.ZC_COUPLESTATUS);
+			packet.PutInt(statusType);
+			packet.PutInt(defaultValue);
+			packet.PutInt(plusValue);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates the guild Positions tab — pushes the (renamed/
+		/// re-flagged) position rows back to all online members.
+		/// Mirrors rA <c>clif_guild_positionchanged</c>
+		/// (<c>ZC_ACK_CHANGE_GUILD_POSITIONINFO</c> 0x0174, dynamic).
+		/// Per-entry layout = positionId(4) + mode(4) + ranking(4) +
+		/// payRate(4) + name(24) = 40 bytes.
+		/// </summary>
+		public static void ZC_ACK_CHANGE_GUILD_POSITIONINFO(PlayerCharacter character, IEnumerable<(int positionId, int mode, int ranking, int payRate, string name)> positions)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_CHANGE_GUILD_POSITIONINFO);
+
+			foreach (var (positionId, mode, ranking, payRate, name) in positions)
+			{
+				packet.PutInt(positionId);
+				packet.PutInt(mode);
+				packet.PutInt(ranking);
+				packet.PutInt(payRate);
+				packet.PutString(name, 24);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Broadcasts that one or more members were re-assigned to a
+		/// different guild position. Mirrors rA
+		/// <c>clif_guild_memberpositionchanged</c>
+		/// (<c>ZC_ACK_REQ_CHANGE_MEMBERS</c> 0x0156, dynamic).
+		/// Per-entry layout = AID(4) + CID(4) + positionId(4) = 12.
+		/// </summary>
+		public static void ZC_ACK_REQ_CHANGE_MEMBERS(PlayerCharacter character, IEnumerable<(int accountId, int charId, int positionId)> changes)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_REQ_CHANGE_MEMBERS);
+
+			foreach (var (accountId, charId, positionId) in changes)
+			{
+				packet.PutInt(accountId);
+				packet.PutInt(charId);
+				packet.PutInt(positionId);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens the "view equipment" window — shows what another
+		/// player is wearing. Mirrors rA <c>clif_viewequip_ack</c>
+		/// (<c>ZC_EQUIPWIN_MICROSCOPE</c> 0x02D7, dynamic). Per-equip
+		/// entry uses the V6 layout (59 bytes) under Sabine PV 50000
+		/// via <see cref="PacketItemExtensions.AddEquipItemV6"/>.
+		/// </summary>
+		public static void ZC_EQUIPWIN_MICROSCOPE(PlayerCharacter viewer, PlayerCharacter target)
+		{
+			using var packet = Packet.Rent(Op.ZC_EQUIPWIN_MICROSCOPE);
+			packet.PutString(target.Name, 24);
+			packet.PutShort((short)target.JobId);
+			packet.PutShort((short)target.HairId);
+			packet.PutShort((short)target.HeadBottomLook);
+			packet.PutShort((short)target.HeadTopLook);
+			packet.PutShort((short)target.HeadMiddleLook);
+			packet.PutShort(0);                            // headpalette
+			packet.PutShort(0);                            // bodypalette
+			packet.PutByte((byte)target.Sex);
+
+			foreach (var item in target.Inventory.GetEquippedItems())
+			{
+				if (item == null || !item.Type.IsEquip())
+					continue;
+				packet.AddEquipItemV6(item, item.EquippedOn);
+			}
+
+			viewer.Connection.Send(packet);
+		}
+
+		public static void ZC_MAKABLEITEMLIST(PlayerCharacter character, IEnumerable<(int classId, int mat1, int mat2, int mat3)> recipes)
+		{
+			using var packet = Packet.Rent(Op.ZC_MAKABLEITEMLIST);
+
+			var wideId = Game.Version >= Versions.Sabine;
+			foreach (var (classId, mat1, mat2, mat3) in recipes)
+			{
+				if (wideId)
+				{
+					packet.PutInt(classId);
+					packet.PutInt(mat1);
+					packet.PutInt(mat2);
+					packet.PutInt(mat3);
+				}
+				else
+				{
+					packet.PutShort((short)classId);
+					packet.PutShort((short)mat1);
+					packet.PutShort((short)mat2);
+					packet.PutShort((short)mat3);
+				}
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Character-base overload of <see cref="ZC_NOTIFY_EFFECT"/>, so
 		/// NPCs and monsters can also be the source of an effect.
 		/// </summary>
@@ -1962,6 +3471,413 @@ namespace Sabine.Zone.Network
 			packet.PutInt((int)effectId);
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);
+		}
+
+		/// <summary>
+		/// Sends the saved hotkey bar to the client (S2500+).
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_hotkeys_send</c>
+		/// (<c>src/map/clif.cpp:11215</c>) — 27 slots × (B isSkill +
+		/// L id + W count) = 189 + 2 op header = 191 bytes.
+		/// </remarks>
+		public static void ZC_SHORTCUT_KEY_LIST(PlayerCharacter character)
+		{
+			using var packet = Packet.Rent(Op.ZC_SHORTCUT_KEY_LIST);
+
+			foreach (var entry in character.Hotkeys.GetAll())
+			{
+				packet.PutByte(entry.IsSkill);
+				packet.PutInt(entry.Id);
+				packet.PutShort(entry.Count);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the full quest log to the client (S2500+).
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_quest_send_list</c>
+		/// (<c>clif.cpp:17955</c>, pre-20141022 path) — W op, W len,
+		/// L count, then per-quest (L id + B state).
+		/// </remarks>
+		public static void ZC_ALL_QUEST_LIST(PlayerCharacter character)
+		{
+			using var packet = Packet.Rent(Op.ZC_ALL_QUEST_LIST);
+
+			var entries = character.Quests.ListAll();
+			packet.PutInt(entries.Count);
+
+			foreach (var entry in entries)
+			{
+				packet.PutInt(entry.Id);
+				packet.PutByte((byte)entry.State);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the active quest objectives to the client (S2500+).
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_quest_send_mission</c>
+		/// (<c>clif.cpp:17974</c>) — W op, W len, L count, then
+		/// per-quest 104-byte block: L id + L start + L expire + W
+		/// mobs + 3×(L mob_id + W cur + 24B name). Mob IDs / names
+		/// stay zeroed until a quest DB lands; the client tolerates
+		/// empty objective slots.
+		/// </remarks>
+		public static void ZC_ALL_QUEST_MISSION(PlayerCharacter character)
+		{
+			using var packet = Packet.Rent(Op.ZC_ALL_QUEST_MISSION);
+
+			var entries = character.Quests.ListActive();
+			packet.PutInt(entries.Count);
+
+			foreach (var entry in entries)
+			{
+				packet.PutInt(entry.Id);
+				packet.PutInt(entry.AcceptedAtUtc == default ? 0 : (int)ToUnixSeconds(entry.AcceptedAtUtc));
+				packet.PutInt(0);                // expire_time
+				packet.PutShort(0);              // objective mob count
+				for (var i = 0; i < 3; i++)
+				{
+					packet.PutInt(0);            // mob_id
+					packet.PutShort((short)entry.Counts[i]);
+					packet.PutString(string.Empty, 24); // mob name
+				}
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the client that a quest was just accepted (S2500+).
+		/// Fixed 107 bytes: L id + B state + L start + L expire +
+		/// W mobs + 3×(L mob_id + W cur + 24B name).
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_quest_add</c>
+		/// (<c>clif.cpp:18016</c>, 0x2b3 pre-20150513 path).
+		/// </remarks>
+		public static void ZC_ADD_QUEST(PlayerCharacter character, QuestEntry entry)
+		{
+			using var packet = Packet.Rent(Op.ZC_ADD_QUEST);
+
+			packet.PutInt(entry.Id);
+			packet.PutByte((byte)entry.State);
+			packet.PutInt(entry.AcceptedAtUtc == default ? 0 : (int)ToUnixSeconds(entry.AcceptedAtUtc));
+			packet.PutInt(0);                    // expire_time
+			packet.PutShort(0);                  // objective mob count
+			for (var i = 0; i < 3; i++)
+			{
+				packet.PutInt(0);                // mob_id
+				packet.PutShort((short)entry.Counts[i]);
+				packet.PutString(string.Empty, 24);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the client that a quest was removed (S2500+).
+		/// Fixed 6 bytes: L quest_id.
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_quest_delete</c>
+		/// (<c>clif.cpp:18094</c>).
+		/// </remarks>
+		public static void ZC_DEL_QUEST(PlayerCharacter character, int questId)
+		{
+			using var packet = Packet.Rent(Op.ZC_DEL_QUEST);
+			packet.PutInt(questId);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates a hunting-mission counter on the client (S2500+).
+		/// Dynamic: W op + W len + W mobs + 3×(L quest_id + L mob_id
+		/// + W total + W cur).
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_quest_update_objective</c>
+		/// (<c>clif.cpp:18108</c>, 0x2b5 pre-20150513 path). Sabine
+		/// has no quest DB yet, so mob_id / total stay zero; the
+		/// counter slot the client renders comes from the per-slot
+		/// current count.
+		/// </remarks>
+		public static void ZC_UPDATE_MISSION_HUNT(PlayerCharacter character, QuestEntry entry)
+		{
+			using var packet = Packet.Rent(Op.ZC_UPDATE_MISSION_HUNT);
+
+			packet.PutShort(3); // mobs (always 3 slots in this packet)
+			for (var i = 0; i < 3; i++)
+			{
+				packet.PutInt(entry.Id);
+				packet.PutInt(0);                // mob_id
+				packet.PutShort(0);              // total
+				packet.PutShort((short)entry.Counts[i]);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+
+		/// <summary>
+		/// Sends the cash shop catalog to the client and pops the
+		/// shop window (S2500+).
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_cashshop_show</c>
+		/// (<c>clif.cpp:17404</c>). At PV20070711+ the header carries
+		/// both cash and kafra balances; each entry is
+		/// L price + L discountPrice + B itemType + W itemId = 11
+		/// bytes (uint16 itemId pre-2018).
+		/// </remarks>
+		public static void ZC_PC_CASH_POINT_ITEMLIST(PlayerCharacter character, IEnumerable<Sabine.Shared.Data.Databases.CashShopEntry> entries)
+		{
+			using var packet = Packet.Rent(Op.ZC_PC_CASH_POINT_ITEMLIST);
+
+			packet.PutInt(character.Parameters.CashPoints);
+			packet.PutInt(character.Parameters.KafraPoints);
+
+			var items = ZoneServer.Instance.Data.Items;
+			foreach (var entry in entries)
+			{
+				var price = entry.KafraPrice > 0 ? entry.KafraPrice : entry.CashPrice;
+				var itemType = items.Find(entry.ItemId)?.Type ?? Sabine.Shared.Const.ItemType.Etc;
+
+				packet.PutInt(price);
+				packet.PutInt(price); // discountPrice — same as price; no sales today
+				packet.PutByte((byte)itemType);
+				packet.PutShort((short)entry.ItemId);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the client of a cash-shop purchase result and the
+		/// new currency balances (S2500+).
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_cashshop_ack</c>
+		/// (<c>clif.cpp:17452</c>). Fixed 12 bytes at PV20070711+:
+		/// L cash + L kafra + W error.
+		/// </remarks>
+		public static void ZC_PC_CASH_POINT_UPDATE(PlayerCharacter character, short error)
+		{
+			using var packet = Packet.Rent(Op.ZC_PC_CASH_POINT_UPDATE);
+
+			packet.PutInt(character.Parameters.CashPoints);
+			packet.PutInt(character.Parameters.KafraPoints);
+			packet.PutShort(error);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Acknowledges a client configuration toggle by echoing the
+		/// new state back (S2500+).
+		/// </summary>
+		/// <remarks>
+		/// Reference: rAthena <c>clif_parse_configuration</c> — fixed
+		/// 10 bytes: W op + L type + L flag.
+		/// </remarks>
+		public static void ZC_CONFIG(PlayerCharacter character, int type, int flag)
+		{
+			using var packet = Packet.Rent(Op.ZC_CONFIG);
+			packet.PutInt(type);
+			packet.PutInt(flag);
+
+			character.Connection.Send(packet);
+		}
+
+		// --- Battleground senders -------------------------------------------
+		// rAthena reference: clif.cpp:18410-18572 (clif_bg_*). PACKETVER 23.
+		// Sabine S2500 keeps the pre-renewal int16 hp/maxhp layout — the
+		// rAthena widening to int32 happens at PACKETVER >= 20140613.
+
+		/// <summary>
+		/// Broadcasts a chat line from a BG team member to every recipient
+		/// in the team. rAthena <c>clif_bg_message</c> / 0x02DC, variable.
+		/// </summary>
+		public static void ZC_BATTLEFIELD_CHAT(IEnumerable<PlayerCharacter> recipients, int accountId, string name, string message)
+		{
+			using var packet = Packet.Rent(Op.ZC_BATTLEFIELD_CHAT);
+			packet.PutInt(accountId);
+			packet.PutString(name, 24);
+			packet.PutString(message);
+
+			foreach (var pc in recipients)
+				pc.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Tells the client which camp (team) a BG member belongs to.
+		/// rAthena <c>clif_sendbgemblem_*</c> / 0x02DD, size 32.
+		/// </summary>
+		public static void ZC_BATTLEFIELD_NOTIFY_CAMPINFO(PlayerCharacter target, int accountId, string name, short camp)
+		{
+			using var packet = Packet.Rent(Op.ZC_BATTLEFIELD_NOTIFY_CAMPINFO);
+			packet.PutInt(accountId);
+			packet.PutString(name, 24);
+			packet.PutShort(camp);
+
+			target.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates the BG scoreboard (camp A vs camp B kill counts).
+		/// rAthena <c>clif_bg_updatescore</c> / 0x02DE, size 6.
+		/// </summary>
+		public static void ZC_BATTLEFIELD_NOTIFY_POINT(IEnumerable<PlayerCharacter> recipients, short campA, short campB)
+		{
+			using var packet = Packet.Rent(Op.ZC_BATTLEFIELD_NOTIFY_POINT);
+			packet.PutShort(campA);
+			packet.PutShort(campB);
+
+			foreach (var pc in recipients)
+				pc.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Refreshes a BG member's minimap pin (position + class icon).
+		/// rAthena <c>clif_bg_xy</c> / 0x02DF, size 36.
+		/// </summary>
+		public static void ZC_BATTLEFIELD_NOTIFY_POSITION(IEnumerable<PlayerCharacter> recipients, int accountId, string name, short job, short x, short y)
+		{
+			using var packet = Packet.Rent(Op.ZC_BATTLEFIELD_NOTIFY_POSITION);
+			packet.PutInt(accountId);
+			packet.PutString(name, 24);
+			packet.PutShort(job);
+			packet.PutShort(x);
+			packet.PutShort(y);
+
+			foreach (var pc in recipients)
+				pc.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Refreshes a BG member's HP bar on the team panel.
+		/// rAthena <c>clif_bg_hp</c> / 0x02E0, size 34 (pre-renewal int16 hp).
+		/// </summary>
+		public static void ZC_BATTLEFIELD_NOTIFY_HP(IEnumerable<PlayerCharacter> recipients, int accountId, string name, short hp, short maxHp)
+		{
+			using var packet = Packet.Rent(Op.ZC_BATTLEFIELD_NOTIFY_HP);
+			packet.PutInt(accountId);
+			packet.PutString(name, 24);
+			packet.PutShort(hp);
+			packet.PutShort(maxHp);
+
+			foreach (var pc in recipients)
+				pc.Connection.Send(packet);
+		}
+
+		// --- Memorial Dungeon (instance) senders ----------------------------
+		// rAthena reference: clif.cpp clif_instance_* family. PACKETVER 23.
+		// Sizes are pinned by PacketTable.2500_sakEP12; field layouts below
+		// follow the rAthena PACKET_ZC_MEMORIALDUNGEON_* structs at PV23 and
+		// pad to the registered total when individual fields are uncertain.
+
+		/// <summary>
+		/// Sends the per-instance subscription record (name, owner, expiry,
+		/// map). 0x02CB, size 65.
+		/// </summary>
+		public static void ZC_MEMORIALDUNGEON_SUBSCRIPTION_INFO(PlayerCharacter target, string instanceName, string mapName, int remainingSeconds)
+		{
+			using var packet = Packet.Rent(Op.ZC_MEMORIALDUNGEON_SUBSCRIPTION_INFO);
+			packet.PutString(instanceName, 24);
+			packet.PutInt(remainingSeconds);
+			packet.PutString(mapName, 24);
+			packet.PutEmpty(9); // padding to reach the registered 65-byte total
+
+			target.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies a subscription state change for a memorial dungeon.
+		/// 0x02CC, size 4: [u16 op][u16 state].
+		/// </summary>
+		public static void ZC_MEMORIALDUNGEON_SUBSCRIPTION_NOTIFY(PlayerCharacter target, short state)
+		{
+			using var packet = Packet.Rent(Op.ZC_MEMORIALDUNGEON_SUBSCRIPTION_NOTIFY);
+			packet.PutShort(state);
+
+			target.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the active instance info (name + state + timers). 0x02CD,
+		/// size 71.
+		/// </summary>
+		public static void ZC_MEMORIALDUNGEON_INFO(PlayerCharacter target, string instanceName, int remainingSeconds, int progressSeconds)
+		{
+			using var packet = Packet.Rent(Op.ZC_MEMORIALDUNGEON_INFO);
+			packet.PutString(instanceName, 61);
+			packet.PutInt(remainingSeconds);
+			packet.PutInt(progressSeconds);
+
+			target.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies progress/state for the active memorial dungeon.
+		/// 0x02CE, size 10: [u16 op][u32 state][u32 progress].
+		/// </summary>
+		public static void ZC_MEMORIALDUNGEON_NOTIFY(PlayerCharacter target, int state, int progress)
+		{
+			using var packet = Packet.Rent(Op.ZC_MEMORIALDUNGEON_NOTIFY);
+			packet.PutInt(state);
+			packet.PutInt(progress);
+
+			target.Connection.Send(packet);
+		}
+
+		// --- Interrealm / cross-server senders ------------------------------
+		// Sabine is single-realm, so these are kept as wire-complete stubs:
+		// no caller in Sabine's MailManager invokes them. They exist so a
+		// future multi-realm bridge can call them without re-deriving the
+		// packet shape.
+
+		/// <summary>
+		/// Notifies the client of a clean inter-realm disconnect, letting it
+		/// surface a friendly message before the socket closes. 0x02D5,
+		/// size 2 — opcode only.
+		/// </summary>
+		public static void ZC_ISVR_DISCONNECT(ZoneConnection conn)
+		{
+			using var packet = Packet.Rent(Op.ZC_ISVR_DISCONNECT);
+			conn.Send(packet);
+		}
+
+		/// <summary>
+		/// Acknowledges an inter-realm mail send attempt. Single-realm
+		/// installs do not call this — Sabine's local mail uses the
+		/// <c>ZC_MAIL_*</c> family. Layout per rAthena PV23: u8 result.
+		/// </summary>
+		public static void ZC_IRMAIL_SEND_RES(ZoneConnection conn, byte result)
+		{
+			using var packet = Packet.Rent(Op.ZC_IRMAIL_SEND_RES);
+			packet.PutByte(result);
+			conn.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the client of a newly arrived inter-realm mail. Unused
+		/// by Sabine's single-realm install. Layout per rAthena PV23:
+		/// sender name (24) + subject (40).
+		/// </summary>
+		public static void ZC_IRMAIL_NOTIFY(ZoneConnection conn, string senderName, string subject)
+		{
+			using var packet = Packet.Rent(Op.ZC_IRMAIL_NOTIFY);
+			packet.PutString(senderName, 24);
+			packet.PutString(subject, 40);
+			conn.Send(packet);
 		}
 	}
 }

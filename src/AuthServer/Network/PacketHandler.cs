@@ -94,6 +94,9 @@ namespace Sabine.Auth.Network
 
 			Send.AC_ACCEPT_LOGIN(conn, account);
 
+			if (AuthServer.Instance.Conf.Auth.PincodeEnable && Game.Version >= Versions.S2500)
+				Send.AC_REQUEST_SECOND_PASSWORD(conn, account.Id, 0);
+
 			Log.Info("User '{0}' logged in.", username);
 		}
 

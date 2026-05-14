@@ -70,8 +70,13 @@ namespace Sabine.Char.Network
 
 			// Starting some time after beta 1, the client expects the raw
 			// account id to be sent upon connection, or it won't react to
-			// any packets...?
-			if (Game.Version >= Versions.Beta2)
+			// any packets...? Gravity dropped this prelude again by the
+			// Sak EP12 era — rAthena's chclif_mmo_send006b sends
+			// HC_ACCEPT_ENTER straight away with the AID embedded as
+			// CHARACTER_INFO.GID. open-midgard's PV23 framer misreads
+			// the 4-byte preamble as a phantom 0x0001 packet, so skip it
+			// at S2500+.
+			if (Game.Version >= Versions.Beta2 && Game.Version < Versions.S2500)
 				Send.InitConnection(conn);
 
 			Send.HC_ACCEPT_ENTER(conn, characters);
@@ -93,6 +98,8 @@ namespace Sabine.Char.Network
 			if (character == null)
 			{
 				Log.Warning("CH_SELECT_CHAR: User '{0}' tried to select a non-existing character.", conn.Account.Username);
+				if (Game.Version >= Versions.S2500)
+					Send.HC_CHARNOTBEENSELECTED(conn);
 				return;
 			}
 
@@ -122,6 +129,8 @@ namespace Sabine.Char.Network
 				if (!fallbackFound)
 				{
 					Log.Error("CH_SELECT_CHAR: No maps found that character '{0}' could login on.", character.Name);
+					if (Game.Version >= Versions.S2500)
+						Send.HC_REFUSE_SELECTCHAR(conn, 0); // server is closed
 					return;
 				}
 
@@ -146,23 +155,49 @@ namespace Sabine.Char.Network
 		{
 			var character = new Character();
 
-			character.Name = packet.GetString(Sizes.CharacterNames);
-			character.Str = packet.GetByte();
-			character.Agi = packet.GetByte();
-			character.Vit = packet.GetByte();
-			character.Int = packet.GetByte();
-			character.Dex = packet.GetByte();
-			character.Luk = packet.GetByte();
-			character.Slot = packet.GetByte();
-
-			if (Game.Version < Versions.Beta2)
+			if (Game.Version >= Versions.Sabine)
 			{
-				character.HairId = packet.GetByte();
+				// rA PACKET_CH_MAKE_CHAR at PACKETVER >= 20151001
+				// (packets.hpp:122, char_clif.cpp chclif_parse_CharMake).
+				// Drops per-stat distribution — stats default to 1/1/1/1/1/1
+				// and grow via stat-point allocation post-creation. Carries
+				// job + sex selectors instead.
+				character.Name = packet.GetString(Sizes.CharacterNames);
+				character.Slot = packet.GetByte();
+				character.HairColorId = packet.GetShort();
+				character.HairId = packet.GetShort();
+				var jobId = packet.GetInt();
+				var sex = packet.GetByte();
+
+				if (jobId != 0)
+				{
+					Log.Warning("CH_MAKE_CHAR: User '{0}' tried to create a character with non-Novice job '{1}'.", conn.Account.Username, jobId);
+					Send.HC_REFUSE_MAKECHAR(conn, CharCreateError.Denied);
+					return;
+				}
+
+				character.Str = character.Agi = character.Vit = character.Int = character.Dex = character.Luk = 1;
 			}
 			else
 			{
-				character.HairColorId = packet.GetShort();
-				character.HairId = packet.GetShort();
+				character.Name = packet.GetString(Sizes.CharacterNames);
+				character.Str = packet.GetByte();
+				character.Agi = packet.GetByte();
+				character.Vit = packet.GetByte();
+				character.Int = packet.GetByte();
+				character.Dex = packet.GetByte();
+				character.Luk = packet.GetByte();
+				character.Slot = packet.GetByte();
+
+				if (Game.Version < Versions.Beta2)
+				{
+					character.HairId = packet.GetByte();
+				}
+				else
+				{
+					character.HairColorId = packet.GetShort();
+					character.HairId = packet.GetShort();
+				}
 			}
 
 			var account = conn.Account;
@@ -178,7 +213,7 @@ namespace Sabine.Char.Network
 			}
 
 			var statDistribution = character.Str + character.Agi + character.Vit + character.Int + character.Dex + character.Luk;
-			if (statDistribution != 30)
+			if (Game.Version < Versions.Sabine && statDistribution != 30)
 			{
 				Log.Warning("CH_MAKE_CHAR: User '{0}' tried to create a character with an invalid stat distribution ({1}).", account.Username, statDistribution);
 				Send.HC_REFUSE_MAKECHAR(conn, CharCreateError.Denied);
@@ -232,7 +267,14 @@ namespace Sabine.Char.Network
 			var emailAddress = (string)null;
 
 			var characterId = packet.GetInt();
-			if (packet.Op == Op.CH_DELETE_CHAR2)
+
+			// rA PACKET_CH_DELETE_CHAR at PACKETVER >= 20040419 always
+			// carries a 50-byte key (email or birthdate). Sabine collapses
+			// the historical CH_DELETE_CHAR2 dual-op into this single
+			// modern body — see PacketTable.Sabine.cs Unregister call.
+			if (Game.Version >= Versions.Sabine)
+				emailAddress = packet.GetString(50);
+			else if (packet.Op == Op.CH_DELETE_CHAR2)
 				emailAddress = packet.GetString(50);
 
 			// TODO: Add email check.

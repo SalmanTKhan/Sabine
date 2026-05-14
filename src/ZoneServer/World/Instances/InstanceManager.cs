@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Sabine.Shared;
+using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Maps;
 using Sabine.Zone.World;
@@ -46,6 +48,7 @@ namespace Sabine.Zone.World.Instances
 			lock (_syncLock)
 				_instances[id] = instance;
 
+			NotifyOwner(instance, state: 1); // 1 = subscription created
 			return instance;
 		}
 
@@ -131,6 +134,7 @@ namespace Sabine.Zone.World.Instances
 			maps.Add(clone);
 			instance.AttachMap(sourceMapStringId, clone);
 
+			NotifyOwnerMapAttached(instance, sourceMapStringId);
 			return instanceStringId;
 		}
 
@@ -149,11 +153,65 @@ namespace Sabine.Zone.World.Instances
 				_instances.Remove(instanceId);
 			}
 
+			NotifyOwner(inst, state: 3); // 3 = subscription ended
+
 			var maps = ZoneServer.Instance.World.Maps;
 			foreach (var map in inst.GetMaps())
 				maps.Remove(map);
 
 			inst.Dispose();
+		}
+
+		/// <summary>
+		/// Resolves the instance's char-id owner to an online player and
+		/// emits the memorial-dungeon subscription update. No-op when the
+		/// instance is party/guild-scoped without a single resolvable owner,
+		/// when the owner is offline, or when the running protocol version
+		/// doesn't carry the packet (pre-S2500).
+		/// </summary>
+		private static void NotifyOwner(Instance instance, short state)
+		{
+			if (Game.Version < Versions.S2500)
+				return;
+			if (instance.OwnerCharId == 0)
+				return;
+
+			var pc = FindOwner(instance.OwnerCharId);
+			if (pc == null)
+				return;
+
+			Send.ZC_MEMORIALDUNGEON_SUBSCRIPTION_NOTIFY(pc, state);
+		}
+
+		/// <summary>
+		/// Sends the per-instance info packets after a clone map is attached.
+		/// Mirrors rAthena's instance_reqinfo flow that fires once the
+		/// dungeon map exists and the owner can be told where to enter.
+		/// </summary>
+		private static void NotifyOwnerMapAttached(Instance instance, string baseMapName)
+		{
+			if (Game.Version < Versions.S2500)
+				return;
+			if (instance.OwnerCharId == 0)
+				return;
+
+			var pc = FindOwner(instance.OwnerCharId);
+			if (pc == null)
+				return;
+
+			var remaining = Math.Max(0, (int)(instance.ExpiresAt - DateTime.UtcNow).TotalSeconds);
+			Send.ZC_MEMORIALDUNGEON_SUBSCRIPTION_INFO(pc, $"instance#{instance.Id}", baseMapName, remaining);
+			Send.ZC_MEMORIALDUNGEON_INFO(pc, $"instance#{instance.Id}", remaining, 0);
+		}
+
+		private static PlayerCharacter FindOwner(int charId)
+		{
+			foreach (var map in ZoneServer.Instance.World.Maps.GetAll())
+			{
+				if (map.TryGetPlayerById(charId, out var pc))
+					return pc;
+			}
+			return null;
 		}
 
 		/// <summary>

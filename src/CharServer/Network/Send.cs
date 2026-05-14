@@ -51,7 +51,22 @@ namespace Sabine.Char.Network
 		{
 			using var packet = Packet.Rent(Op.HC_ACCEPT_ENTER);
 
-			if (Game.Version >= Versions.S600 && Game.Version < Versions.S2500)
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_HC_ACCEPT_ENTER at PACKETVER >= 20100413
+				// (packets.hpp:240, char_clif.cpp chclif_mmo_send0819).
+				// Header carries slot-config triple (total/premium_start/
+				// premium_end) followed by 20-byte extension padding.
+				// Per-char body keeps the EP12/PV23 108-byte CHARACTER_INFO
+				// layout for now — the modern rA 155-175 byte widening
+				// is deferred. The open-midgard client must match by
+				// parsing 108-byte char entries after this 23-byte header.
+				packet.PutByte(9);    // total (char slots)
+				packet.PutByte(0);    // premium_start
+				packet.PutByte(0);    // premium_end
+				packet.PutEmpty(20);  // extension
+			}
+			else if (Game.Version >= Versions.S600 && Game.Version < Versions.S2500)
 			{
 				// The client calculates the length of the character
 				// portion for this version as '(len - 4) / 106', and a
@@ -92,6 +107,16 @@ namespace Sabine.Char.Network
 			packet.PutString(mapFileName, 16);
 			packet.PutInt(IPAddress.Parse(ip));
 			packet.PutShort((short)port);
+
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_HC_NOTIFY_ZONESVR at PACKETVER >= 20170315
+				// (packets.hpp:291, char_clif.cpp chclif_send_map_data).
+				// Trailing 128-byte domain field — empty when zone routing
+				// uses IP only, non-empty when the server publishes a
+				// hostname. Sabine leaves it empty.
+				packet.PutString("", 128);
+			}
 
 			conn.Send(packet);
 		}
@@ -145,6 +170,40 @@ namespace Sabine.Char.Network
 			using var packet = Packet.Rent(Op.HC_REFUSE_DELETECHAR);
 			packet.PutByte(0); // Doesn't seem to do anything.
 
+			conn.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the client that the character selection request was
+		/// refused, showing a reason popup.
+		/// </summary>
+		/// <remarks>
+		/// rAthena: <c>clif_authrefuse</c> family / 0x02CA at PACKETVER 23.
+		/// </remarks>
+		/// <param name="conn"></param>
+		/// <param name="reason">
+		/// 0 = "Server is closed", 1 = "Server is overpopulated",
+		/// 2 = "Login info incorrect", 3 = "Account expired".
+		/// </param>
+		public static void HC_REFUSE_SELECTCHAR(CharConnection conn, byte reason)
+		{
+			using var packet = Packet.Rent(Op.HC_REFUSE_SELECTCHAR);
+			packet.PutByte(reason);
+
+			conn.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the client that no character was actually selected,
+		/// returning the UI to the character list.
+		/// </summary>
+		/// <remarks>
+		/// rAthena: 0x028B, variable-length empty body.
+		/// </remarks>
+		/// <param name="conn"></param>
+		public static void HC_CHARNOTBEENSELECTED(CharConnection conn)
+		{
+			using var packet = Packet.Rent(Op.HC_CHARNOTBEENSELECTED);
 			conn.Send(packet);
 		}
 	}

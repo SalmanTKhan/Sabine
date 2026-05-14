@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Sabine.Shared.Const;
 using Sabine.Shared.Data;
+using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Logging;
 
@@ -134,6 +135,25 @@ namespace Sabine.Zone.Scripting
 		public static void OpenGuildStorage(PlayerCharacter player)
 		{
 			player.OpenGuildStorage();
+		}
+
+		/// <summary>
+		/// Opens the EP12 cash-shop window populated with the full
+		/// <c>cash_shop.txt</c> catalog. Equivalent to eAthena's
+		/// <c>cashshop</c> script directive.
+		/// </summary>
+		/// <remarks>
+		/// Requires <c>Game.Version &gt;= S2500</c> — older clients
+		/// have no cash-shop UI. The handler silently no-ops on
+		/// earlier versions instead of throwing, so scripts can be
+		/// shared across eras.
+		/// </remarks>
+		public static void OpenCashShop(PlayerCharacter player)
+		{
+			if (Sabine.Shared.Game.Version < Sabine.Shared.Versions.S2500)
+				return;
+
+			Send.ZC_PC_CASH_POINT_ITEMLIST(player, ZoneServer.Instance.Data.CashShop.Entries.Values);
 		}
 
 		/// <summary>
@@ -1753,6 +1773,23 @@ namespace Sabine.Zone.Scripting
 				if (!team.CharacterIds.Contains(player.Id))
 					team.CharacterIds.Add(player.Id);
 			}
+
+			if (Sabine.Shared.Game.Version >= Sabine.Shared.Versions.S2500)
+			{
+				var camp = (short)team.Id;
+				foreach (var charId in team.CharacterIds)
+				{
+					foreach (var map in ZoneServer.Instance.World.Maps.GetAll())
+					{
+						if (map.TryGetPlayerById(charId, out var pc))
+						{
+							Sabine.Zone.Network.Send.ZC_BATTLEFIELD_NOTIFY_CAMPINFO(pc, player.Handle, player.Name, camp);
+							break;
+						}
+					}
+				}
+			}
+
 			return team.CharacterIds.Count;
 		}
 

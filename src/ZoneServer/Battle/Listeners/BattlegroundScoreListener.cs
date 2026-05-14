@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+using Sabine.Shared;
 using Sabine.Shared.Util;
+using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Battlegrounds;
 
@@ -83,6 +86,23 @@ namespace Sabine.Zone.Battle.Listeners
 		{
 			Announce(winner, Localization.Get("BG: {0} - {1}"), winner.Score, loser.Score);
 			Announce(loser, Localization.Get("BG: {0} - {1}"), loser.Score, winner.Score);
+
+			if (Game.Version >= Versions.S2500)
+			{
+				var members = new List<PlayerCharacter>();
+				foreach (var charId in winner.CharacterIds)
+				{
+					var pc = FindOnline(charId);
+					if (pc != null) members.Add(pc);
+				}
+				foreach (var charId in loser.CharacterIds)
+				{
+					var pc = FindOnline(charId);
+					if (pc != null) members.Add(pc);
+				}
+				if (members.Count > 0)
+					Send.ZC_BATTLEFIELD_NOTIFY_POINT(members, (short)winner.Score, (short)loser.Score);
+			}
 		}
 
 		private static void EndMatch(Battleground winner, Battleground loser)

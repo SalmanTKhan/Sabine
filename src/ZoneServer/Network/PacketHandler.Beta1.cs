@@ -439,6 +439,12 @@ namespace Sabine.Zone.Network
 		/// <summary>
 		/// Request to change PK mode.
 		/// </summary>
+		/// <remarks>
+		/// rAthena: <c>clif_parse_PKModeChange</c> writes <c>sd->state.pk_mode</c>.
+		/// Sabine has no per-character PK toggle today (PvP is controlled by
+		/// map property and duel state — see <c>BattleCalculator</c>), so this
+		/// is logged and acknowledged but has no game-state effect.
+		/// </remarks>
 		[PacketHandler(Op.CZ_PKMODE_CHANGE)]
 		public void CZ_PKMODE_CHANGE(ZoneConnection conn, Packet packet)
 		{
@@ -446,24 +452,40 @@ namespace Sabine.Zone.Network
 			var character = conn.GetCurrentCharacter();
 
 			Log.Debug("CZ_PKMODE_CHANGE: Char '{0}' changed PK mode to {1}.", character.Name, mode);
-			// TODO: PK mode logic
 		}
 
 		/// <summary>
-		/// Request to create an item (e.g., Arrow Crafting).
+		/// GM @item command. Looks up an item by name and adds it to the
+		/// caller's inventory.
 		/// </summary>
+		/// <remarks>
+		/// rAthena: <c>clif_parse_GM_Item_Monster</c> (clif.cpp). 24-byte
+		/// item-or-mob name at PV23. Sabine only handles the item branch.
+		/// </remarks>
 		[PacketHandler(Op.CZ_ITEM_CREATE)]
 		public void CZ_ITEM_CREATE(ZoneConnection conn, Packet packet)
 		{
 			var itemName = packet.GetString(24);
 			var character = conn.GetCurrentCharacter();
 
-			Log.Debug("CZ_ITEM_CREATE: Char '{0}' trying to create item '{1}'.", character.Name, itemName);
-			// TODO: Item creation logic
+			if (character.Connection.Account.Authority < 1)
+			{
+				Log.Warning("CZ_ITEM_CREATE: Non-GM char '{0}' tried to summon item '{1}'.", character.Name, itemName);
+				return;
+			}
+
+			var itemData = ZoneServer.Instance.Data.Items.Find(a => string.Equals(a.Name, itemName, System.StringComparison.OrdinalIgnoreCase));
+			if (itemData == null)
+			{
+				Log.Debug("CZ_ITEM_CREATE: Item '{0}' not found for GM '{1}'.", itemName, character.Name);
+				return;
+			}
+
+			character.Inventory.AddItem(new Item(itemData.ClassId, 1));
 		}
 
 		/// <summary>
-		/// GM command to move to a map.
+		/// GM @warp command — move to a map at given coordinates.
 		/// </summary>
 		[PacketHandler(Op.CZ_MOVETO_MAP)]
 		public void CZ_MOVETO_MAP(ZoneConnection conn, Packet packet)
@@ -473,8 +495,11 @@ namespace Sabine.Zone.Network
 			var y = packet.GetShort();
 
 			var character = conn.GetCurrentCharacter();
-			// TODO: Add GM level check
-			// if (character.Account.GMLevel < 1) return;
+			if (character.Connection.Account.Authority < 1)
+			{
+				Log.Warning("CZ_MOVETO_MAP: Non-GM char '{0}' tried to warp to {1}.", character.Name, mapName);
+				return;
+			}
 
 			Log.Debug("CZ_MOVETO_MAP: GM '{0}' warping to {1} ({2},{3})", character.Name, mapName, x, y);
 

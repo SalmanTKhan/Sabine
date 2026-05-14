@@ -99,6 +99,7 @@ namespace Sabine.Zone
 
 			AppDomain.CurrentDomain.ProcessExit += (_, _) =>
 			{
+				this.NotifyClientsOfShutdown();
 				this.World.SaveVars();
 				this.World.Guilds.SaveAllStorages();
 			};
@@ -233,6 +234,32 @@ namespace Sabine.Zone
 		private void OnConnectionAccepted(ZoneConnection conn)
 		{
 			Log.Info("New connection accepted from '{0}'.", conn.Address);
+		}
+
+		/// <summary>
+		/// Sends <c>ZC_ISVR_DISCONNECT</c> to every connected character before
+		/// the process tears down, so PV23+ clients can show a graceful
+		/// disconnect message instead of dropping silently. No-op on
+		/// pre-S2500 profiles (op is not registered).
+		/// </summary>
+		private void NotifyClientsOfShutdown()
+		{
+			if (Game.Version < Versions.S2500)
+				return;
+
+			try
+			{
+				var players = new System.Collections.Generic.List<Sabine.Zone.World.Actors.PlayerCharacter>();
+				foreach (var map in this.World.Maps.GetAll())
+					map.GetPlayers(players, 0, static (_, _) => true);
+
+				foreach (var pc in players)
+					Send.ZC_ISVR_DISCONNECT(pc.Connection);
+			}
+			catch (Exception ex)
+			{
+				Log.Warning("ZoneServer: Failed to notify clients of shutdown: {0}", ex.Message);
+			}
 		}
 	}
 }

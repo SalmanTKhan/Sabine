@@ -1,5 +1,8 @@
+using System.Collections.Generic;
 using System.Linq;
+using Sabine.Shared;
 using Sabine.Shared.Util;
+using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Battlegrounds;
 using Yggdrasil.Util.Commands;
@@ -18,6 +21,45 @@ namespace Sabine.Zone.Commands
 			this.Add("bgmatch", "<bgIdA> <bgIdB> [winScore]", Localization.Get("Pairs two BGs as opponents in a kill-count match."), this.BgMatch);
 			this.Add("bgscore", "<bgId>", Localization.Get("Reports a BG's current score."), this.BgScore);
 			this.Add("bgsetcrystal", "<bgId> <monsterHandle>", Localization.Get("Designates a monster as a BG's crystal (Flavius win condition)."), this.BgSetCrystal);
+			this.Add("bgchat", "<message>", Localization.Get("Sends a team-only message to your Battleground."), this.BgChat);
+		}
+
+		/// <summary>
+		/// /bgchat &lt;message&gt; — sends a team-only chat line to every
+		/// online member of the sender's BG via
+		/// <c>ZC_BATTLEFIELD_CHAT</c>. No-op (with a hint) when the sender
+		/// isn't in a BG.
+		/// </summary>
+		private CommandResult BgChat(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (args.Count < 1) return CommandResult.InvalidArgument;
+			if (Game.Version < Versions.S2500)
+			{
+				sender.ServerMessage(Localization.Get("BG chat requires the S2500+ protocol."));
+				return CommandResult.Okay;
+			}
+
+			var bg = ZoneServer.Instance.World.Battlegrounds.GetByMember(sender.Id);
+			if (bg == null)
+			{
+				sender.ServerMessage(Localization.Get("You aren't in a Battleground."));
+				return CommandResult.Okay;
+			}
+
+			// args.Get(0) is just the first token; reuse the raw message
+			// suffix so multi-word lines arrive intact.
+			var text = message ?? string.Empty;
+
+			var recipients = new List<PlayerCharacter>();
+			foreach (var charId in bg.CharacterIds)
+			{
+				var pc = ResolveOnline(charId);
+				if (pc != null)
+					recipients.Add(pc);
+			}
+
+			Send.ZC_BATTLEFIELD_CHAT(recipients, sender.Handle, sender.Name, text);
+			return CommandResult.Okay;
 		}
 
 		private CommandResult BgList(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
@@ -76,8 +118,39 @@ namespace Sabine.Zone.Commands
 			}
 
 			bg.CharacterIds.Add(target.Id);
+			BroadcastCampInfo(bg, target);
 			sender.ServerMessage(Localization.Get("{0} joined BG #{1}."), target.Name, bg.Id);
 			return CommandResult.Okay;
+		}
+
+		/// <summary>
+		/// Sends <c>ZC_BATTLEFIELD_NOTIFY_CAMPINFO</c> for the joining
+		/// player to every online member of the BG, including the joiner
+		/// themself. PV23+ clients use this to populate the team panel
+		/// with the new member's name + camp emblem.
+		/// </summary>
+		private static void BroadcastCampInfo(Battleground bg, PlayerCharacter joiner)
+		{
+			if (Game.Version < Versions.S2500)
+				return;
+
+			var camp = (short)bg.Id;
+			foreach (var charId in bg.CharacterIds)
+			{
+				var pc = ResolveOnline(charId);
+				if (pc != null)
+					Send.ZC_BATTLEFIELD_NOTIFY_CAMPINFO(pc, joiner.Handle, joiner.Name, camp);
+			}
+		}
+
+		private static PlayerCharacter ResolveOnline(int charId)
+		{
+			foreach (var map in ZoneServer.Instance.World.Maps.GetAll())
+			{
+				if (map.TryGetPlayerById(charId, out var pc))
+					return pc;
+			}
+			return null;
 		}
 
 		private CommandResult BgLeave(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
