@@ -14,7 +14,9 @@ using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.Skills.Handlers;
 using Sabine.Zone.Skills.Handlers.Novice;
+using Sabine.Zone.World;
 using Sabine.Zone.World.Actors;
+using Sabine.Zone.World.Actors.Components.Characters;
 using Sabine.Zone.World.Chats;
 using Sabine.Zone.World.Groups;
 using Sabine.Zone.World.Maps;
@@ -209,7 +211,132 @@ namespace Sabine.Zone.Network
 			if (character.IsDead)
 				Send.ZC_NOTIFY_VANISH(character, DisappearType.StrikedDead);
 
+			// EP12 bootstrap: empty hotbar + empty quest log so the
+			// client finishes its post-map-load handshake instead of
+			// blocking on missing UI data. Persistence lands later.
+			if (Game.Version >= Versions.S2500)
+			{
+				Send.ZC_SHORTCUT_KEY_LIST(character);
+				Send.ZC_ALL_QUEST_LIST(character);
+				Send.ZC_ALL_QUEST_MISSION(character);
+			}
+
+			// Friends bootstrap: dump the player's saved friends list and
+			// announce their online state to every online friend.
+			if (Game.Version >= Versions.Sabine)
+			{
+				var friends = character.Friends.GetAll();
+				Send.ZC_ADD_FRIENDS_LIST(character, friends);
+				FriendsService.BroadcastOnlineState(character, online: true);
+			}
+
 			ZoneServer.Instance.ServerEvents.PlayerReady.Raise(new PlayerEventArgs(character));
+		}
+
+		/// <summary>
+		/// Request to persist a single hotkey slot (S2500+).
+		/// Accept-and-discard until shortcut persistence lands; the
+		/// stub prevents the unknown-op path in
+		/// <c>Connection.OnMessageReceived</c>.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_SHORTCUT_KEY_CHANGE)]
+		public void CZ_SHORTCUT_KEY_CHANGE(ZoneConnection conn, Packet packet)
+		{
+			// Wire: W index + B isSkill + L id + W count.
+			// rAthena ref: clif_parse_Hotkey (clif.cpp:11264).
+			var index = (short)packet.GetShort();
+			var isSkill = packet.GetByte();
+			var id = packet.GetInt();
+			var count = (short)packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			character.Hotkeys.Set(index, new Sabine.Zone.World.Actors.Components.Characters.HotkeyEntry
+			{
+				IsSkill = isSkill,
+				Id = id,
+				Count = count,
+			});
+		}
+
+		/// <summary>
+		/// Toggle for a client-side configuration flag (S2500+).
+		/// Echoes the new state back so the client UI reflects it.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		/// <summary>
+		/// Cash shop purchase request (S2500+). At PV20080910 the
+		/// payload is fixed 10 bytes: W itemId + W amount + L
+		/// kafraPointsFlag. When the flag is non-zero the price is
+		/// debited from kafra points; otherwise from cash points.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.CZ_PC_BUY_CASH_POINT_ITEM)]
+		public void CZ_PC_BUY_CASH_POINT_ITEM(ZoneConnection conn, Packet packet)
+		{
+			var itemId = (short)packet.GetShort();
+			var amount = (short)packet.GetShort();
+			var useKafra = packet.GetInt() != 0;
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			// rA cash-shop ack error codes (clif.cpp:17443).
+			const short ERROR_NONE = 0;
+			const short ERROR_BAD_ITEM = 5;
+			const short ERROR_NOT_ENOUGH = 6;
+			const short ERROR_AMOUNT = 7;
+
+			if (amount <= 0 || amount > 10)
+			{
+				Send.ZC_PC_CASH_POINT_UPDATE(character, ERROR_AMOUNT);
+				return;
+			}
+
+			if (!ZoneServer.Instance.Data.CashShop.TryFind(itemId, out var entry))
+			{
+				Send.ZC_PC_CASH_POINT_UPDATE(character, ERROR_BAD_ITEM);
+				return;
+			}
+
+			var unitPrice = useKafra && entry.KafraPrice > 0 ? entry.KafraPrice : entry.CashPrice;
+			var totalCost = unitPrice * amount;
+
+			var balance = useKafra ? character.Parameters.KafraPoints : character.Parameters.CashPoints;
+			if (balance < totalCost)
+			{
+				Send.ZC_PC_CASH_POINT_UPDATE(character, ERROR_NOT_ENOUGH);
+				return;
+			}
+
+			if (useKafra)
+				character.Parameters.KafraPoints -= totalCost;
+			else
+				character.Parameters.CashPoints -= totalCost;
+
+			character.Inventory.Add(entry.ItemId, amount);
+
+			Send.ZC_PC_CASH_POINT_UPDATE(character, ERROR_NONE);
+		}
+
+		[PacketHandler(Op.CZ_CONFIG)]
+		public void CZ_CONFIG(ZoneConnection conn, Packet packet)
+		{
+			var type = packet.GetInt();
+			var flag = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			Send.ZC_CONFIG(character, type, flag);
 		}
 
 		/// <summary>
@@ -252,7 +379,9 @@ namespace Sabine.Zone.Network
 		{
 			// Three byte that don't seem to change or contain useful
 			// information?
-			if (Game.Version >= Versions.S2000)
+			// Sabine drops PV23 obfuscation padding and reads the clean
+			// rA 3-byte PackedPosition directly.
+			if (Game.Version >= Versions.S2000 && Game.Version < Versions.Sabine)
 				packet.Skip(3);
 
 			var toPos = (Position)packet.GetPackedPosition();
@@ -867,7 +996,13 @@ namespace Sabine.Zone.Network
 			var headTurn = HeadTurn.Straight;
 			var bodyDir = Direction.South;
 
-			if (Game.Version < Versions.Beta2)
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA clean layout at 0x009B: uint16 headDir + uint8 dir.
+				headTurn = (HeadTurn)(byte)packet.GetShort();
+				bodyDir = (Direction)packet.GetByte();
+			}
+			else if (Game.Version < Versions.Beta2)
 			{
 				bodyDir = (Direction)packet.GetByte();
 			}
@@ -905,6 +1040,11 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_ITEM_PICKUP)]
 		public void CZ_ITEM_PICKUP(ZoneConnection conn, Packet packet)
 		{
+			// PV22+ takeitem grew a 2-byte filler before the AID (eA
+			// db/packet_db.txt PV22 line 1009: 0x00f5,8,takeitem,4).
+			if (Game.Version >= Versions.S2500)
+				packet.Skip(2);
+
 			var itemHandle = packet.GetInt();
 
 			var character = conn.GetCurrentCharacter();
@@ -921,7 +1061,7 @@ namespace Sabine.Zone.Network
 			// Round-robin loot to a party member when the picker's
 			// party has even item-share enabled. Falls back to the
 			// picker when no other eligible target is on the map.
-			var recipient = World.Groups.PartyDistribution.PickLootRecipient(character);
+			var recipient = PartyDistribution.PickLootRecipient(character);
 			recipient.Inventory.AddItem(item);
 		}
 
@@ -1011,14 +1151,14 @@ namespace Sabine.Zone.Network
 			// go through CZ_REQ_WEAR_EQUIP, never CZ_USE_ITEM.
 			if (character.IsDead)
 			{
-				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount, item.ClassId);
 				return;
 			}
 
 			if (!item.Type.IsConsumable())
 			{
 				Log.Debug("CZ_USE_ITEM: User '{0}' tried to consume non-consumable item '{1}' (type {2}).", conn.Account.Username, item.Data.Name, item.Type);
-				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount, item.ClassId);
 				return;
 			}
 
@@ -1030,7 +1170,7 @@ namespace Sabine.Zone.Network
 				character.StatusEffects.Has(StatusId.TrickDead) ||
 				character.StatusEffects.Has(StatusId.Hiding)))
 			{
-				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount, item.ClassId);
 				return;
 			}
 
@@ -1043,7 +1183,7 @@ namespace Sabine.Zone.Network
 			{
 				if (TryHatchEgg(character, item))
 					character.Inventory.DecrementItem(item, 1);
-				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount, item.ClassId);
 				return;
 			}
 
@@ -1054,7 +1194,7 @@ namespace Sabine.Zone.Network
 			if (TryHireMercFromContract(character, item))
 			{
 				character.Inventory.DecrementItem(item, 1);
-				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+				Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount, item.ClassId);
 				return;
 			}
 
@@ -1070,7 +1210,7 @@ namespace Sabine.Zone.Network
 					character.Inventory.DecrementItem(item, 1);
 			}
 
-			Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount);
+			Send.ZC_USE_ITEM_ACK(character, itemInvId, item.Amount, item.ClassId);
 		}
 
 		/// <summary>
@@ -1296,24 +1436,49 @@ namespace Sabine.Zone.Network
 			var zenyCost = 0;
 
 			var len = packet.GetShort();
-
-			var count = (len - 4) / 18;
 			var buyItems = new Dictionary<ShopItem, int>();
 
-			for (var i = 0; i < count; ++i)
+			if (Game.Version >= Versions.Sabine)
 			{
-				var amount = packet.GetShort();
-				var stringId = packet.GetString(16);
-
-				var item = shop.GetItem(stringId);
-				if (item == null)
+				// rA PACKET_CZ_PC_PURCHASE_ITEMLIST_sub at PACKETVER_MAIN
+				// >= 20181121 widens itemId to uint32. Per-entry =
+				// 2 amount + 4 itemId = 6.
+				// Ref: rathena packets_struct.hpp:3083.
+				var count = (len - 4) / 6;
+				for (var i = 0; i < count; ++i)
 				{
-					Log.Warning("CZ_PC_PURCHASE_ITEMLIST: User '{0}' tried to buy an item that doesn't exist in the shop.", conn.Account.Username);
-					return;
-				}
+					var amount = packet.GetShort();
+					var classId = packet.GetInt();
 
-				buyItems[item] = amount;
-				zenyCost += Sabine.Zone.Skills.MerchantPricing.GetBuyPrice(character, item.Price) * amount;
+					var item = shop.GetItem(classId);
+					if (item == null)
+					{
+						Log.Warning("CZ_PC_PURCHASE_ITEMLIST: User '{0}' tried to buy an item that doesn't exist in the shop.", conn.Account.Username);
+						return;
+					}
+
+					buyItems[item] = amount;
+					zenyCost += Sabine.Zone.Skills.MerchantPricing.GetBuyPrice(character, item.Price) * amount;
+				}
+			}
+			else
+			{
+				var count = (len - 4) / 18;
+				for (var i = 0; i < count; ++i)
+				{
+					var amount = packet.GetShort();
+					var stringId = packet.GetString(16);
+
+					var item = shop.GetItem(stringId);
+					if (item == null)
+					{
+						Log.Warning("CZ_PC_PURCHASE_ITEMLIST: User '{0}' tried to buy an item that doesn't exist in the shop.", conn.Account.Username);
+						return;
+					}
+
+					buyItems[item] = amount;
+					zenyCost += Sabine.Zone.Skills.MerchantPricing.GetBuyPrice(character, item.Price) * amount;
+				}
 			}
 
 			if (character.Parameters.Zeny < zenyCost)
@@ -1602,6 +1767,15 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			// Global animation lockout / per-skill cooldown gates. The
+			// lockout (AfterCastActDelay) is the classic Beta1-era gate
+			// every cast respects; the per-skill check is a no-op for
+			// data rows with cooldown=0 so older skill DBs are unaffected.
+			if (character.Skills.IsLockedOut())
+				return;
+			if (character.Skills.IsOnCooldown(skill.Id))
+				return;
+
 			if (!character.Map.TryGetCharacter(targetHandle, out var target))
 			{
 				character.ServerMessage(Localization.Get("Target not found."));
@@ -1661,6 +1835,11 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			if (character.Skills.IsLockedOut())
+				return;
+			if (character.Skills.IsOnCooldown(skill.Id))
+				return;
+
 			var targetPos = new Position(x, y);
 
 			// Clamp level, but don't warn about invalid values, since the
@@ -1679,6 +1858,7 @@ namespace Sabine.Zone.Network
 				return;
 
 			handler.Handle(new UseGroundSkillParams(character, targetPos, skill, level));
+			character.Skills.NoteSkillUsed(skill);
 		}
 
 		/// <summary>
@@ -2203,6 +2383,48 @@ namespace Sabine.Zone.Network
 					Sabine.Zone.Skills.Pets.PetService.ReturnToEgg(character);
 					break;
 			}
+		}
+
+		// ------------------------------------------------------------
+		// S2500 / PV23 client-driven notice packets — swallow silently
+		// so they don't generate "unhandled packet" log spam.
+		// These have no server-side state to update at our current
+		// coverage level; they exist to ack client events.
+		// ------------------------------------------------------------
+
+		/// <summary>
+		/// nProtect GameGuard keep-alive ("KSY") ping. Body: L flag.
+		/// eA tag at PV20+: ksy_event. No-op on our side.
+		/// </summary>
+		[PacketHandler(Op.CZ_KSY_EVENT)]
+		public void CZ_KSY_EVENT(ZoneConnection conn, Packet packet)
+		{
+		}
+
+		/// <summary>
+		/// Periodic bot-check pulse from kRO clients (PV22+). Body: W flag.
+		/// </summary>
+		[PacketHandler(Op.CZ_BOT_CHECK)]
+		public void CZ_BOT_CHECK(ZoneConnection conn, Packet packet)
+		{
+		}
+
+		/// <summary>
+		/// Client notification that a ZC_PROGRESS bar completed
+		/// (PV22+, eA tag: progressbar). Header-only.
+		/// </summary>
+		[PacketHandler(Op.CZ_PROGRESS)]
+		public void CZ_PROGRESS(ZoneConnection conn, Packet packet)
+		{
+		}
+
+		/// <summary>
+		/// Client closed a server-driven window (PV22+, header-only at
+		/// 0x035E size 2). Currently we don't track open-window state.
+		/// </summary>
+		[PacketHandler(Op.CZ_CLOSE_WINDOW)]
+		public void CZ_CLOSE_WINDOW(ZoneConnection conn, Packet packet)
+		{
 		}
 	}
 }

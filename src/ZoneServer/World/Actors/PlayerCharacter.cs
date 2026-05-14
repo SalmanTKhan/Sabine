@@ -52,6 +52,17 @@ namespace Sabine.Zone.World.Actors
 		public QuestList Quests { get; }
 
 		/// <summary>
+		/// Returns a reference to the character's 27-slot hotkey
+		/// bar (S2500+).
+		/// </summary>
+		public HotkeyList Hotkeys { get; }
+
+		/// <summary>
+		/// Returns a reference to the character's friends list (S2500+).
+		/// </summary>
+		public FriendsList Friends { get; }
+
+		/// <summary>
 		/// In-progress outgoing mail. Built up by CZ_MAIL_ADD_ITEM /
 		/// reset by CZ_MAIL_RESET_ITEM, drained on CZ_MAIL_SEND.
 		/// In-memory only; lost on disconnect.
@@ -285,6 +296,8 @@ namespace Sabine.Zone.World.Actors
 			this.Inventory = new Inventory(this);
 			this.Storage = new Storage(this);
 			this.Quests = new QuestList(this);
+			this.Hotkeys = new HotkeyList(this);
+			this.Friends = new FriendsList(this);
 
 			this.Parameters = new PlayerCharacterParameters(this);
 			this.Components.Add(new RegenComponent(this));
@@ -967,15 +980,21 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
-		/// Sets a marker on the player's minimap. Stub: alpha-era
-		/// clients have no compass/viewpoint packet, so this is a
-		/// no-op + debug log. Mirrors rAthena's <c>viewpoint</c>.
+		/// Sets a marker on the player's minimap. Mirrors rAthena's
+		/// <c>viewpoint</c> (<c>ZC_COMPASS</c> 0x0144). Falls back to
+		/// a debug log on Alpha-era clients that lack the op.
 		/// </summary>
-		/// <param name="id">Marker id.</param>
+		/// <param name="id">Marker id (slot, 0–N).</param>
 		/// <param name="pos">Map position.</param>
 		/// <param name="color">Marker color (RGB int).</param>
 		public void SetMinimapMark(int id, MapPos pos, int color)
 		{
+			if (Game.Version >= Versions.Beta2)
+			{
+				Network.Send.ZC_COMPASS(this, this.Handle, /* type = add */ 1, pos.X, pos.Y, (byte)id, color);
+				return;
+			}
+
 			Log.Debug("PlayerCharacter.SetMinimapMark: stubbed for alpha client (player='{0}', id={1}, pos={2}, color=0x{3:X6}).", this.Name, id, pos, color);
 		}
 

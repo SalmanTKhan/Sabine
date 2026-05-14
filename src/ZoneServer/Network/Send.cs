@@ -3697,6 +3697,76 @@ namespace Sabine.Zone.Network
 			character.Connection.Send(packet);
 		}
 
+		// --- Friends-list senders -------------------------------------------
+		// Layouts per rAthena clif.cpp clif_friendslist_* (latest PACKETVER).
+
+		/// <summary>
+		/// Sends the initial friends list on login. rAthena emits one
+		/// 0x0201 packet per pc_authok; Sabine repurposes
+		/// <c>ZC_ADD_FRIENDS_LIST</c> as the variable-length dump.
+		/// </summary>
+		public static void ZC_ADD_FRIENDS_LIST(PlayerCharacter character, IList<Sabine.Zone.World.Actors.Components.Characters.FriendEntry> friends)
+		{
+			using var packet = Packet.Rent(Op.ZC_ADD_FRIENDS_LIST);
+
+			foreach (var f in friends)
+			{
+				packet.PutInt(f.AccountId);
+				packet.PutInt(f.CharId);
+				packet.PutString(f.Name ?? string.Empty, 24);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Toggles one friend's online status. rAthena
+		/// <c>clif_friendslist_toggle</c>: AID + CID + offline byte (0 =
+		/// online, 1 = offline) + name[24] when Sabine-era.
+		/// </summary>
+		public static void ZC_FRIENDS_STATE(PlayerCharacter character, int friendAccountId, int friendCharId, string friendName, bool online)
+		{
+			using var packet = Packet.Rent(Op.ZC_FRIENDS_STATE);
+
+			packet.PutInt(friendAccountId);
+			packet.PutInt(friendCharId);
+			packet.PutByte(online ? (byte)0 : (byte)1);
+
+			if (Game.Version >= Versions.Sabine)
+				packet.PutString(friendName ?? string.Empty, 24);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the incoming friend-request popup to the target.
+		/// rAthena <c>clif_friendlist_req</c>: AID + CID + name[24].
+		/// </summary>
+		public static void ZC_REQ_ADD_FRIENDS(PlayerCharacter target, int requesterAccountId, int requesterCharId, string requesterName)
+		{
+			using var packet = Packet.Rent(Op.ZC_REQ_ADD_FRIENDS);
+
+			packet.PutInt(requesterAccountId);
+			packet.PutInt(requesterCharId);
+			packet.PutString(requesterName ?? string.Empty, 24);
+
+			target.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies a friend deletion on either side. rAthena
+		/// <c>clif_friendslist_remove</c>: AID + CID of the removed friend.
+		/// </summary>
+		public static void ZC_DELETE_FRIENDS(PlayerCharacter character, int friendAccountId, int friendCharId)
+		{
+			using var packet = Packet.Rent(Op.ZC_DELETE_FRIENDS);
+
+			packet.PutInt(friendAccountId);
+			packet.PutInt(friendCharId);
+
+			character.Connection.Send(packet);
+		}
+
 		// --- Battleground senders -------------------------------------------
 		// rAthena reference: clif.cpp:18410-18572 (clif_bg_*). PACKETVER 23.
 		// Sabine S2500 keeps the pre-renewal int16 hp/maxhp layout — the

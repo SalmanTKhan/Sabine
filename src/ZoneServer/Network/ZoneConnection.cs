@@ -74,6 +74,9 @@ namespace Sabine.Zone.Network
 				ZoneServer.Instance.World.Guilds.OnPlayerLogout(character);
 				ZoneServer.Instance.World.Parties.OnPlayerLogout(character);
 
+				if (Sabine.Shared.Game.Version >= Sabine.Shared.Versions.Sabine)
+					Sabine.Zone.World.FriendsService.BroadcastOnlineState(character, online: false);
+
 				character?.Map.RemovePlayer(character);
 			}
 
