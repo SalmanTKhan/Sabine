@@ -1106,6 +1106,23 @@ namespace Sabine.Zone.Scripting
 			=> GetCastleData(mapStringId, 1);
 
 		/// <summary>
+		/// Atomic economy-investment helper. Mirrors the eAthena
+		/// <c>agit_main</c> investment flow: validates ownership / daily
+		/// trigger / cap / zeny, then deducts the cost and bumps the
+		/// economy level by 1 in a single transaction. Returns the
+		/// failure reason for the script's dialog branch (Ok = success).
+		/// </summary>
+		public static Sabine.Zone.World.Woe.CastleManager.InvestResult InvestCastleEconomy(string mapStringId, Sabine.Zone.World.Actors.PlayerCharacter character, int zenyCost)
+			=> ZoneServer.Instance.World.Castles.TryInvestEconomy(mapStringId, character, zenyCost);
+
+		/// <summary>
+		/// Atomic defense-investment helper. See
+		/// <see cref="InvestCastleEconomy"/>.
+		/// </summary>
+		public static Sabine.Zone.World.Woe.CastleManager.InvestResult InvestCastleDefense(string mapStringId, Sabine.Zone.World.Actors.PlayerCharacter character, int zenyCost)
+			=> ZoneServer.Instance.World.Castles.TryInvestDefense(mapStringId, character, zenyCost);
+
+		/// <summary>
 		/// eAthena `agitstart`. Turns WoE on and fans out
 		/// <c>Agit::OnAgitStart</c> to every subscriber.
 		/// </summary>

@@ -275,7 +275,22 @@ namespace Sabine.Zone.World.Woe
 					if ((now - _lastAutoStartAt) < TimeSpan.FromMinutes(1))
 						return;
 
-					Log.Info("WoeService: scheduled start firing.");
+					// Boot-recovery diagnostic: if this is the first auto
+					// start since the service initialised AND we're already
+					// well into the window, the server most likely came up
+					// mid-session — log a warning so the operator knows
+					// players missed some uptime.
+					var intoWindow = now - todayStart;
+					if (_lastAutoStartAt == DateTime.MinValue && intoWindow > TimeSpan.FromMinutes(1))
+					{
+						Log.Warning("WoeService: auto-start firing {0:0} minute(s) into the scheduled window — server likely booted mid-session.",
+							intoWindow.TotalMinutes);
+					}
+					else
+					{
+						Log.Info("WoeService: scheduled start firing.");
+					}
+
 					_lastAutoStartAt = now;
 					_autoEndAt = todayStart.Add(_scheduleDuration);
 					this.Start();

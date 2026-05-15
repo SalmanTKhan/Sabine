@@ -85,18 +85,27 @@ namespace Sabine.Zone.World.Woe
 		}
 
 		/// <summary>
+		/// Investment cap for economy / defense. Mirrors rAthena's
+		/// MAX_INVESTMENT_VALUE (defaults to 100 in pre-renewal).
+		/// </summary>
+		public const int MaxInvestmentLevel = 100;
+
+		/// <summary>
 		/// Writes one of eAthena's numeric castle-data slots.
-		/// Returns true when the type was recognised.
+		/// Returns true when the type was recognised. Economy /
+		/// defense are clamped to [0, <see cref="MaxInvestmentLevel"/>]
+		/// and trigger flags to {0, 1} so scripts can't push invalid
+		/// values into the persisted state.
 		/// </summary>
 		public bool SetData(int dataType, int value)
 		{
 			switch (dataType)
 			{
 				case 1: this.OwnerGuildId = value; return true;
-				case 2: this.Economy = value; return true;
-				case 3: this.Defense = value; return true;
-				case 4: this.TriggerE = value; return true;
-				case 5: this.TriggerD = value; return true;
+				case 2: this.Economy = System.Math.Clamp(value, 0, MaxInvestmentLevel); return true;
+				case 3: this.Defense = System.Math.Clamp(value, 0, MaxInvestmentLevel); return true;
+				case 4: this.TriggerE = value != 0 ? 1 : 0; return true;
+				case 5: this.TriggerD = value != 0 ? 1 : 0; return true;
 				case int n when n >= 10 && n <= 17:
 				{
 					var bit = 1 << (n - 10);

@@ -167,6 +167,77 @@ namespace Sabine.Zone.World.Woe
 		}
 
 		/// <summary>
+		/// Result of an investment attempt. Mirrors the rA agit_main
+		/// script's failure-message switch so callers can render the
+		/// right dialog line.
+		/// </summary>
+		public enum InvestResult
+		{
+			Ok,
+			UnknownCastle,
+			NotOwner,
+			AlreadyInvested,
+			NotEnoughZeny,
+			AtCap,
+		}
+
+		/// <summary>
+		/// Atomic economy-investment transaction. Validates that the
+		/// character belongs to the owning guild, the daily trigger
+		/// hasn't fired, the cap hasn't been reached, and the player
+		/// can afford <paramref name="zenyCost"/>. On success the
+		/// player's zeny is deducted, economy bumps by 1, the trigger
+		/// flag is set, and the row is persisted in one operation.
+		/// </summary>
+		public InvestResult TryInvestEconomy(string mapStringId, Sabine.Zone.World.Actors.PlayerCharacter character, int zenyCost)
+			=> TryInvest(mapStringId, character, zenyCost, isDefense: false);
+
+		/// <summary>
+		/// Atomic defense-investment transaction. Same shape as
+		/// <see cref="TryInvestEconomy"/> but writes to Defense /
+		/// TriggerD instead of Economy / TriggerE.
+		/// </summary>
+		public InvestResult TryInvestDefense(string mapStringId, Sabine.Zone.World.Actors.PlayerCharacter character, int zenyCost)
+			=> TryInvest(mapStringId, character, zenyCost, isDefense: true);
+
+		private InvestResult TryInvest(string mapStringId, Sabine.Zone.World.Actors.PlayerCharacter character, int zenyCost, bool isDefense)
+		{
+			if (character == null) return InvestResult.UnknownCastle;
+
+			var castle = this.GetOrCreate(mapStringId);
+			if (castle == null) return InvestResult.UnknownCastle;
+			if (castle.OwnerGuildId == 0) return InvestResult.NotOwner;
+			if (character.Guild == null || character.Guild.Id != castle.OwnerGuildId)
+				return InvestResult.NotOwner;
+
+			var triggered = isDefense ? castle.TriggerD : castle.TriggerE;
+			if (triggered != 0) return InvestResult.AlreadyInvested;
+
+			var current = isDefense ? castle.Defense : castle.Economy;
+			if (current >= Castle.MaxInvestmentLevel) return InvestResult.AtCap;
+
+			if (zenyCost < 0) zenyCost = 0;
+			if (character.Parameters.Zeny < zenyCost) return InvestResult.NotEnoughZeny;
+
+			if (zenyCost > 0)
+				character.Parameters.Modify(Sabine.Shared.Const.ParameterType.Zeny, -zenyCost);
+
+			if (isDefense)
+			{
+				castle.Defense = System.Math.Min(current + 1, Castle.MaxInvestmentLevel);
+				castle.TriggerD = 1;
+			}
+			else
+			{
+				castle.Economy = System.Math.Min(current + 1, Castle.MaxInvestmentLevel);
+				castle.TriggerE = 1;
+			}
+
+			ZoneServer.Instance.Database.UpsertCastle(castle.ToRow());
+			return InvestResult.Ok;
+		}
+
+		/// <summary>
 		/// Resolves a castle by template id. Linear scan; the castle
 		/// table is small (≤30 entries) so the cost is negligible.
 		/// Returns null when no castle with that id exists.
