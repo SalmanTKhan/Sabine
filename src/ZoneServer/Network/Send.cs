@@ -3697,6 +3697,52 @@ namespace Sabine.Zone.Network
 			character.Connection.Send(packet);
 		}
 
+		// --- Pet senders ----------------------------------------------------
+		// Layouts per rAthena clif.cpp clif_sendegg / clif_pet_roulette /
+		// clif_catchpet_result.
+
+		/// <summary>
+		/// Dumps the player's pet-egg inventory as a list of
+		/// inventory-slot indices. rAthena <c>clif_sendegg</c> (0x01A6,
+		/// variable). Each entry is a <c>uint16</c> matching the InvId
+		/// the client should echo in <c>CZ_SELECT_PETEGG</c>.
+		/// </summary>
+		public static void ZC_PETEGG_LIST(PlayerCharacter character)
+		{
+			using var packet = Packet.Rent(Op.ZC_PETEGG_LIST);
+
+			foreach (var item in character.Inventory.GetItems(static _ => true))
+			{
+				if (item.Type != Sabine.Shared.Const.ItemType.PetEgg)
+					continue;
+				packet.PutShort((short)item.InventoryId);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Tells the client the capture-attempt UI should open (roulette
+		/// animation). rAthena <c>clif_catch_process</c>, 0x019E, opcode
+		/// only (2 bytes).
+		/// </summary>
+		public static void ZC_START_CAPTURE(PlayerCharacter character)
+		{
+			using var packet = Packet.Rent(Op.ZC_START_CAPTURE);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Reports the result of a monster-capture attempt. rAthena
+		/// <c>clif_pet_roulette</c>, 0x01A0, body = 1 byte (0=fail, 1=success).
+		/// </summary>
+		public static void ZC_TRYCAPTURE_MONSTER(PlayerCharacter character, bool success)
+		{
+			using var packet = Packet.Rent(Op.ZC_TRYCAPTURE_MONSTER);
+			packet.PutByte(success ? (byte)1 : (byte)0);
+			character.Connection.Send(packet);
+		}
+
 		// --- Friends-list senders -------------------------------------------
 		// Layouts per rAthena clif.cpp clif_friendslist_* (latest PACKETVER).
 
