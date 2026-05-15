@@ -64,11 +64,11 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// CZ_RENAME_MER. Wire: short op, 24-byte name. Sabine's merc
-		/// state doesn't currently carry a custom name (the mob template
-		/// name is used), so this is wired but only updates the live
-		/// entity's display name for the session. Promote to persisted
-		/// rename when MercenaryComponent grows a Name field.
+		/// CZ_RENAME_MER. Wire: short op, 24-byte name. Writes the new
+		/// name onto <see cref="MercenaryComponent"/> (persists across
+		/// re-login via the vars store) and updates the live entity's
+		/// display name. rA caps to one rename per contract; Sabine
+		/// allows free renames today.
 		/// </summary>
 		[PacketHandler(Op.CZ_RENAME_MER)]
 		public void CZ_RENAME_MER(ZoneConnection conn, Packet packet)
@@ -82,9 +82,14 @@ namespace Sabine.Zone.Network
 			if (string.IsNullOrWhiteSpace(name))
 				return;
 
+			character.Mercenary.Rename(name);
+
 			var entity = character.Mercenary.Entity;
 			if (entity != null)
+			{
 				entity.Name = name;
+				Send.ZC_MER_INIT(character, entity);
+			}
 
 			character.ServerMessage(Localization.Get("Mercenary renamed to {0}."), name);
 		}

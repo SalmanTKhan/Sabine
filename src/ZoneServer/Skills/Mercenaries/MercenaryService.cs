@@ -58,6 +58,13 @@ namespace Sabine.Zone.Skills.Mercenaries
 			var spawnId = ResolveMobId(owner.Mercenary.MobId);
 			var entity = new Mercenary(owner, owner.Mercenary, (IdentityId)spawnId);
 			entity.AttachAi("Mercenary");
+
+			// Use the persisted player-set name if one exists; the
+			// mob-template name (set in the Mercenary ctor) is the
+			// fallback for fresh contracts.
+			if (!string.IsNullOrEmpty(owner.Mercenary.Name))
+				entity.Name = owner.Mercenary.Name;
+
 			entity.Warp(owner.Map.Id, owner.Position);
 
 			owner.Mercenary.Entity = entity;

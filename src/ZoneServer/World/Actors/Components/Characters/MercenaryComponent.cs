@@ -30,6 +30,13 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		public MercenaryFaction Faction { get; private set; }
 		public MercenaryState State { get; private set; } = MercenaryState.None;
 
+		/// <summary>
+		/// Player-set display name. Defaults to the mob-template name on
+		/// hire and is overwritten by <c>CZ_RENAME_MER</c>. Survives
+		/// re-login via the vars-backed persistence below.
+		/// </summary>
+		public string Name { get; private set; } = "";
+
 		/// <summary>Seconds remaining on the active contract. Decremented by the heartbeat tick once the entity is up.</summary>
 		public int ContractSecondsRemaining { get; internal set; }
 
@@ -70,16 +77,29 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		{
 			this.MobId = data.MobId;
 			this.Faction = data.Faction;
+			this.Name = data.Name ?? string.Empty;
 			this.ContractSecondsRemaining = data.ContractSeconds;
 			this.State = MercenaryState.Active;
 			_warned5min = false;
 			_warned1min = false;
 		}
 
+		/// <summary>
+		/// Persists a player-supplied name. Mirrors <c>CZ_RENAME_MER</c>.
+		/// Empty / whitespace input is rejected. Surviving rename across
+		/// re-login is handled by the vars store.
+		/// </summary>
+		public void Rename(string newName)
+		{
+			if (string.IsNullOrWhiteSpace(newName)) return;
+			this.Name = newName;
+		}
+
 		internal void EndContract()
 		{
 			this.MobId = 0;
 			this.Faction = MercenaryFaction.None;
+			this.Name = string.Empty;
 			this.ContractSecondsRemaining = 0;
 			this.State = MercenaryState.None;
 		}
@@ -157,6 +177,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		private const string KeyState = "merc.state";
 		private const string KeyFaction = "merc.faction";
 		private const string KeySecondsRemaining = "merc.seconds";
+		private const string KeyName = "merc.name";
 		private const string KeyFaithPrefix = "merc.faith.";
 
 		public void SaveTo(Sabine.Shared.Util.Variables vars)
@@ -178,6 +199,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			vars.Set(KeyState, (int)stateToSave);
 			vars.Set(KeyFaction, (int)this.Faction);
 			vars.Set(KeySecondsRemaining, this.ContractSecondsRemaining);
+			vars.Set(KeyName, this.Name ?? string.Empty);
 		}
 
 		public void LoadFrom(Sabine.Shared.Util.Variables vars)
@@ -198,6 +220,7 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			this.State = (MercenaryState)vars.GetInt(KeyState, (int)MercenaryState.Despawned);
 			this.Faction = (MercenaryFaction)vars.GetInt(KeyFaction, 0);
 			this.ContractSecondsRemaining = vars.GetInt(KeySecondsRemaining, 0);
+			this.Name = vars.GetString(KeyName, string.Empty);
 		}
 	}
 }

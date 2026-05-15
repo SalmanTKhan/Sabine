@@ -3725,7 +3725,14 @@ namespace Sabine.Zone.Network
 			packet.PutShort((short)data.MagicDefense);   // mdef
 			packet.PutShort(0);                          // flee
 			packet.PutShort((short)data.AttackDelay);    // aspd
-			packet.PutString(merc.Name ?? string.Empty, 24);
+
+			// Prefer the persisted custom name on the component; fall
+			// back to the live entity's name (which itself defaults to
+			// the mob template).
+			var displayName = owner.Mercenary != null && !string.IsNullOrEmpty(owner.Mercenary.Name)
+				? owner.Mercenary.Name
+				: (merc.Name ?? string.Empty);
+			packet.PutString(displayName, 24);
 			packet.PutShort((short)data.Level);          // level
 			packet.PutInt(merc.Parameters.Hp);
 			packet.PutInt(merc.Parameters.HpMax);
