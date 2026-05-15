@@ -1729,6 +1729,17 @@ namespace Sabine.Zone.Network
 					return true;
 			}
 
+			// BD_INTOABYSS: party members in the aura pay half SP per
+			// cast. Stacks multiplicatively after Mana Recharge.
+			if (character.StatusEffects != null
+				&& character.StatusEffects.TryGet(Sabine.Shared.Const.StatusId.IntoAbyss, out var abyss))
+			{
+				var pct = Math.Clamp(abyss.Val2 != 0 ? abyss.Val2 : 50, 0, 95);
+				cost = cost * (100 - pct) / 100;
+				if (cost <= 0)
+					return true;
+			}
+
 			if (!character.TrySpendSp(cost))
 			{
 				character.ServerMessage(Localization.Get("Not enough SP."));

@@ -115,4 +115,33 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 
 		public void OnEnd(Character target, StatusEffect effect) { }
 	}
+
+	/// <summary>
+	/// SC_BENEDICTIO (PR_BENEDICTIO / B.S. Sacramenti) — party member
+	/// buff: +Holy resist scaling with level and a chunk of bonus MaxHP.
+	/// eAthena status.c stores the deltas on val2/val3 and applies them
+	/// through the same modifier paths used by Faith and Providence.
+	/// </summary>
+	[StatusEffectHandler(StatusId.BSSacramenti)]
+	public class BSSacramentiStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			var holyResist = 5 + 5 * effect.Level;
+			effect.Val2 = holyResist;
+			target.Modifiers.SubElement[(int)ElementType.Holy] += holyResist;
+
+			var hpBonus = 200 * effect.Level;
+			effect.Val3 = hpBonus;
+			target.AddBonusStat(ParameterType.HpMax, hpBonus);
+		}
+
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+			if (effect.Val2 != 0)
+				target.Modifiers.SubElement[(int)ElementType.Holy] -= effect.Val2;
+			if (effect.Val3 != 0)
+				target.AddBonusStat(ParameterType.HpMax, -effect.Val3);
+		}
+	}
 }

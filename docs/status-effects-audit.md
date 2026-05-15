@@ -71,7 +71,7 @@ Verdict key:
 - **Assumptio** — WORKS. ~50% physical reduction.
 - **Suffragium** — WORKS. `Skill.GetEffectiveCastTime` reduces cast time by 15/30/45% per buff level; consumed by the cast scheduler after one cast.
 - **Sanctuary** — WORKS. `SanctuaryUnit` heals living allies / damages Undead per tick.
-- **Sacramenti** — STUB. Defined but never applied.
+- **B.S. Sacramenti** — WORKS. PR_BENEDICTIO applies `StatusId.BSSacramenti` to the caster and nearby party members for 60s; grants +Holy resist and +MaxHP per level.
 
 ## Wizard / High Wizard
 
@@ -136,7 +136,7 @@ Verdict key:
 - **Auto Spell** — WORKS. AutoSpellListener rolls 5+2*level% on-hit proc of stored bolt skill (defaults MG_FIREBOLT) at AttackResolved.
 - **Dragonology** — WORKS. +4 ATK / level vs Dragon-race targets via `GetRaceMasteryBonus`.
 - **Free Cast** — WORKS. The MovementController's cast-cancel branch checks `Skill.HasFreeCast` so the caster can move while a spell is in flight.
-- **Mind Breaker** — STUB. Needs an on-hit INT/VIT-drain listener.
+- **Mind Breaker** — WORKS. PF_MINDBREAKER applies `StatusId.MindBreaker` to the target: -10+(level-1)*4 MDEF and +20+(level-1)*2 outgoing MATK% via `BattleCalculator.ApplyMatkRate`.
 - **Endow Fire / Water / Wind / Earth** — WORKS. Element coating.
 - **Magic Rod** — WORKS. Magic absorb to SP.
 - **Volcano / Deluge / Whirlwind / Magnetic Earth** — WORKS. Field bonuses.
@@ -158,7 +158,11 @@ Verdict key:
 - **Mental Sensing (Loki's Veil)** — WORKS. Dispels Hide / Cloak on enemies entering the aura.
 - **Mr. Kim a Rich Man** — WORKS. New `StatusId.RichmanKim` aura; `RewardModifiers.GetExpMultiplier` amplifies the pre-share EXP pool by 25+25*level%.
 - **Ragnarok (BD_RAGNAROK)** — WORKS. Strips all dispellable buffs from characters in the aura via the shared `DispelCategory` API.
-- **Other ensembles (EternalChaos / DrumBattle / RingNibelungen / IntoAbyss / Siegfried)** — PARTIAL. Aura placement works; per-ensemble effects still collapsed into the shared `BardSong` marker — each can be split out incrementally as Whistle / AppleIdun / Humming were.
+- **Drum on the Battlefield** — WORKS. +25*level ATK + 5*level Hit for party.
+- **Eternal Chaos** — WORKS. Enemy debuff: -15*level soft DEF.
+- **Ring of the Nibelungen** — WORKS. +50*level ATK for party (weapon-type gate deferred).
+- **Into the Abyss** — WORKS. -50% SP cost on casts via `PacketHandler.TryDeductSkillCost`.
+- **Invulnerable Siegfried** — WORKS. +20+5*level% resist on every non-Neutral element.
 - **Marionette / Marionette2** — WORKS. Donor / receiver pair tracked via `MarionettePair` helper; stat-transfer packed in vals.
 - **Longing Freedom** — STUB. Ensemble lock missing.
 - **Hermode** — WORKS. `StatusEffectComponent.DispelCategory(Buff)` short-circuits when the bearer has Hermode — matches eAthena's status_change_clear_buffs gate.

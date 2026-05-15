@@ -592,6 +592,16 @@ namespace Sabine.Zone.Battle
 		{
 			var pct = attacker.Modifiers.BonusMatkRate
 				+ attacker.Modifiers.GetWeaponMatkRate(BattleHelpers.GetWeaponType(attacker));
+
+			// SC_MINDBREAKER (PF_MINDBREAKER): the bearer's outgoing
+			// MATK gets a percent boost stored in Val2. Stacks
+			// additively with item / card MATK rates.
+			if (attacker.StatusEffects != null
+				&& attacker.StatusEffects.TryGet(StatusId.MindBreaker, out var mb))
+			{
+				pct += mb.Val2;
+			}
+
 			if (pct == 0)
 				return damage;
 

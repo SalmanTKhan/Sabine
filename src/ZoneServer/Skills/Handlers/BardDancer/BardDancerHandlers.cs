@@ -305,19 +305,19 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.BD_ETERNALCHAOS)]
 	public class EternalChaosHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong, affectsEnemies: true);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.EternalChaos, affectsEnemies: true);
 	}
 
 	[SkillHandler(SkillId.BD_DRUMBATTLEFIELD)]
 	public class DrumOnTheBattlefieldHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.DrumBattle);
 	}
 
 	[SkillHandler(SkillId.BD_RINGNIBELUNGEN)]
 	public class RingOfNibelungenHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.RingNibelungen);
 	}
 
 	[SkillHandler(SkillId.BD_ROKISWEIL)]
@@ -329,13 +329,13 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.BD_INTOABYSS)]
 	public class IntoTheAbyssHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.IntoAbyss);
 	}
 
 	[SkillHandler(SkillId.BD_SIEGFRIED)]
 	public class InvulnerableSiegfriedHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.Siegfried);
 	}
 
 	[SkillHandler(SkillId.BD_RAGNAROK)]

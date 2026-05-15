@@ -190,6 +190,16 @@ namespace Sabine.Shared.Const
 		// val2 = 25 + 25*level (percent bonus).
 		RichmanKim = 235,
 
+		// BD_* ensemble payloads. eAthena status.c carries each as a
+		// distinct SC_*; Sabine kept them collapsed into BardSong until
+		// per-skill payloads were wired (this commit). Ids slot after
+		// the per-song split block above.
+		DrumBattle = 263,
+		EternalChaos = 264,
+		RingNibelungen = 265,
+		IntoAbyss = 266,
+		Siegfried = 267,
+
 		// Reborn 2-1 — eAthena reuses the SC_CONCENTRATION name
 		// across AC_CONCENTRATION (id 11 above) and LK_CONCENTRATION,
 		// but the gameplay payload is different, so the LK variant
