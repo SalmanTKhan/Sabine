@@ -469,6 +469,10 @@ namespace Sabine.Zone.World.Actors
 			if (this is PlayerCharacter player)
 				player.Party?.BroadcastHp(player);
 
+			// Broadcast the damage to anything that wants to mirror the HP
+			// delta in a derived UI (mercenary panel, raid frames, etc.).
+			Sabine.Zone.Battle.CombatEvents.RaiseCharacterDamaged(this, amount, attacker, remainingHp);
+
 			return remainingHp;
 		}
 
@@ -619,6 +623,8 @@ namespace Sabine.Zone.World.Actors
 				return;
 
 			this.Parameters.Modify(ParameterType.Hp, healAmount);
+
+			Sabine.Zone.Battle.CombatEvents.RaiseCharacterHealed(this, healAmount);
 		}
 
 		internal virtual bool IsHostileTo(Character target)
@@ -678,14 +684,20 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
-		/// Plays a sound effect at this character's position. Stub:
-		/// alpha-era clients have no sound effect packet, so this is a
-		/// no-op + debug log. Mirrors rAthena's <c>soundeffect</c>.
+		/// Plays a sound effect at this character's position. Mirrors
+		/// rAthena's <c>soundeffect</c>. Alpha-era clients have no
+		/// sound packet — call is logged and skipped.
 		/// </summary>
 		/// <param name="wav">WAV file name.</param>
 		/// <param name="type">0 = play once, 1 = stop.</param>
 		public void PlaySound(string wav, int type)
 		{
+			if (Game.Version >= Versions.S500)
+			{
+				Network.Send.ZC_SOUND(this, wav, (byte)type, 0);
+				return;
+			}
+
 			Log.Debug("Character.PlaySound: stubbed for alpha client (character='{0}', wav='{1}', type={2}).", this.Name, wav, type);
 		}
 

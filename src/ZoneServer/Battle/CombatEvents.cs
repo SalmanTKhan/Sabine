@@ -63,5 +63,27 @@ namespace Sabine.Zone.Battle
 
 		internal static void RaisePlayerKilled(Sabine.Zone.World.Actors.PlayerCharacter player, Sabine.Zone.World.Actors.Character killer)
 			=> PlayerKilled?.Invoke(player, killer);
+
+		/// <summary>
+		/// Fired after <see cref="Sabine.Zone.World.Actors.Character.TakeDamage"/>
+		/// applies damage. Subscribers see the remaining HP and can push
+		/// the change to derived UI (mercenary panel, party HP bar, raid
+		/// frames, etc.) without having to poll. Attacker may be null
+		/// (poison tick, fall damage, environment).
+		/// </summary>
+		public static event Action<Sabine.Zone.World.Actors.Character, int, Sabine.Zone.World.Actors.Character, int> CharacterDamaged;
+
+		internal static void RaiseCharacterDamaged(Sabine.Zone.World.Actors.Character target, int amount, Sabine.Zone.World.Actors.Character attacker, int remainingHp)
+			=> CharacterDamaged?.Invoke(target, amount, attacker, remainingHp);
+
+		/// <summary>
+		/// Fired after <see cref="Sabine.Zone.World.Actors.Character.HealHp"/>
+		/// applies a heal. Mirrors <see cref="CharacterDamaged"/>; pair
+		/// the two when a subscriber needs every HP delta.
+		/// </summary>
+		public static event Action<Sabine.Zone.World.Actors.Character, int> CharacterHealed;
+
+		internal static void RaiseCharacterHealed(Sabine.Zone.World.Actors.Character target, int amount)
+			=> CharacterHealed?.Invoke(target, amount);
 	}
 }
