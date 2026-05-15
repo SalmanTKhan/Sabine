@@ -286,7 +286,23 @@ namespace Sabine.Zone.Skills.Handlers.Wizard
 					}
 					else
 					{
-						enemy.StatusEffects.Start(StatusId.Freeze, level, TimeSpan.FromSeconds(15), caster);
+						// eAthena classic Storm Gust: every cast on the same
+						// target increments a hit counter; the third cast
+						// (counter == 3) freezes them. The counter clears on
+						// freeze or when it expires (4 seconds).
+						var hits = enemy.StatusEffects.TryGet(StatusId.StormGustCounter, out var counter)
+							? counter.Val1 + 1
+							: 1;
+						if (hits >= 3)
+						{
+							enemy.StatusEffects.Stop(StatusId.StormGustCounter);
+							enemy.StatusEffects.Start(StatusId.Freeze, level, TimeSpan.FromSeconds(15), caster);
+						}
+						else
+						{
+							enemy.StatusEffects.Stop(StatusId.StormGustCounter);
+							enemy.StatusEffects.Start(StatusId.StormGustCounter, level, TimeSpan.FromSeconds(4), caster, hits);
+						}
 					}
 				}
 			}

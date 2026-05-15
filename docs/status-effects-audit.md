@@ -77,7 +77,7 @@ Verdict key:
 - **Quagmire** — WORKS. Dispels IncreaseAgi / TwoHandQuicken / Concentration.
 - **Magic Power (HW)** — WORKS. +MATK.
 - **Frost Nova** — PARTIAL. Freeze applied; central AoE damage missing.
-- **Storm Gust Counter** — STUB. Hit-counter for freeze-proc missing.
+- **Storm Gust Counter** — WORKS. Pre-renewal Storm Gust now stacks a 3-hit counter status (4s window); the third hit freezes and clears the counter, matching eAthena classic.
 - **MISSING — Pneuma** — eAthena SC ground-effect blocking ranged.
 - **MISSING — Safety Wall** — Cell-based magical-attack block.
 
@@ -86,7 +86,7 @@ Verdict key:
 - **Falcon Fly** — PARTIAL. OPTION_FALCON flag; no Blitz / Beast Strafe damage tie-in beyond skill gate.
 - **True Sight (Sniper)** — WORKS. Snapshot primary-stat bonus.
 - **Wind Walk** — WORKS. +FLEE.
-- **Ankle Snare** — WORKS. Trap unit applies status; `IsRooted` reads it so movement controller blocks pathing. 0-DEF leg deferred.
+- **Ankle Snare** — WORKS. Trap unit applies status; `IsRooted` reads it so movement controller blocks pathing. BattleCalculator now zeroes hard DEF while the snare holds (eAthena status.c:5552).
 
 ## Blacksmith / Whitesmith
 

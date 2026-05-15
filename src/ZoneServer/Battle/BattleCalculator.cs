@@ -427,6 +427,13 @@ namespace Sabine.Zone.Battle
 			if (IsHardCcImmobilised(target))
 				hardDef /= 2;
 
+			// SC_ANKLE (HT_ANKLESNARE): rooted targets are treated as
+			// having 0 hard DEF in eAthena status.c:5552 — both legs
+			// of the snare (movement lock + defense drop) come from the
+			// same status.
+			if (target.StatusEffects?.Has(StatusId.AnkleSnare) == true)
+				hardDef = 0;
+
 			if (IsRenewal())
 			{
 				var denom = 4000 + hardDef * 100;
