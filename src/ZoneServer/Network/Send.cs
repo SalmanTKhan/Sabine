@@ -2861,6 +2861,21 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Acks the guild-creation request. Mirrors rA
+		/// <c>clif_guild_created</c> (<c>ZC_RESULT_MAKE_GUILD</c> 0x0167,
+		/// 3 bytes: opcode + 1-byte result).
+		/// </summary>
+		/// <param name="result">0 = success, 1 = name taken, 2 = emblem
+		/// duplicate (unused in Sabine), 3 = already in a guild.</param>
+		public static void ZC_RESULT_MAKE_GUILD(PlayerCharacter character, byte result)
+		{
+			using var packet = Packet.Rent(Op.ZC_RESULT_MAKE_GUILD);
+			packet.PutByte(result);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Tells the inviter whether the recipient accepted their guild
 		/// invitation. Mirrors rA <c>clif_guild_inviteack</c>
 		/// (<c>ZC_ACK_REQ_JOIN_GUILD</c> 0x0169, 3 bytes).
