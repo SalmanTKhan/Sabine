@@ -427,6 +427,8 @@ namespace Sabine.Zone.Database
 						ExpCurrent = reader.GetInt32("expCurrent"),
 						EmblemId = reader.GetInt32("emblemId"),
 						Notice = reader.GetStringSafe("notice") ?? string.Empty,
+						Zeny = reader.GetInt64("zeny"),
+						EmblemData = reader["emblemData"] is byte[] bytes ? bytes : null,
 					};
 					guilds[row.GuildId] = row;
 				}
@@ -479,13 +481,14 @@ namespace Sabine.Zone.Database
 		/// row. Member roster mutations are handled separately via
 		/// <see cref="InsertGuildMember"/> / <see cref="DeleteGuildMember"/>.
 		/// </summary>
-		public void UpdateGuild(int guildId, string name, int masterCharId, int level, int expCurrent, int emblemId, string notice)
+		public void UpdateGuild(int guildId, string name, int masterCharId, int level, int expCurrent, int emblemId, string notice, long zeny, byte[] emblemData)
 		{
 			using var conn = this.GetConnection();
 			using var cmd = new MySqlCommand(
 				"UPDATE `guilds` SET `name` = @name, `masterCharId` = @masterCharId, "
 				+ "`level` = @level, `expCurrent` = @expCurrent, `emblemId` = @emblemId, "
-				+ "`notice` = @notice WHERE `guildId` = @guildId",
+				+ "`notice` = @notice, `zeny` = @zeny, `emblemData` = @emblemData "
+				+ "WHERE `guildId` = @guildId",
 				conn);
 			cmd.AddParameter("@guildId", guildId);
 			cmd.AddParameter("@name", name);
@@ -494,6 +497,8 @@ namespace Sabine.Zone.Database
 			cmd.AddParameter("@expCurrent", expCurrent);
 			cmd.AddParameter("@emblemId", emblemId);
 			cmd.AddParameter("@notice", notice ?? string.Empty);
+			cmd.AddParameter("@zeny", zeny);
+			cmd.AddParameter("@emblemData", (object)emblemData ?? System.DBNull.Value);
 			cmd.ExecuteNonQuery();
 		}
 
@@ -806,6 +811,7 @@ namespace Sabine.Zone.Database
 					AttachedItemDamaged = reader.GetInt32("itemDamaged") != 0,
 					Read = reader.GetInt32("read") != 0,
 					AttachmentTaken = reader.GetInt32("attachmentTaken") != 0,
+					IsReturned = reader.GetInt32("isReturned") != 0,
 					SentAt = reader.GetDateTime("sentAt"),
 				});
 			}
@@ -823,10 +829,10 @@ namespace Sabine.Zone.Database
 				"INSERT INTO `mail_messages` "
 				+ "(`senderId`, `senderName`, `receiverId`, `title`, `body`, "
 				+ " `zeny`, `itemClassId`, `itemAmount`, `itemRefine`, "
-				+ " `itemIdentified`, `itemDamaged`, `sentAt`) "
+				+ " `itemIdentified`, `itemDamaged`, `isReturned`, `sentAt`) "
 				+ "VALUES (@senderId, @senderName, @receiverId, @title, @body, "
 				+ " @zeny, @itemClassId, @itemAmount, @itemRefine, "
-				+ " @itemIdentified, @itemDamaged, @sentAt); "
+				+ " @itemIdentified, @itemDamaged, @isReturned, @sentAt); "
 				+ "SELECT LAST_INSERT_ID();",
 				conn);
 			cmd.AddParameter("@senderId", msg.SenderId);
@@ -840,6 +846,7 @@ namespace Sabine.Zone.Database
 			cmd.AddParameter("@itemRefine", (int)msg.AttachedItemRefine);
 			cmd.AddParameter("@itemIdentified", msg.AttachedItemIdentified ? 1 : 0);
 			cmd.AddParameter("@itemDamaged", msg.AttachedItemDamaged ? 1 : 0);
+			cmd.AddParameter("@isReturned", msg.IsReturned ? 1 : 0);
 			cmd.AddParameter("@sentAt", msg.SentAt);
 			msg.Id = Convert.ToInt32(cmd.ExecuteScalar());
 		}
@@ -872,6 +879,69 @@ namespace Sabine.Zone.Database
 				"DELETE FROM `mail_messages` WHERE `mailId` = @id", conn);
 			cmd.AddParameter("@id", mailId);
 			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>
+		/// Deletes mail rows older than <paramref name="days"/> days
+		/// (measured against <c>sentAt</c>) and returns the number of
+		/// rows removed. Called from <c>MailManager.ExpirationTick</c>.
+		/// Items attached to expired mail are forfeit — there is no
+		/// refund-to-sender step in v1.
+		/// </summary>
+		public int PurgeExpiredMail(int days)
+		{
+			if (days <= 0)
+				return 0;
+
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"DELETE FROM `mail_messages` "
+				+ "WHERE `sentAt` < UTC_TIMESTAMP() - INTERVAL @days DAY", conn);
+			cmd.AddParameter("@days", days);
+			return cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>
+		/// Returns mail rows older than <paramref name="days"/> days
+		/// (measured against <c>sentAt</c>), in DB order. Used by the
+		/// expiration sweep to refund unclaimed attachments back to
+		/// the original sender before the rows are deleted.
+		/// </summary>
+		public List<World.Mail.MailMessage> LoadExpiringMail(int days)
+		{
+			var list = new List<World.Mail.MailMessage>();
+			if (days <= 0)
+				return list;
+
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"SELECT * FROM `mail_messages` "
+				+ "WHERE `sentAt` < UTC_TIMESTAMP() - INTERVAL @days DAY", conn);
+			cmd.AddParameter("@days", days);
+			using var reader = cmd.ExecuteReader();
+			while (reader.Read())
+			{
+				list.Add(new World.Mail.MailMessage
+				{
+					Id = reader.GetInt32("mailId"),
+					SenderId = reader.GetInt32("senderId"),
+					SenderName = reader.GetStringSafe("senderName") ?? string.Empty,
+					ReceiverId = reader.GetInt32("receiverId"),
+					Title = reader.GetStringSafe("title") ?? string.Empty,
+					Body = reader.GetStringSafe("body") ?? string.Empty,
+					Zeny = reader.GetInt32("zeny"),
+					AttachedItemClassId = reader.GetInt32("itemClassId"),
+					AttachedItemAmount = (short)reader.GetInt32("itemAmount"),
+					AttachedItemRefine = (byte)reader.GetInt32("itemRefine"),
+					AttachedItemIdentified = reader.GetInt32("itemIdentified") != 0,
+					AttachedItemDamaged = reader.GetInt32("itemDamaged") != 0,
+					Read = reader.GetInt32("read") != 0,
+					AttachmentTaken = reader.GetInt32("attachmentTaken") != 0,
+					IsReturned = reader.GetInt32("isReturned") != 0,
+					SentAt = reader.GetDateTime("sentAt"),
+				});
+			}
+			return list;
 		}
 
 		/// <summary>

@@ -24,6 +24,21 @@ namespace Sabine.Zone.World.Groups
 		public string MasterName { get; set; }
 
 		/// <summary>
+		/// Guild treasury balance. Mutated via <see cref="DepositZeny"/>
+		/// / <see cref="WithdrawZeny"/>; persisted by
+		/// <see cref="GuildManager.Save"/>.
+		/// </summary>
+		public long Zeny { get; set; }
+
+		/// <summary>
+		/// Raw emblem-image bytes (BMP) or null when none uploaded. Set
+		/// via <c>CZ_REGISTER_GUILD_EMBLEM_IMG</c> and persisted to
+		/// <c>guilds.emblemData</c>. Served back to clients via
+		/// <c>ZC_GUILD_EMBLEM_IMG</c>.
+		/// </summary>
+		public byte[] EmblemData { get; set; }
+
+		/// <summary>
 		/// Shared guild storage. Lifetime matches the guild record;
 		/// hydrated by <see cref="GuildManager.LoadAll"/> at startup
 		/// and persisted via <see cref="Database.ZoneDb.SaveGuildStorage"/>
@@ -69,6 +84,8 @@ namespace Sabine.Zone.World.Groups
 			this.ExpCurrent = row.ExpCurrent;
 			this.EmblemId = row.EmblemId;
 			this.Notice = row.Notice;
+			this.Zeny = row.Zeny;
+			this.EmblemData = row.EmblemData;
 
 			foreach (var m in row.Members)
 			{
@@ -159,6 +176,44 @@ namespace Sabine.Zone.World.Groups
 		public void RemoveAntagonist(int otherGuildId) => _antagonists.Remove(otherGuildId);
 
 		public IEnumerable<PlayerCharacter> OnlineMembers => _members.Where(m => m.Player != null).Select(m => m.Player);
+
+		/// <summary>
+		/// rAthena's <c>MAX_GUILDPOSITION</c>. Slot 0 is permanently the
+		/// guild master; slot 8 ("the lowest title") is the default for
+		/// fresh members. Slots between are editable via
+		/// <c>CZ_REG_CHANGE_GUILD_POSITIONINFO</c>.
+		/// </summary>
+		public const int PositionCount = 9;
+
+		/// <summary>
+		/// Editable position roster (in-memory only — same scope note as
+		/// allies / antagonists). Indexed 0..<see cref="PositionCount"/>-1.
+		/// Master is always position 0; new members default to position 8.
+		/// </summary>
+		public GuildPosition[] Positions { get; } = CreateDefaultPositions();
+
+		private static GuildPosition[] CreateDefaultPositions()
+		{
+			var arr = new GuildPosition[PositionCount];
+			arr[0] = new GuildPosition { Mode = 0x11, Ranking = 0, PayRate = 0, Name = "GuildMaster" };
+			for (var i = 1; i < PositionCount - 1; i++)
+				arr[i] = new GuildPosition { Mode = 0, Ranking = i, PayRate = 0, Name = "Position " + i };
+			arr[PositionCount - 1] = new GuildPosition { Mode = 0, Ranking = PositionCount - 1, PayRate = 0, Name = "Newbie" };
+			return arr;
+		}
+	}
+
+	/// <summary>
+	/// One editable rank/position slot. Mirrors rA's <c>guild_position</c>
+	/// struct (mode = invite/expel/punish bitfield, payRate = treasury
+	/// payout %, ranking = display order).
+	/// </summary>
+	public struct GuildPosition
+	{
+		public int Mode;
+		public int Ranking;
+		public int PayRate;
+		public string Name;
 	}
 
 	public class GuildMember
@@ -168,6 +223,13 @@ namespace Sabine.Zone.World.Groups
 		public bool IsMaster { get; set; }
 		public string Position { get; set; } = string.Empty;
 		public PlayerCharacter Player { get; set; }
+
+		/// <summary>
+		/// Position slot index (0..<see cref="Guild.PositionCount"/>-1).
+		/// Master is 0; new members default to the bottom slot. In-memory
+		/// only today — see Guild.Positions.
+		/// </summary>
+		public int PositionId { get; set; } = Guild.PositionCount - 1;
 
 		/// <summary>
 		/// Constructor for new members joining an active session —
@@ -180,6 +242,7 @@ namespace Sabine.Zone.World.Groups
 			this.Name = character.Name;
 			this.IsMaster = isMaster;
 			this.Player = character;
+			this.PositionId = isMaster ? 0 : Guild.PositionCount - 1;
 		}
 
 		/// <summary>
@@ -194,6 +257,7 @@ namespace Sabine.Zone.World.Groups
 			this.Name = string.Empty;
 			this.IsMaster = isMaster;
 			this.Position = position ?? string.Empty;
+			this.PositionId = isMaster ? 0 : Guild.PositionCount - 1;
 		}
 	}
 }

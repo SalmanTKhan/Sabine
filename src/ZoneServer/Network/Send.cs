@@ -3179,6 +3179,41 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Pops the alliance-request dialog on the target guild master.
+		/// Mirrors rA <c>clif_guild_reqalliance</c>
+		/// (<c>ZC_REQ_ALLY_GUILD</c> 0x0171, 30 bytes: 4-byte inviterAID
+		/// + 24-byte inviterName). Recipient replies via
+		/// <c>CZ_ALLY_GUILD</c>.
+		/// </summary>
+		/// <summary>
+		/// Sends the full position roster (all 9 slots) to a client.
+		/// Mirrors rA <c>clif_guild_positionnamelist</c>
+		/// (<c>ZC_POSITION_INFO</c> 0x0160, dynamic): each entry is
+		/// u32 positionId + char[24] name = 28 bytes.
+		/// </summary>
+		public static void ZC_POSITION_INFO(PlayerCharacter character, Sabine.Zone.World.Groups.Guild guild)
+		{
+			using var packet = Packet.Rent(Op.ZC_POSITION_INFO);
+
+			for (var i = 0; i < Sabine.Zone.World.Groups.Guild.PositionCount; i++)
+			{
+				packet.PutInt(i);
+				packet.PutString(guild.Positions[i].Name ?? string.Empty, 24);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		public static void ZC_REQ_ALLY_GUILD(PlayerCharacter target, int inviterAccountId, string inviterName)
+		{
+			using var packet = Packet.Rent(Op.ZC_REQ_ALLY_GUILD);
+			packet.PutInt(inviterAccountId);
+			packet.PutString(inviterName ?? string.Empty, 24);
+
+			target.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Notifies the inviter whether their alliance request was
 		/// accepted. Mirrors rA <c>clif_guild_allianceack</c>
 		/// (<c>ZC_ACK_REQ_ALLY_GUILD</c> 0x0173, 3 bytes).

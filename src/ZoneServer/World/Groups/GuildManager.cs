@@ -241,7 +241,7 @@ namespace Sabine.Zone.World.Groups
 			ZoneServer.Instance.Database.UpdateGuild(
 				guild.Id, guild.Name, guild.MasterCharId,
 				guild.Level, guild.ExpCurrent, guild.EmblemId,
-				guild.Notice ?? string.Empty);
+				guild.Notice ?? string.Empty, guild.Zeny, guild.EmblemData);
 		}
 
 		/// <summary>

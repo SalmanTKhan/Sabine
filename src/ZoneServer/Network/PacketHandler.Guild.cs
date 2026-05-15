@@ -326,6 +326,361 @@ namespace Sabine.Zone.Network
 			Send.ZC_ACK_GUILD_MENUINTERFACE(character, flag);
 		}
 
+		// rA mmo.h alliance relation values used by ZC_*_RELATED_GUILD.
+		private const int RELATION_ALLY = 0;
+		private const int RELATION_HOSTILE = 1;
+
+		// Vars.Temp pin for the pending ally invite, same anti-spoof
+		// pattern used by guild-join and friend invites.
+		private const string PendingAllyKey = "Sabine.GuildAllyInviteFrom";
+
+		/// <summary>
+		/// CZ_REQ_ALLY_GUILD. Wire: 14 bytes. Body: u32 targetAID +
+		/// u32 inviterAID + u32 inviterCID. Master-to-master ally invite.
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_ALLY_GUILD)]
+		public void CZ_REQ_ALLY_GUILD(ZoneConnection conn, Packet packet)
+		{
+			var targetAccountId = packet.GetInt();
+			_ = packet.GetInt(); // inviterAID echo
+			_ = packet.GetInt(); // inviterCID echo
+
+			var inviter = conn.GetCurrentCharacter();
+			var myGuild = inviter.Guild;
+			if (myGuild == null) return;
+			if (inviter.Id != myGuild.MasterCharId) return;
+
+			var target = ResolveByAccountId(targetAccountId);
+			if (target == null) return;
+			if (target.Guild == null) return;
+			if (target.Id != target.Guild.MasterCharId) return;
+			if (target.Guild.Id == myGuild.Id) return;
+
+			// Pin the inviter's guild id on the target so the reply can't
+			// be redirected by a tampered CZ_ALLY_GUILD echo.
+			target.Vars.Temp.SetInt(PendingAllyKey, myGuild.Id);
+			Send.ZC_REQ_ALLY_GUILD(target, inviter.Handle, inviter.Name);
+		}
+
+		/// <summary>
+		/// CZ_ALLY_GUILD. Wire: 10 bytes. Body: u32 inviterAID +
+		/// u32 answer (0 = reject, 1 = accept).
+		/// </summary>
+		[PacketHandler(Op.CZ_ALLY_GUILD)]
+		public void CZ_ALLY_GUILD(ZoneConnection conn, Packet packet)
+		{
+			var inviterAccountId = packet.GetInt();
+			var answer = packet.GetInt();
+
+			var target = conn.GetCurrentCharacter();
+			var pendingGuildId = target.Vars.Temp.GetInt(PendingAllyKey, 0);
+			target.Vars.Temp.SetInt(PendingAllyKey, 0);
+
+			if (pendingGuildId == 0) return;
+
+			var inviter = ResolveByAccountId(inviterAccountId);
+			if (inviter?.Guild == null || inviter.Guild.Id != pendingGuildId)
+				return;
+
+			var theirGuild = inviter.Guild;
+			var myGuild = target.Guild;
+			if (myGuild == null) return;
+
+			if (answer != 1)
+			{
+				Send.ZC_ACK_REQ_ALLY_GUILD(inviter, 1); // rejected
+				return;
+			}
+
+			myGuild.AddAlly(theirGuild.Id);
+			theirGuild.AddAlly(myGuild.Id);
+
+			BroadcastRelation(myGuild, theirGuild.Id, theirGuild.Name, RELATION_ALLY);
+			BroadcastRelation(theirGuild, myGuild.Id, myGuild.Name, RELATION_ALLY);
+
+			Send.ZC_ACK_REQ_ALLY_GUILD(inviter, 0); // accepted
+		}
+
+		/// <summary>
+		/// CZ_REQ_HOSTILE_GUILD. Wire: 6 bytes. Body: u32 targetGuildId.
+		/// Direct war declaration (no popup on the target).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_HOSTILE_GUILD)]
+		public void CZ_REQ_HOSTILE_GUILD(ZoneConnection conn, Packet packet)
+		{
+			var targetGuildId = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var myGuild = character.Guild;
+			if (myGuild == null) return;
+			if (character.Id != myGuild.MasterCharId) return;
+			if (targetGuildId == myGuild.Id) return;
+
+			var theirGuild = GuildManager.Instance.Get(targetGuildId);
+			if (theirGuild == null) return;
+
+			myGuild.AddAntagonist(theirGuild.Id);
+			theirGuild.AddAntagonist(myGuild.Id);
+
+			BroadcastRelation(myGuild, theirGuild.Id, theirGuild.Name, RELATION_HOSTILE);
+			BroadcastRelation(theirGuild, myGuild.Id, myGuild.Name, RELATION_HOSTILE);
+
+			Send.ZC_ACK_REQ_HOSTILE_GUILD(character, 0); // set
+		}
+
+		/// <summary>
+		/// CZ_REQ_DELETE_RELATED_GUILD. Wire: 10 bytes. Body:
+		/// u32 otherGuildId + u32 relation (0 = ally, 1 = hostile).
+		/// Master-only; severs the relation on both sides.
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_DELETE_RELATED_GUILD)]
+		public void CZ_REQ_DELETE_RELATED_GUILD(ZoneConnection conn, Packet packet)
+		{
+			var otherGuildId = packet.GetInt();
+			var relation = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var myGuild = character.Guild;
+			if (myGuild == null) return;
+			if (character.Id != myGuild.MasterCharId) return;
+
+			var theirGuild = GuildManager.Instance.Get(otherGuildId);
+			if (theirGuild == null) return;
+
+			if (relation == RELATION_ALLY)
+			{
+				myGuild.RemoveAlly(otherGuildId);
+				theirGuild.RemoveAlly(myGuild.Id);
+			}
+			else
+			{
+				myGuild.RemoveAntagonist(otherGuildId);
+				theirGuild.RemoveAntagonist(myGuild.Id);
+			}
+
+			BroadcastDelete(myGuild, otherGuildId, relation);
+			BroadcastDelete(theirGuild, myGuild.Id, relation);
+		}
+
+		/// <summary>
+		/// CZ_GUILD_ZENY. Wire: 6 bytes. Body: u32 zenyAmount.
+		/// Positive = deposit from player to treasury, negative =
+		/// withdraw treasury → player. rA only allows positive amounts
+		/// for non-masters; Sabine restricts withdrawals to the master.
+		/// </summary>
+		[PacketHandler(Op.CZ_GUILD_ZENY)]
+		public void CZ_GUILD_ZENY(ZoneConnection conn, Packet packet)
+		{
+			var amount = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var guild = character.Guild;
+			if (guild == null) return;
+			if (amount == 0) return;
+
+			if (amount > 0)
+			{
+				// Deposit: any member with enough zeny can fund the treasury.
+				if (character.Parameters.Zeny < amount)
+				{
+					Send.ZC_GUILD_ZENY_ACK(character, 1); // insufficient
+					return;
+				}
+				character.Parameters.Modify(Sabine.Shared.Const.ParameterType.Zeny, -amount);
+				guild.Zeny += amount;
+			}
+			else
+			{
+				// Withdraw: master-only, can't pull more than the treasury holds.
+				if (character.Id != guild.MasterCharId)
+				{
+					Send.ZC_GUILD_ZENY_ACK(character, 1);
+					return;
+				}
+				var withdraw = -amount;
+				if (guild.Zeny < withdraw)
+				{
+					Send.ZC_GUILD_ZENY_ACK(character, 1);
+					return;
+				}
+				guild.Zeny -= withdraw;
+				character.Parameters.Modify(Sabine.Shared.Const.ParameterType.Zeny, withdraw);
+			}
+
+			GuildManager.Instance.Save(guild);
+			Send.ZC_GUILD_ZENY_ACK(character, 0);
+		}
+
+		/// <summary>
+		/// CZ_REGISTER_GUILD_EMBLEM_IMG. Variable wire. Body:
+		/// u16 packetLen + bytes emblemBmp. Master-only.
+		/// </summary>
+		[PacketHandler(Op.CZ_REGISTER_GUILD_EMBLEM_IMG)]
+		public void CZ_REGISTER_GUILD_EMBLEM_IMG(ZoneConnection conn, Packet packet)
+		{
+			var len = packet.GetShort();
+			var dataLen = len - sizeof(short) * 2;
+			if (dataLen <= 0) return;
+
+			var data = packet.GetBytes(dataLen);
+
+			var character = conn.GetCurrentCharacter();
+			var guild = character.Guild;
+			if (guild == null) return;
+			if (character.Id != guild.MasterCharId) return;
+
+			guild.EmblemId = unchecked(guild.EmblemId + 1);
+			guild.EmblemData = data;
+			GuildManager.Instance.Save(guild);
+
+			// Push the new emblem to every online member so their UI
+			// updates without needing a manual refresh.
+			foreach (var m in guild.Members)
+			{
+				var pc = FriendsService.FindOnline(m.CharacterId);
+				if (pc != null)
+					Send.ZC_GUILD_EMBLEM_IMG(pc, guild.Id, guild.EmblemId, data);
+			}
+		}
+
+		/// <summary>
+		/// CZ_REQ_GUILD_EMBLEM_IMG. Wire: 6 bytes. Body: u32 guildId.
+		/// Any client can ask for any guild's emblem (rendered on
+		/// member sprites, castle flags, etc.).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_GUILD_EMBLEM_IMG)]
+		public void CZ_REQ_GUILD_EMBLEM_IMG(ZoneConnection conn, Packet packet)
+		{
+			var guildId = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			var guild = GuildManager.Instance.Get(guildId);
+			if (guild == null || guild.EmblemData == null) return;
+
+			Send.ZC_GUILD_EMBLEM_IMG(character, guild.Id, guild.EmblemId, guild.EmblemData);
+		}
+
+		/// <summary>
+		/// CZ_REG_CHANGE_GUILD_POSITIONINFO. Variable wire. Body:
+		/// packetLen(2) + entries{ positionId(4) + mode(4) + ranking(4)
+		/// + payRate(4) + name(24) } — 40 bytes per entry.
+		/// </summary>
+		[PacketHandler(Op.CZ_REG_CHANGE_GUILD_POSITIONINFO)]
+		public void CZ_REG_CHANGE_GUILD_POSITIONINFO(ZoneConnection conn, Packet packet)
+		{
+			var len = packet.GetShort();
+			var bodyLen = len - sizeof(short) * 2;
+			const int EntrySize = 40;
+			if (bodyLen <= 0 || bodyLen % EntrySize != 0) return;
+
+			var character = conn.GetCurrentCharacter();
+			var guild = character.Guild;
+			if (guild == null) return;
+			if (character.Id != guild.MasterCharId) return;
+
+			var count = bodyLen / EntrySize;
+			for (var i = 0; i < count; i++)
+			{
+				var positionId = packet.GetInt();
+				var mode = packet.GetInt();
+				var ranking = packet.GetInt();
+				var payRate = packet.GetInt();
+				var name = packet.GetString(24);
+
+				if (positionId < 0 || positionId >= Guild.PositionCount) continue;
+				// Master slot (0) is locked — rA refuses any mode/name
+				// mutation on slot 0 to keep the master privilege intact.
+				if (positionId == 0) continue;
+
+				guild.Positions[positionId] = new GuildPosition
+				{
+					Mode = mode,
+					Ranking = ranking,
+					PayRate = payRate,
+					Name = name ?? string.Empty,
+				};
+			}
+
+			// Broadcast the new position roster to every online member so
+			// their UI updates without a manual refresh.
+			foreach (var m in guild.Members)
+			{
+				var pc = FriendsService.FindOnline(m.CharacterId);
+				if (pc != null)
+					Send.ZC_POSITION_INFO(pc, guild);
+			}
+		}
+
+		/// <summary>
+		/// CZ_REQ_CHANGE_MEMBERPOS. Variable wire. Body: packetLen(2) +
+		/// entries{ accountId(4) + charId(4) + positionId(4) } — 12 bytes
+		/// per entry. Master-only.
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_CHANGE_MEMBERPOS)]
+		public void CZ_REQ_CHANGE_MEMBERPOS(ZoneConnection conn, Packet packet)
+		{
+			var len = packet.GetShort();
+			var bodyLen = len - sizeof(short) * 2;
+			const int EntrySize = 12;
+			if (bodyLen <= 0 || bodyLen % EntrySize != 0) return;
+
+			var character = conn.GetCurrentCharacter();
+			var guild = character.Guild;
+			if (guild == null) return;
+			if (character.Id != guild.MasterCharId) return;
+
+			var count = bodyLen / EntrySize;
+			var applied = new System.Collections.Generic.List<(int aid, int cid, int pid)>(count);
+			for (var i = 0; i < count; i++)
+			{
+				var accountId = packet.GetInt();
+				var charId = packet.GetInt();
+				var positionId = packet.GetInt();
+
+				if (positionId < 0 || positionId >= Guild.PositionCount) continue;
+				var member = guild.GetMember(charId);
+				if (member == null) continue;
+				// Master cannot be demoted out of slot 0 by this op; rA
+				// reserves transfer-of-leadership for a separate flow.
+				if (member.IsMaster) continue;
+				// Promoting someone to slot 0 would conflict with the
+				// master; reject.
+				if (positionId == 0) continue;
+
+				member.PositionId = positionId;
+				applied.Add((accountId, charId, positionId));
+			}
+
+			if (applied.Count == 0) return;
+
+			foreach (var m in guild.Members)
+			{
+				var pc = FriendsService.FindOnline(m.CharacterId);
+				if (pc != null)
+					Send.ZC_ACK_REQ_CHANGE_MEMBERS(pc, applied);
+			}
+		}
+
+		private static void BroadcastRelation(Guild guild, int otherId, string otherName, int relation)
+		{
+			foreach (var m in guild.Members)
+			{
+				var pc = FriendsService.FindOnline(m.CharacterId);
+				if (pc != null)
+					Send.ZC_ADD_RELATED_GUILD(pc, relation, otherId, otherName);
+			}
+		}
+
+		private static void BroadcastDelete(Guild guild, int otherId, int relation)
+		{
+			foreach (var m in guild.Members)
+			{
+				var pc = FriendsService.FindOnline(m.CharacterId);
+				if (pc != null)
+					Send.ZC_DELETE_RELATED_GUILD(pc, otherId, relation);
+			}
+		}
+
 		/// <summary>
 		/// Resolves an online player by account id by walking every map's
 		/// player roster. Acceptable while populations stay alpha-era;

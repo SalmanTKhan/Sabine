@@ -17,6 +17,13 @@ namespace Sabine.Zone.World.Groups
 		public int ExpCurrent { get; set; }
 		public int EmblemId { get; set; }
 		public string Notice { get; set; } = string.Empty;
+
+		/// <summary>Guild treasury balance. See sql/updates/2026-05-14_002.sql.</summary>
+		public long Zeny { get; set; }
+
+		/// <summary>Raw emblem-image bytes (BMP) or null when none uploaded.</summary>
+		public byte[] EmblemData { get; set; }
+
 		public List<GuildMemberDbRow> Members { get; } = new();
 	}
 
