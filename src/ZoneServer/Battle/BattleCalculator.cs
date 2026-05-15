@@ -378,6 +378,11 @@ namespace Sabine.Zone.Battle
 			if (target.StatusEffects == null)
 				return damage;
 
+			// MO_STEELBODY (SC_MENTALSTRENGTH): caps incoming damage at
+			// 10% — mirrors eAthena battle.c's 90% reduction branch.
+			if (target.StatusEffects.Has(StatusId.MentalStrength))
+				damage = Math.Max(1, damage / 10);
+
 			if (target.StatusEffects.Has(StatusId.Sleep) || target.StatusEffects.Has(StatusId.Stone))
 				return damage * 3 / 2;
 

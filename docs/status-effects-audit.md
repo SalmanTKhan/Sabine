@@ -124,9 +124,11 @@ Verdict key:
 
 ## Monk / Champion
 
-- **Spirits / Explosion Spirits / Mental Strength / Chain Combo / Combo Finish** — STUB. Spirit sphere system entirely missing.
+- **Spirits** — WORKS. MO_CALLSPIRITS gathers, Val1 stores count, MO_FINGEROFFENSIVE / MO_EXTREMITYFIST / MO_ABSORBSPIRITS consume.
+- **Explosion Spirits** — WORKS. +20 ATK / +50 CRIT for 60s via status handler.
+- **Mental Strength (Steel Body)** — WORKS. 90% damage cap in BattleCalculator.ApplyStatusMultipliers.
+- **Chain Combo / Combo Finish** — WORKS. 2s window markers, consumed by chained skill handlers.
 - **Blade Stop** — WORKS. Catch + mutual stun.
-- **MISSING — Asura strike state hooks** — Sphere consumption / cooldown lockouts.
 
 ## Sage
 
