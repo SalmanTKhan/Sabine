@@ -39,10 +39,30 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// if necessary.
 		/// </summary>
 		/// <param name="elapsed"></param>
+		// Recent-damage pause window. eAthena pauses natural regen for
+		// ~3 seconds after the character takes a hit; resumes once the
+		// timer elapses.
+		private static readonly TimeSpan DamagePause = TimeSpan.FromSeconds(3);
+
 		public void Update(TimeSpan elapsed)
 		{
 			if (this.Character.IsDead)
 				return;
+
+			// Skip the tick entirely while we're inside the post-damage
+			// pause window. SM_MOVINGRECOVERY exempts walking but not
+			// the post-hit pause — matches eAthena status.c:status_calc_regen_rate.
+			if (this.Character.RegenPauseRemaining > TimeSpan.Zero)
+			{
+				this.Character.RegenPauseRemaining -= elapsed;
+				return;
+			}
+
+			// Walking pauses natural HP regen unless SC_MOVINGRECOVERY
+			// (SM_MOVINGRECOVERY) is active. SP regen always ticks.
+			var isWalking = this.Character.Controller?.IsMoving == true;
+			var canRegenHpWhileMoving = this.Character.StatusEffects?.Has(StatusId.MovingRecovery) == true;
+			var blockHpFromMovement = isWalking && !canRegenHpWhileMoving;
 
 			var hpDelay = this.Character.State == CharacterState.Sitting ? HpRegenDelaySitting : HpRegenDelayNormal;
 			var spDelay = this.Character.State == CharacterState.Sitting ? SpRegenDelaySitting : SpRegenDelayNormal;
@@ -51,7 +71,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (_hpTimer >= hpDelay)
 			{
 				_hpTimer = TimeSpan.Zero;
-				this.RegenHp();
+				if (!blockHpFromMovement)
+					this.RegenHp();
 			}
 
 			_spTimer += elapsed;

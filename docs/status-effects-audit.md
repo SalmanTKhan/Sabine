@@ -42,7 +42,8 @@ Verdict key:
 - **LK Concentration** — WORKS. HIT/FLEE/Crit bonus.
 - **Aura Blade** — WORKS. +level×10 ATK in BattleCalculator.
 - **Berserk** — WORKS. +20% ATK; aggro side-effects.
-- **Tension Relax** — PARTIAL. Flag set; no faster HP/SP regen tie-in.
+- **Tension Relax** — WORKS. `RegenComponent.RegenHp` triples the natural tick while active.
+- **Moving Recovery** — WORKS. `RegenComponent` skips its walk-pause gate while the status is held.
 - **AutoBerserk** — WORKS. `Character.TakeDamage` auto-starts Provoke Lv10 when HP drops to 25% MaxHP while the skill is learned.
 
 ## Crusader / Paladin
@@ -163,7 +164,7 @@ Verdict key:
 ## Underused flags (no consumer)
 
 - `Sight` — skill itself owns the reveal; the status is just a duration marker.
-- `MovingRecovery` — no recovery-on-move tick.
+- (removed — MovingRecovery now exempts HP regen from the walk-pause, see Swordsman section)
 - `Basilica` — cell list flagged; damage / movement integration missing.
 
 ## Remaining gaps (priority order)

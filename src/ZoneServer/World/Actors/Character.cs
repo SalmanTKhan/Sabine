@@ -165,6 +165,14 @@ namespace Sabine.Zone.World.Actors
 		public System.Collections.Generic.List<Character> DevotionLinkedTargets { get; } = new();
 
 		/// <summary>
+		/// Remaining time inside the post-damage regen pause window.
+		/// Managed by <c>RegenComponent</c>; written by <c>TakeDamage</c>.
+		/// eAthena status.c:status_calc_regen_rate pauses natural regen
+		/// for ~3 seconds after the character takes a hit.
+		/// </summary>
+		public TimeSpan RegenPauseRemaining { get; set; }
+
+		/// <summary>
 		/// Returns the character's parameters.
 		/// </summary>
 		public Parameters Parameters { get; protected set; }
@@ -467,6 +475,12 @@ namespace Sabine.Zone.World.Actors
 			// it doesn't gate this branch.
 			if (amount > 0 && this is PlayerCharacter pcCast && pcCast.IsCasting)
 				pcCast.StopCasting();
+
+			// Natural regen pauses for ~3 seconds after taking damage.
+			// Heal skills aren't gated by this — the pause only affects
+			// the RegenComponent's tick.
+			if (amount > 0)
+				this.RegenPauseRemaining = TimeSpan.FromSeconds(3);
 
 			// SM_AUTOBERSERK: while the skill is learned, dropping to
 			// 25% HP or below auto-applies Provoke Lv10 on self.
