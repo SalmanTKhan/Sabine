@@ -84,6 +84,79 @@ namespace Sabine.Zone.Skills.Homunculi
 			if (state.Hp > 0) state.MarkResting();
 		}
 
+		/// <summary>
+		/// Player-initiated dismiss (CZ_COMMAND_MER command 2 / chat
+		/// command). Drops the live entity *and* clears the contract,
+		/// distinct from <see cref="Rest"/> which keeps the homunculus
+		/// persisted as an embryo. No Embryo is returned — the
+		/// homunculus is gone for good. Mirrors
+		/// <c>MercenaryService.Dismiss</c>.
+		/// </summary>
+		public static void Dismiss(PlayerCharacter owner)
+		{
+			var state = owner?.Homunculus;
+			if (state == null || !state.HasContract) return;
+
+			Detach(owner);
+			state.Clear();
+			owner.ServerMessage(Sabine.Shared.Util.Localization.Get("Homunculus contract dismissed."));
+		}
+
+		/// <summary>
+		/// Player-supplied name change. Updates the persistent state
+		/// (survives re-login via vars) and the live entity's display
+		/// name. Empty / whitespace input is rejected by the
+		/// component. Pushes a fresh property block so the client UI
+		/// reflects the rename immediately.
+		/// </summary>
+		public static bool Rename(PlayerCharacter owner, string newName)
+		{
+			var state = owner?.Homunculus;
+			if (state == null || !state.HasContract) return false;
+			if (string.IsNullOrWhiteSpace(newName)) return false;
+
+			state.Rename(newName);
+
+			var entity = state.Entity;
+			if (entity != null)
+			{
+				entity.Name = newName;
+				Sabine.Zone.Network.Send.ZC_PROPERTY_HOMUN(owner, entity);
+			}
+
+			owner.ServerMessage(Sabine.Shared.Util.Localization.Get("Homunculus renamed to {0}."), newName);
+			return true;
+		}
+
+		/// <summary>
+		/// Consume the first food item in the owner's inventory that
+		/// matches the homunculus's type-specific food list. Applies
+		/// hunger / intimacy through <see cref="HomunculusComponent.FeedItem"/>
+		/// (over-feed is punished by the component, not here) and
+		/// pushes <c>ZC_FEED_MER</c> so the UI plays the feed
+		/// animation. Returns true if a feed actually happened.
+		/// </summary>
+		public static bool Feed(PlayerCharacter owner)
+		{
+			var state = owner?.Homunculus;
+			if (state == null || !state.IsActive) return false;
+
+			foreach (var food in HomunculusTypeData.GetFoods(state.Type))
+			{
+				if (owner.Inventory.CountItem(food.ItemId) <= 0) continue;
+
+				owner.Inventory.Remove(food.ItemId, 1);
+				state.FeedItem(food.ItemId);
+				Sabine.Zone.Network.Send.ZC_FEED_MER(owner, true, food.ItemId);
+				return true;
+			}
+
+			// No matching food on hand — let the client know the action
+			// failed so the UI doesn't think it's still pending.
+			Sabine.Zone.Network.Send.ZC_FEED_MER(owner, false, 0);
+			return false;
+		}
+
 		private static int ResolveMobId(HomunculusType type)
 		{
 			// Real homunculus mob ids in eAthena classic. If

@@ -159,6 +159,14 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			return null;
 		}
 
+		/// <summary>
+		/// All food entries this homunculus type accepts, in the order
+		/// they were declared. Used by the feed path to pick whichever
+		/// food the player happens to be carrying.
+		/// </summary>
+		public static IReadOnlyList<FoodEntry> GetFoods(HomunculusType type)
+			=> _foods.TryGetValue(type, out var list) ? list : new List<FoodEntry>();
+
 		public static IReadOnlyList<SkillEntry> GetSkills(HomunculusType type)
 			=> _skills.TryGetValue(type, out var list) ? list : new List<SkillEntry>();
 

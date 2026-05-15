@@ -1,19 +1,22 @@
 using Sabine.Shared.Network;
-using Sabine.Shared.Util;
 using Sabine.Zone.Skills.Mercenaries;
 
 namespace Sabine.Zone.Network
 {
 	/// <summary>
-	/// Handlers for the rAthena mercenary panel: command (dismiss / info
-	/// request) and rename. EP9 ships <c>CZ_COMMAND_MER</c>; EP10 renames
-	/// it to <c>CZ_MER_COMMAND</c> with the same shape. Both opcodes
-	/// route through the same logic so old clients still work.
+	/// Handlers for the standalone mercenary panel. EP10+ ships
+	/// <c>CZ_MER_COMMAND</c> (0x029F) for the mercenary menu —
+	/// distinct from the homunculus menu (0x022D) which kRO chose to
+	/// label <c>CZ_COMMAND_MER</c>. The homunc-aware handler for that
+	/// older opcode lives in <see cref="PacketHandler.Homunculus.cs"/>
+	/// and includes a merc-dismiss fallback for sessions without a
+	/// homunculus. Rename also uses 0x0231, routed via the homun
+	/// handler with the same fallback.
 	/// </summary>
 	public partial class PacketHandler
 	{
 		/// <summary>
-		/// CZ_MER_COMMAND (EP10+). Wire: short op, byte command.
+		/// CZ_MER_COMMAND (EP10+, 0x029F). Wire: short op, byte command.
 		/// command: 1 = request mercenary info refresh, 2 = dismiss.
 		/// </summary>
 		[PacketHandler(Op.CZ_MER_COMMAND)]
@@ -41,57 +44,6 @@ namespace Sabine.Zone.Network
 					MercenaryService.Dismiss(character);
 					break;
 			}
-		}
-
-		/// <summary>
-		/// CZ_COMMAND_MER (EP9 legacy). Wire: short op, 3-byte body.
-		/// Same intent as <c>CZ_MER_COMMAND</c>; rAthena's old clients
-		/// send a wider body that includes a 16-bit pad before the
-		/// command byte.
-		/// </summary>
-		[PacketHandler(Op.CZ_COMMAND_MER)]
-		public void CZ_COMMAND_MER(ZoneConnection conn, Packet packet)
-		{
-			// EP9 layout: byte command + short pad.
-			var command = packet.GetByte();
-			var character = conn.GetCurrentCharacter();
-
-			if (character.Mercenary == null || !character.Mercenary.IsActive)
-				return;
-
-			if (command == 2)
-				MercenaryService.Dismiss(character);
-		}
-
-		/// <summary>
-		/// CZ_RENAME_MER. Wire: short op, 24-byte name. Writes the new
-		/// name onto <see cref="MercenaryComponent"/> (persists across
-		/// re-login via the vars store) and updates the live entity's
-		/// display name. rA caps to one rename per contract; Sabine
-		/// allows free renames today.
-		/// </summary>
-		[PacketHandler(Op.CZ_RENAME_MER)]
-		public void CZ_RENAME_MER(ZoneConnection conn, Packet packet)
-		{
-			var name = packet.GetString(24);
-			var character = conn.GetCurrentCharacter();
-
-			if (character.Mercenary == null || !character.Mercenary.IsActive)
-				return;
-
-			if (string.IsNullOrWhiteSpace(name))
-				return;
-
-			character.Mercenary.Rename(name);
-
-			var entity = character.Mercenary.Entity;
-			if (entity != null)
-			{
-				entity.Name = name;
-				Send.ZC_MER_INIT(character, entity);
-			}
-
-			character.ServerMessage(Localization.Get("Mercenary renamed to {0}."), name);
 		}
 	}
 }

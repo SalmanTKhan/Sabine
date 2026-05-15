@@ -50,12 +50,46 @@ namespace Sabine.Zone.Commands
 
 		private CommandResult HomEvolve(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homevolve");
 		private CommandResult MakeHomun(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "makehomun");
-		private CommandResult HomFriendly(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homfriendly");
-		private CommandResult HomHungry(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homhungry");
-		private CommandResult HomTalk(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homtalk");
 		private CommandResult HomStats(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homstats");
 		private CommandResult HomShuffle(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homshuffle");
 		private CommandResult HomMutate(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "hommutate");
+
+		private CommandResult HomFriendly(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (target.Homunculus == null || !target.Homunculus.HasContract) { sender.ServerMessage(Localization.Get("No homunculus.")); return CommandResult.Okay; }
+			if (args.Count < 1 || !int.TryParse(args.Get(0), out var value)) return CommandResult.InvalidArgument;
+			target.Homunculus.SetIntimacy(value);
+			sender.ServerMessage(Localization.Get("Homunculus intimacy set to {0}."), target.Homunculus.Intimacy);
+			return CommandResult.Okay;
+		}
+
+		private CommandResult HomHungry(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (target.Homunculus == null || !target.Homunculus.HasContract) { sender.ServerMessage(Localization.Get("No homunculus.")); return CommandResult.Okay; }
+			if (args.Count < 1 || !int.TryParse(args.Get(0), out var value)) return CommandResult.InvalidArgument;
+			target.Homunculus.SetHunger(value);
+			sender.ServerMessage(Localization.Get("Homunculus hunger set to {0}."), target.Homunculus.Hunger);
+			return CommandResult.Okay;
+		}
+
+		private CommandResult HomTalk(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (target.Homunculus == null || !target.Homunculus.IsActive || target.Homunculus.Entity == null)
+			{
+				sender.ServerMessage(Localization.Get("Homunculus is not active."));
+				return CommandResult.Okay;
+			}
+			if (args.Count < 1) return CommandResult.InvalidArgument;
+			if (!System.Enum.TryParse<Sabine.Shared.Const.EmotionId>(args.Get(0), true, out var emotion)
+				&& !(int.TryParse(args.Get(0), out var num) && System.Enum.IsDefined(typeof(Sabine.Shared.Const.EmotionId), num)
+					&& (emotion = (Sabine.Shared.Const.EmotionId)num) == emotion))
+			{
+				sender.ServerMessage(Localization.Get("Unknown emote '{0}'."), args.Get(0));
+				return CommandResult.Okay;
+			}
+			Sabine.Zone.Network.Send.ZC_EMOTION(target.Homunculus.Entity, emotion);
+			return CommandResult.Okay;
+		}
 
 		private CommandResult HomunLearn(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{

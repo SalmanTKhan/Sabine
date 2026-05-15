@@ -160,10 +160,65 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		internal void MarkResting() => this.State = HomunculusState.Resting;
 		internal void MarkDead() => this.State = HomunculusState.Dead;
 
+		/// <summary>
+		/// Persists a player-supplied name. Mirrors
+		/// <c>CZ_RENAME_MER</c>. Empty / whitespace input is rejected.
+		/// Survives re-login via the vars store below.
+		/// </summary>
+		public void Rename(string newName)
+		{
+			if (string.IsNullOrWhiteSpace(newName)) return;
+			this.Name = newName;
+		}
+
+		/// <summary>
+		/// Wipes the contract entirely — used by the dismiss path.
+		/// Unlike <see cref="MarkResting"/>, this resets the type so
+		/// <see cref="HasContract"/> goes back to false and the saved
+		/// vars row goes empty on the next persist.
+		/// </summary>
+		public void Clear()
+		{
+			this.Entity?.Map?.RemoveNpc(this.Entity);
+			this.Entity = null;
+			this.Type = HomunculusType.None;
+			this.State = HomunculusState.Absent;
+			this.Name = string.Empty;
+			this.Level = 1;
+			this.Hp = 0;
+			this.HpMax = 0;
+			this.Intimacy = 0;
+			this.Hunger = 0;
+			this.Exp = 0;
+			this.SkillPoints = 0;
+			_learnedSkills.Clear();
+		}
+
 		internal void SyncHp(int hp)
 		{
 			this.Hp = Math.Max(0, hp);
 			if (this.Hp == 0) this.State = HomunculusState.Dead;
+		}
+
+		/// <summary>
+		/// GM/test setter for intimacy. Clamps to [0, 1000] (eAthena
+		/// hard cap). Doesn't trigger the runaway path even at 0 —
+		/// only the hunger tick does that, so admins can probe the
+		/// edge without losing the contract.
+		/// </summary>
+		public void SetIntimacy(int value)
+		{
+			this.Intimacy = Math.Max(0, Math.Min(1000, value));
+			this.NotifyOwner();
+		}
+
+		/// <summary>
+		/// GM/test setter for hunger. Clamps to [0, 100].
+		/// </summary>
+		public void SetHunger(int value)
+		{
+			this.Hunger = Math.Max(0, Math.Min(100, value));
+			this.NotifyOwner();
 		}
 
 		public void Heal(int amount)
@@ -232,6 +287,13 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			// from scratch to avoid double-stacking.
 			this.Entity?.RefreshFromState();
 			this.NotifyOwner();
+
+			// Push the single-skill rank-up packet (rA clif_homskillup).
+			// NotifyOwner already covers the property panel; this one
+			// targets the skill-tree row specifically.
+			if (this.Character is PlayerCharacter pc)
+				Sabine.Zone.Network.Send.ZC_HOSKILLINFO_UPDATE(pc, skillId, current + 1);
+
 			return current + 1;
 		}
 
