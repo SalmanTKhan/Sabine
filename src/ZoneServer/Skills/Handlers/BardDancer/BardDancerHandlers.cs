@@ -341,6 +341,19 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.BD_RAGNAROK)]
 	public class RagnarokHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
+		// BD_RAGNAROK: "Ragnarok Online" ensemble strips every dispellable
+		// buff from every character (ally or enemy) inside the aura
+		// footprint. eAthena fires status_change_clear_buffs on touch.
+		public void Handle(UseSkillParams p)
+		{
+			SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
+
+			var caster = p.Character;
+			foreach (var c in caster.Map.GetCharactersInRange(caster.Position, 3))
+			{
+				if (c == caster) continue;
+				c.StatusEffects?.DispelCategory(Sabine.Zone.Skills.StatusEffects.StatusCategory.Buff);
+			}
+		}
 	}
 }

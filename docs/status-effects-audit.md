@@ -159,7 +159,7 @@ Verdict key:
 - **Ensembles (RichmanKim / EternalChaos / DrumBattle / RingNibelungen / IntoAbyss / Siegfried / Ragnarok)** — PARTIAL. Aura placement works; per-ensemble effects collapsed into the shared `BardSong` marker — each can be split out incrementally as Whistle / AppleIdun / Humming were.
 - **Marionette / Marionette2** — WORKS. Donor / receiver pair tracked via `MarionettePair` helper; stat-transfer packed in vals.
 - **Longing Freedom** — STUB. Ensemble lock missing.
-- **Hermode** — STUB. Dispel immunity not enforced.
+- **Hermode** — WORKS. `StatusEffectComponent.DispelCategory(Buff)` short-circuits when the bearer has Hermode — matches eAthena's status_change_clear_buffs gate.
 
 ## Underused flags (no consumer)
 

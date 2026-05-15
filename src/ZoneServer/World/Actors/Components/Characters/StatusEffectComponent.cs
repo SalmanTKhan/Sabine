@@ -131,6 +131,37 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Strips every active status that belongs to the requested
+		/// dispel category. Honors SC_HERMODE which blanket-blocks all
+		/// buff strips (eAthena status.c:status_change_clear_buffs gate).
+		/// Returns the number of effects ended so callers can size the
+		/// resulting effect packet.
+		/// </summary>
+		public int DispelCategory(StatusCategory category)
+		{
+			// CG_HERMODE on the bearer blocks dispel of positive buffs.
+			// Debuff / Special categories still go through.
+			if (category == StatusCategory.Buff && this.Has(StatusId.Hermode))
+				return 0;
+
+			var ids = StatusCategories.GetByCategory(category);
+			if (ids.Count == 0)
+				return 0;
+
+			var stopped = 0;
+			foreach (var id in ids)
+			{
+				if (this.Has(id))
+				{
+					this.Stop(id);
+					stopped++;
+				}
+			}
+
+			return stopped;
+		}
+
+		/// <summary>
 		/// Ends all active status effects.
 		/// </summary>
 		public void StopAll()

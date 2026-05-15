@@ -80,27 +80,9 @@ namespace Sabine.Zone.Skills.Handlers.Sage
 
 			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 
-			// CG_HERMODE — Wand of Hermode grants dispel immunity to
-			// the performer's party. eAthena gates SA_DISPELL via a
-			// status_change_clear-side check; here we short-circuit
-			// the buff sweep entirely, mirroring the same effect on
-			// the alpha-era profile.
-			if (target.StatusEffects.Has(StatusId.Hermode))
-				return;
-
-			foreach (var sid in new[]
-			{
-				StatusId.Blessing, StatusId.IncreaseAgi, StatusId.Angelus, StatusId.Concentration,
-				StatusId.TwoHandQuicken, StatusId.SpearQuicken, StatusId.AdrenalineRush,
-				StatusId.OverThrust, StatusId.WeaponPerfection, StatusId.PowerMaximize,
-				StatusId.AutoGuard, StatusId.ReflectShield, StatusId.Defender, StatusId.Providence,
-				StatusId.KyrieEleison, StatusId.Magnificat, StatusId.Gloria, StatusId.Aspersio,
-				StatusId.EnchantPoison,
-			})
-			{
-				if (target.StatusEffects.Has(sid))
-					target.StatusEffects.Stop(sid);
-			}
+			// Hermode immunity + buff list now lives in the shared
+			// dispel framework; the call here is a thin wrapper.
+			target.StatusEffects.DispelCategory(Sabine.Zone.Skills.StatusEffects.StatusCategory.Buff);
 		}
 	}
 
