@@ -15,13 +15,24 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	[StatusEffectHandler(StatusId.ChaseWalk)]
 	public class ChaseWalkStatusHandler : IStatusEffectHandler
 	{
+		// val3 in eAthena is a percent slowdown; Sabine's Speed param
+		// is milliseconds-per-cell, so convert via *2 (base 200ms).
 		public void OnStart(Character target, StatusEffect effect)
 		{
-			effect.Val3 = 35 - 5 * effect.Level;
+			var slowPct = 35 - 5 * effect.Level;
+			effect.Val3 = slowPct * 2;
 			effect.Val4 = 10 + 2 * effect.Level;
+
+			target.Parameters.Modify(ParameterType.Speed, effect.Val3);
+			target.SetOptionFlag(OptionState.Hide, true);
 		}
 
-		public void OnEnd(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+			if (effect.Val3 != 0)
+				target.Parameters.Modify(ParameterType.Speed, -effect.Val3);
+			target.SetOptionFlag(OptionState.Hide, false);
+		}
 	}
 
 	/// <summary>

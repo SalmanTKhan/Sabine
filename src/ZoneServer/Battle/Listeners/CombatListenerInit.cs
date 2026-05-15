@@ -11,6 +11,7 @@ namespace Sabine.Zone.Battle.Listeners
 		{
 			AutoCounterListener.Subscribe();
 			SacrificeListener.Subscribe();
+			RejectSwordListener.Subscribe();
 			AutoGuardListener.Subscribe();
 			DevotionListener.Subscribe();
 			ReflectShieldListener.Subscribe();

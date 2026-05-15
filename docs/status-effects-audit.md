@@ -86,7 +86,7 @@ Verdict key:
 - **Falcon Fly** — PARTIAL. OPTION_FALCON flag; no Blitz / Beast Strafe damage tie-in beyond skill gate.
 - **True Sight (Sniper)** — WORKS. Snapshot primary-stat bonus.
 - **Wind Walk** — WORKS. +FLEE.
-- **Ankle Snare** — STUB. Trap unit applies; root + 0-DEF not wired.
+- **Ankle Snare** — WORKS. Trap unit applies status; `IsRooted` reads it so movement controller blocks pathing. 0-DEF leg deferred.
 
 ## Blacksmith / Whitesmith
 
@@ -107,12 +107,12 @@ Verdict key:
 
 ## Rogue / Stalker
 
-- **Strip Weapon / Shield / Armor / Helm** — STUB. Equip removal listener missing.
+- **Strip Weapon / Shield / Armor / Helm** — WORKS. Status handlers unequip the matching slot on apply via `Inventory.FindEquipped` + `UnequipItem`. Re-equip block during status duration deferred.
 - **Plagiarism** — PARTIAL. Listener exists; copy-state expiration not durable across logout.
 - **Preserve** — STUB. Plagiarism state lock missing.
 - **Tunnel Drive** — STUB. Speed burst + cell-skip movement.
-- **Chase Walk** — PARTIAL. OPTION_HIDE flipped; speed math + attack-toggle off missing.
-- **Reject Sword** — STUB. Reflect-charge listener missing.
+- **Chase Walk** — WORKS. OPTION_HIDE flipped; speed slowdown (eAthena 35-5*level%) applied via Speed delta. SP drain tick deferred.
+- **Reject Sword** — WORKS. `RejectSwordListener` rolls 15%*level reflect on melee non-skill hits, consumes one of 3 charges per fire, ends at zero.
 
 ## Merchant / Alchemist / Creator
 

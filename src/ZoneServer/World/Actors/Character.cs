@@ -252,7 +252,9 @@ namespace Sabine.Zone.World.Actors
 		/// MovementController checks it on every MoveTo to short-circuit
 		/// pathing while the cast / attack pipelines stay open.
 		/// </summary>
-		public bool IsRooted => this.StatusEffects?.Has(StatusId.Stop) == true;
+		public bool IsRooted => this.StatusEffects != null && (
+			this.StatusEffects.Has(StatusId.Stop)
+			|| this.StatusEffects.Has(StatusId.AnkleSnare));
 
 		/// <summary>
 		/// True while the character owns a live song / dance unit

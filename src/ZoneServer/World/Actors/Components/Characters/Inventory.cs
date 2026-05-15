@@ -457,6 +457,16 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Returns the item currently occupying the given equip slot, or
+		/// null if none. Used by the Rogue strip skills to find what to
+		/// unequip.
+		/// </summary>
+		public Item FindEquipped(EquipSlots slot)
+		{
+			return this.GetItemByEquipSlot(slot);
+		}
+
+		/// <summary>
 		/// Returns a list with all items in the inventory.
 		/// </summary>
 		/// <returns></returns>
