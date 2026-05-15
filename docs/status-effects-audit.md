@@ -69,7 +69,7 @@ Verdict key:
 - **Kyrie Eleison** — WORKS. Barrier HP + hit counter, expires in calc.
 - **Assumptio** — WORKS. ~50% physical reduction.
 - **Suffragium** — DEFERRED. Cast-time reduction missing, but no skill currently reads `Skill.GetCastTime` in Sabine, so consumption is a no-op until casting bars land.
-- **Sanctuary** — STUB. Ground-effect heal + undead damage missing.
+- **Sanctuary** — WORKS. `SanctuaryUnit` heals living allies / damages Undead per tick.
 - **Sacramenti** — STUB. Defined but never applied.
 
 ## Wizard / High Wizard
@@ -133,7 +133,8 @@ Verdict key:
 ## Sage
 
 - **Auto Spell** — WORKS. AutoSpellListener rolls 5+2*level% on-hit proc of stored bolt skill (defaults MG_FIREBOLT) at AttackResolved.
-- **Free Cast / Mind Breaker / Dragonology** — STUB. No handlers / listeners.
+- **Dragonology** — WORKS. +4 ATK / level vs Dragon-race targets via `GetRaceMasteryBonus`.
+- **Free Cast / Mind Breaker** — STUB. Free Cast is blocked on cast bars not existing; Mind Breaker needs an on-hit INT/VIT-drain listener.
 - **Endow Fire / Water / Wind / Earth** — WORKS. Element coating.
 - **Magic Rod** — WORKS. Magic absorb to SP.
 - **Volcano / Deluge / Whirlwind / Magnetic Earth** — WORKS. Field bonuses.
@@ -142,24 +143,25 @@ Verdict key:
 
 - **Bard Song / Dancer Dance** — PARTIAL. Aura membership flagged; per-tick passive broadcast missing.
 - **Power Chord / Lullaby / Mental Sensing / Service For You / Fortune Kiss** — STUB. No specific song handlers.
-- **Marionette / Marionette2** — PARTIAL. Pair flag; stat-cap transfer not implemented.
+- **Marionette / Marionette2** — WORKS. Donor / receiver pair tracked via `MarionettePair` helper; stat-transfer packed in vals.
 - **Longing Freedom** — STUB. Ensemble lock missing.
 - **Hermode** — STUB. Dispel immunity not enforced.
 
 ## Underused flags (no consumer)
 
 - `Sight` — skill itself owns the reveal; the status is just a duration marker.
-- `LoudExclamation` — only STR delta applied; eAthena grants +4 to all primary stats.
 - `MovingRecovery` — no recovery-on-move tick.
 - `Basilica` — cell list flagged; damage / movement integration missing.
 
-## Critical gaps to add (priority order)
+## Remaining gaps (priority order)
 
-1. Monk spirit sphere system (unblocks 5+ skills).
-2. Rogue Strip equip-removal on-hit listener.
-3. Priest Sanctuary ground effect + Pneuma / Safety Wall ground-effect framework.
-4. Hunter Ankle Snare root.
-5. Bard/Dancer per-tick aura passive broadcast.
-6. Stalker Chase Walk speed math + Reject Sword reflect charges.
-7. Crusader Sacrifice charges + Devotion link-loss handling.
-8. EDP (Assassin) per-hit ATK escalator.
+1. Bard/Dancer per-tick aura passive broadcast (Power Chord / Lullaby / Mental Sensing / Service For You / Fortune Kiss).
+2. Sage SA_DRAGONOLOGY (+ATK vs Dragon race), Mind Breaker (-INT/VIT on hit), Free Cast (requires cast bars first).
+3. Wizard Pneuma / Safety Wall ground-effect framework.
+4. Assassin EDP (Assassin Cross — Reborn tier).
+5. Crusader/Paladin Sacramenti, Creator Full Protection equip-break exemption.
+6. Rogue Tunnel Drive speed burst, Preserve plagiarism lock.
+7. Hocus Pocus Monocell / ClassChange / ReverseOrcish / Question gameplay impact.
+8. Tension Relax stagger / regen tie-in.
+9. Storm Gust freeze counter (PARTIAL).
+10. Frost Nova AoE damage leg.

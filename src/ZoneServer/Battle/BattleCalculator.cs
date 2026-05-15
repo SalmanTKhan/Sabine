@@ -512,6 +512,17 @@ namespace Sabine.Zone.Battle
 			if (beastBane > 0 && (targetRace == RaceType.Brute || targetRace == RaceType.Insect))
 				bonus += beastBane * 4;
 
+			// SA_DRAGONOLOGY: +4 ATK per level vs Dragon-race targets.
+			// Mirrors eAthena battle.c's masteryAtk leg for the Sage
+			// passive. PvP targets default to PlayerHuman so this only
+			// fires on actual Dragon-race mobs.
+			if (targetIsMob && targetRace == RaceType.Dragon)
+			{
+				var dragonology = pc.Skills.GetLevel(SkillId.SA_DRAGONOLOGY);
+				if (dragonology > 0)
+					bonus += dragonology * 4;
+			}
+
 			return bonus;
 		}
 
