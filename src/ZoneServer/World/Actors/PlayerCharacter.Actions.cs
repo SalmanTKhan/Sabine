@@ -120,6 +120,43 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Begins a delayed skill cast. Broadcasts ZC_USESKILL_ACK with
+		/// the effective cast time so the client renders its cast bar,
+		/// then schedules <paramref name="onComplete"/> via the world
+		/// scheduler. The cast is cancellable through <see cref="StopCasting"/>;
+		/// the scheduled callback short-circuits if the cancellation
+		/// token has been signalled by then. PR_SUFFRAGIUM is consumed
+		/// at schedule time so chained casts can't share the buff.
+		/// </summary>
+		public void ScheduleSkillCast(Skill skill, int level, int targetHandle, Sabine.Shared.World.Position groundPos, Action onComplete)
+		{
+			if (skill == null || onComplete == null) return;
+
+			var castTimeMs = skill.GetEffectiveCastTime(this);
+
+			// Suffragium burns even if cast time was already zero —
+			// matches eAthena, where the buff is single-use.
+			this.StatusEffects?.Stop(StatusId.Suffragium);
+
+			if (castTimeMs <= 0)
+			{
+				onComplete();
+				return;
+			}
+
+			var token = this.RegisterCast();
+			Send.ZC_USESKILL_ACK(this, this.Handle, targetHandle, skill.Id, level, castTimeMs);
+
+			ZoneServer.Instance.World.Scheduler.Schedule(TimeSpan.FromMilliseconds(castTimeMs), _ =>
+			{
+				if (token.IsCancellationRequested) return;
+				if (this.IsDead) return;
+				this.FinishCasting();
+				onComplete();
+			}, null);
+		}
+
+		/// <summary>
 		/// Overrides the base attack logic to handle moving into range first.
 		/// </summary>
 		public override void StartAttacking(Character target, bool autoAttack)
@@ -201,7 +238,8 @@ namespace Sabine.Zone.World.Actors
 					return;
 
 				_pendingSkillCast = null;
-				handler.Handle(new UseSkillParams(this, target, skill, level));
+				this.FireOrScheduleTargetedSkill(target, skill, level, handler);
+				this.Skills.NoteSkillUsed(skill);
 				return;
 			}
 
@@ -211,7 +249,8 @@ namespace Sabine.Zone.World.Actors
 			this.StopCasting();
 			this.StopAttacking();
 
-			this.Controller.MoveTo(target.Position);
+			var chaseDest = this.GetSkillChaseDestination(target.Position, range);
+			this.Controller.MoveTo(chaseDest);
 
 			_pendingSkillCast = new PendingSkillCast
 			{
@@ -219,9 +258,69 @@ namespace Sabine.Zone.World.Actors
 				Skill = skill,
 				Level = level,
 				Handler = handler,
-				LastMoveDestination = target.Position,
+				LastMoveDestination = chaseDest,
 			};
 			_currentAction = ActionState.Moving;
+		}
+
+		/// <summary>
+		/// Returns a walkable destination tile that sits within
+		/// <paramref name="range"/> of <paramref name="targetPos"/>, so the
+		/// caster stops at the skill's range boundary instead of walking
+		/// onto the target's tile. Mirrors eAthena's <c>unit_walktobl</c>
+		/// behavior: prefer the cell along the caster→target line that is
+		/// exactly <c>range</c> away from the target, then ring-search
+		/// outward for a passable cell if that one is blocked.
+		/// </summary>
+		private Position GetSkillChaseDestination(Position targetPos, int range)
+		{
+			var fromPos = this.Position;
+
+			if (range <= 0 || fromPos == targetPos)
+				return targetPos;
+
+			var dx = targetPos.X - fromPos.X;
+			var dy = targetPos.Y - fromPos.Y;
+			var dist = Math.Sqrt(dx * dx + dy * dy);
+
+			if (dist <= range)
+				return fromPos;
+
+			var stopDist = dist - range;
+			var preferredX = (int)Math.Round(fromPos.X + dx / dist * stopDist);
+			var preferredY = (int)Math.Round(fromPos.Y + dy / dist * stopDist);
+			var preferred = new Position(preferredX, preferredY);
+
+			var map = this.Map;
+
+			if (preferred.InRange(targetPos, range) && map.IsPassable(preferred))
+				return preferred;
+
+			// Preferred cell is blocked or just-outside; ring-search for the
+			// nearest passable tile that's still inside the range circle.
+			for (var r = 1; r <= range + 1; r++)
+			{
+				for (var ox = -r; ox <= r; ox++)
+				{
+					for (var oy = -r; oy <= r; oy++)
+					{
+						if (Math.Max(Math.Abs(ox), Math.Abs(oy)) != r)
+							continue;
+
+						var cand = new Position(preferred.X + ox, preferred.Y + oy);
+						if (!cand.InRange(targetPos, range))
+							continue;
+						if (!map.IsPassable(cand))
+							continue;
+
+						return cand;
+					}
+				}
+			}
+
+			// No reachable in-range tile; fall back to the legacy behavior
+			// so the caller's chase loop can re-evaluate next tick.
+			return targetPos;
 		}
 
 		/// <summary>
@@ -301,12 +400,15 @@ namespace Sabine.Zone.World.Actors
 
 			if (!this.Position.InRange(cast.Target.Position, range))
 			{
-				// Target moved — re-issue the chase so we don't end up
-				// walking to a stale tile.
-				if (cast.LastMoveDestination != cast.Target.Position)
+				// Target moved out of the previously-chosen destination's
+				// range — recompute a tile within `range` of the new target
+				// position. We only re-issue when the prior destination is
+				// no longer adequate, otherwise the path keeps thrashing.
+				if (!cast.LastMoveDestination.InRange(cast.Target.Position, range))
 				{
-					this.Controller.MoveTo(cast.Target.Position);
-					cast.LastMoveDestination = cast.Target.Position;
+					var chaseDest = this.GetSkillChaseDestination(cast.Target.Position, range);
+					this.Controller.MoveTo(chaseDest);
+					cast.LastMoveDestination = chaseDest;
 				}
 				return;
 			}
@@ -321,7 +423,24 @@ namespace Sabine.Zone.World.Actors
 			if (!Sabine.Zone.Network.PacketHandler.TryDeductSkillCost(this, cast.Skill, cast.Level))
 				return;
 
-			cast.Handler.Handle(new UseSkillParams(this, cast.Target, cast.Skill, cast.Level));
+			this.FireOrScheduleTargetedSkill(cast.Target, cast.Skill, cast.Level, cast.Handler);
+			this.Skills.NoteSkillUsed(cast.Skill);
+		}
+
+		/// <summary>
+		/// If the skill has a non-zero effective cast time, defer the
+		/// handler invocation through <see cref="ScheduleSkillCast"/>;
+		/// otherwise fire it immediately. Centralises the cast-time
+		/// branch for both the in-range and chase-completion paths.
+		/// </summary>
+		private void FireOrScheduleTargetedSkill(Character target, Skill skill, int level, ITargetedSkillHandler handler)
+		{
+			void Fire() => handler.Handle(new UseSkillParams(this, target, skill, level));
+
+			if (skill.GetEffectiveCastTime(this) > 0)
+				this.ScheduleSkillCast(skill, level, target.Handle, target.Position, Fire);
+			else
+				Fire();
 		}
 
 		/// <summary>

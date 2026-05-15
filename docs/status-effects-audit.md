@@ -68,7 +68,7 @@ Verdict key:
 - **Lex Aeterna** — WORKS. ×2 damage on next hit, consumed.
 - **Kyrie Eleison** — WORKS. Barrier HP + hit counter, expires in calc.
 - **Assumptio** — WORKS. ~50% physical reduction.
-- **Suffragium** — DEFERRED. Cast-time reduction missing, but no skill currently reads `Skill.GetCastTime` in Sabine, so consumption is a no-op until casting bars land.
+- **Suffragium** — WORKS. `Skill.GetEffectiveCastTime` reduces cast time by 15/30/45% per buff level; consumed by the cast scheduler after one cast.
 - **Sanctuary** — WORKS. `SanctuaryUnit` heals living allies / damages Undead per tick.
 - **Sacramenti** — STUB. Defined but never applied.
 
@@ -134,7 +134,8 @@ Verdict key:
 
 - **Auto Spell** — WORKS. AutoSpellListener rolls 5+2*level% on-hit proc of stored bolt skill (defaults MG_FIREBOLT) at AttackResolved.
 - **Dragonology** — WORKS. +4 ATK / level vs Dragon-race targets via `GetRaceMasteryBonus`.
-- **Free Cast / Mind Breaker** — STUB. Free Cast is blocked on cast bars not existing; Mind Breaker needs an on-hit INT/VIT-drain listener.
+- **Free Cast** — WORKS. The MovementController's cast-cancel branch checks `Skill.HasFreeCast` so the caster can move while a spell is in flight.
+- **Mind Breaker** — STUB. Needs an on-hit INT/VIT-drain listener.
 - **Endow Fire / Water / Wind / Earth** — WORKS. Element coating.
 - **Magic Rod** — WORKS. Magic absorb to SP.
 - **Volcano / Deluge / Whirlwind / Magnetic Earth** — WORKS. Field bonuses.
@@ -144,7 +145,7 @@ Verdict key:
 - **Aura pipeline** — WORKS. `SongUnit.OnTouch` now extends an active status's duration via `StatusEffectComponent.Refresh` instead of restarting it, preventing stat-bonus thrash and icon spam while a character stands inside the song footprint.
 - **Whistle** — WORKS. +4*level Flee.
 - **Assassin Cross of Sunset** — WORKS. +5*level% ASPD bonus.
-- **Poem of Bragi** — DEFERRED. Marker only; cast-time/delay reduction parks until cast bars ship.
+- **Poem of Bragi** — WORKS. Val2 = 3*level% feeds the cast-time reduction in `Skill.GetEffectiveCastTime`.
 - **Apple of Idun** — WORKS. +5*level% MaxHP.
 - **Humming** — WORKS. +4*level Hit.
 - **Don't Forget Me** — WORKS. Enemy debuff: −3*level% ASPD + slower walk.

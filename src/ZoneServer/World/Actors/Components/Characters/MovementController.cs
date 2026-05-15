@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Sabine.Shared.Const;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
+using Sabine.Zone.Skills;
 using Yggdrasil.Collections;
 using Yggdrasil.Extensions;
 using Yggdrasil.Logging;
@@ -92,8 +93,11 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (character.StatusEffects?.Has(Sabine.Shared.Const.StatusId.TrickDead) == true)
 				character.StatusEffects.Stop(Sabine.Shared.Const.StatusId.TrickDead);
 
-			// Cancel casting if this is a player character
-			if (_playerCharacter != null)
+			// Cancel casting if this is a player character. SA_FREECAST
+			// keeps the cast running while the caster moves — mirrors
+			// eAthena unit.c which skips the cancel branch when the
+			// status is active.
+			if (_playerCharacter != null && !Skill.HasFreeCast(_playerCharacter))
 				_playerCharacter.StopCasting();
 
 			// If character is moving already, remember to calculate a new

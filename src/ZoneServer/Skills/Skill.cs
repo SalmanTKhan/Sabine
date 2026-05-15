@@ -98,6 +98,50 @@ namespace Sabine.Zone.Skills
 		public int GetAfterCastActDelay() => this.Data.Cast.AfterCastActDelay?[this.Level - 1] ?? 0;
 
 		/// <summary>
+		/// Returns the cast time after the caster's per-cast modifiers
+		/// (DEX scaling, Suffragium, Poem of Bragi) are applied.
+		/// PR_SUFFRAGIUM ends after consumption.
+		/// </summary>
+		public int GetEffectiveCastTime(Character caster)
+		{
+			var baseMs = this.GetCastTime();
+			if (baseMs <= 0 || caster == null)
+				return baseMs;
+
+			// Pre-renewal DEX scaling: castTime * (150 - DEX) / 150,
+			// floored at 0 so DEX 150+ casts are instant.
+			var dex = Math.Max(0, caster.Parameters.Dex);
+			var afterDex = (int)Math.Max(0, baseMs * (150 - dex) / 150L);
+
+			var totalReductionPct = 0;
+
+			if (caster.StatusEffects != null)
+			{
+				// PR_SUFFRAGIUM: 15/30/45% reduction at level 1/2/3.
+				if (caster.StatusEffects.TryGet(StatusId.Suffragium, out var suff))
+					totalReductionPct += 15 * suff.Level;
+
+				// BA_POEMBRAGI: 3*level% reduction while in the aura.
+				if (caster.StatusEffects.TryGet(StatusId.PoemBragi, out var bragi))
+					totalReductionPct += bragi.Val2 != 0 ? bragi.Val2 : 3 * bragi.Level;
+			}
+
+			totalReductionPct = Math.Clamp(totalReductionPct, 0, 95);
+			var afterBuffs = afterDex * (100 - totalReductionPct) / 100;
+			return Math.Max(0, afterBuffs);
+		}
+
+		/// <summary>
+		/// Returns true if the caster's status conditions imply the cast
+		/// should not be interrupted by movement. Sage SA_FREECAST is
+		/// the canonical case.
+		/// </summary>
+		public static bool HasFreeCast(Character caster)
+		{
+			return caster?.StatusEffects?.Has(StatusId.FreeCast) == true;
+		}
+
+		/// <summary>
 		/// Creates new instance.
 		/// </summary>
 		/// <param name="owner"></param>

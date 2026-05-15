@@ -461,6 +461,13 @@ namespace Sabine.Zone.World.Actors
 
 			var remainingHp = this.Parameters.Modify(ParameterType.Hp, -amount);
 
+			// Cancel any in-progress cast on the damaged character —
+			// matches eAthena unit.c:unit_skillcastcancel. Free Cast
+			// suppresses the cancel only for movement, not damage, so
+			// it doesn't gate this branch.
+			if (amount > 0 && this is PlayerCharacter pcCast && pcCast.IsCasting)
+				pcCast.StopCasting();
+
 			// SM_AUTOBERSERK: while the skill is learned, dropping to
 			// 25% HP or below auto-applies Provoke Lv10 on self.
 			// eAthena pc.c pc_damage_sp_loss.

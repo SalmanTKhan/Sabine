@@ -1857,7 +1857,17 @@ namespace Sabine.Zone.Network
 			if (!TryDeductSkillCost(character, skill, level))
 				return;
 
-			handler.Handle(new UseGroundSkillParams(character, targetPos, skill, level));
+			void Fire() => handler.Handle(new UseGroundSkillParams(character, targetPos, skill, level));
+
+			if (character is PlayerCharacter pcGround && skill.GetEffectiveCastTime(pcGround) > 0)
+			{
+				pcGround.ScheduleSkillCast(skill, level, character.Handle, targetPos, Fire);
+			}
+			else
+			{
+				Fire();
+			}
+
 			character.Skills.NoteSkillUsed(skill);
 		}
 
