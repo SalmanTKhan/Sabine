@@ -43,7 +43,7 @@ Verdict key:
 - **Aura Blade** — WORKS. +level×10 ATK in BattleCalculator.
 - **Berserk** — WORKS. +20% ATK; aggro side-effects.
 - **Tension Relax** — PARTIAL. Flag set; no faster HP/SP regen tie-in.
-- **AutoBerserk** — STUB. Skill watches HP threshold; status flag has no consumer.
+- **AutoBerserk** — WORKS. `Character.TakeDamage` auto-starts Provoke Lv10 when HP drops to 25% MaxHP while the skill is learned.
 
 ## Crusader / Paladin
 
@@ -68,7 +68,7 @@ Verdict key:
 - **Lex Aeterna** — WORKS. ×2 damage on next hit, consumed.
 - **Kyrie Eleison** — WORKS. Barrier HP + hit counter, expires in calc.
 - **Assumptio** — WORKS. ~50% physical reduction.
-- **Suffragium** — STUB. Cast-time reduction missing.
+- **Suffragium** — DEFERRED. Cast-time reduction missing, but no skill currently reads `Skill.GetCastTime` in Sabine, so consumption is a no-op until casting bars land.
 - **Sanctuary** — STUB. Ground-effect heal + undead damage missing.
 - **Sacramenti** — STUB. Defined but never applied.
 
@@ -95,14 +95,14 @@ Verdict key:
 - **Power Maximize** — WORKS. Max-roll attack.
 - **Over Thrust / Max Over Thrust** — WORKS. Damage % bonus; MaxOT cancels OT.
 - **Cart Boost** — WORKS. Speed bonus (cart-equipped not enforced).
-- **Melt Down** — STUB. Equip-break on hit not wired.
+- **Melt Down** — WORKS. EquipBreakListener rolls weapon (100*level/1000) and armor (70*level/1000) break per hit, honoring CR_FULLPROTECTION.
 
 ## Assassin
 
-- **Cloaking** — PARTIAL. OPTION_CLOAK + speed; wall-adjacent reveal / attack-cancel not enforced.
+- **Cloaking** — WORKS for attack-cancel; basic-attack now breaks both Hiding and Cloaking via `Character.Attack`. Wall-adjacent reveal still deferred.
 - **Enchant Poison** — WORKS. Poison endow.
 - **Poison React** — PARTIAL. Counter listener present; poison-elem requirement check thin.
-- **Venom Dust / Venom Splasher** — STUB. No handlers.
+- **Venom Dust / Venom Splasher** — WORKS. VenomDustUnit poisons on-step; VenomSplasher tags target and detonates on expiry.
 - **MISSING — EDP** — Per-hit ATK% escalator.
 
 ## Rogue / Stalker
@@ -132,7 +132,8 @@ Verdict key:
 
 ## Sage
 
-- **Free Cast / Auto Spell / Mind Breaker / Dragonology** — STUB. No handlers / listeners.
+- **Auto Spell** — WORKS. AutoSpellListener rolls 5+2*level% on-hit proc of stored bolt skill (defaults MG_FIREBOLT) at AttackResolved.
+- **Free Cast / Mind Breaker / Dragonology** — STUB. No handlers / listeners.
 - **Endow Fire / Water / Wind / Earth** — WORKS. Element coating.
 - **Magic Rod** — WORKS. Magic absorb to SP.
 - **Volcano / Deluge / Whirlwind / Magnetic Earth** — WORKS. Field bonuses.

@@ -53,6 +53,8 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	[StatusEffectHandler(StatusId.LoudExclamation)]
 	public class LoudExclamationStatusHandler : IStatusEffectHandler
 	{
+		// eAthena status.c MC_LOUD: +4 STR for 60s. Classic-era forks
+		// limit the bonus to STR only (not all six). Sabine matches that.
 		private const int StatBonus = 4;
 
 		public void OnStart(Character target, StatusEffect effect)

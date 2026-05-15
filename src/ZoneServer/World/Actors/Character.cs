@@ -461,6 +461,18 @@ namespace Sabine.Zone.World.Actors
 
 			var remainingHp = this.Parameters.Modify(ParameterType.Hp, -amount);
 
+			// SM_AUTOBERSERK: while the skill is learned, dropping to
+			// 25% HP or below auto-applies Provoke Lv10 on self.
+			// eAthena pc.c pc_damage_sp_loss.
+			if (amount > 0 && this is PlayerCharacter pcBerserk
+				&& pcBerserk.Skills.Has(SkillId.SM_AUTOBERSERK)
+				&& this.Parameters.HpMax > 0
+				&& remainingHp * 4 <= this.Parameters.HpMax
+				&& this.StatusEffects?.Has(StatusId.Provoke) == false)
+			{
+				this.StatusEffects.Start(StatusId.Provoke, 10, TimeSpan.FromSeconds(30), this, 10);
+			}
+
 			// Sleep breaks on the first non-zero hit. Run after the
 			// damage is applied so the 1.5x sleep multiplier already
 			// took effect on the breaking hit.
@@ -568,6 +580,16 @@ namespace Sabine.Zone.World.Actors
 			{
 				_attackCallbackId = 0;
 				return;
+			}
+
+			// Hiding / Cloaking break on the wearer's own basic attack
+			// per eAthena status.c — attacking reveals the actor.
+			if (attacker.StatusEffects != null)
+			{
+				if (attacker.StatusEffects.Has(StatusId.Hiding))
+					attacker.StatusEffects.Stop(StatusId.Hiding);
+				if (attacker.StatusEffects.Has(StatusId.Cloaking))
+					attacker.StatusEffects.Stop(StatusId.Cloaking);
 			}
 
 			var ctx = new Sabine.Zone.Battle.AttackContext(attacker, target);
