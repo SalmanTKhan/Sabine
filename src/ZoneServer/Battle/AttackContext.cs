@@ -124,6 +124,15 @@ namespace Sabine.Zone.Battle
 		/// </summary>
 		public bool ForceCrit { get; set; }
 
+		/// <summary>
+		/// If set (>0), BattleCalculator skips the damage roll entirely
+		/// and returns this value as the hit's damage. Used by
+		/// PA_SACRIFICE where the damage is fixed at a percent of the
+		/// attacker's MaxHP. Pair with <see cref="AlwaysHits"/> /
+		/// <see cref="IgnoreDefense"/> when a true override is needed.
+		/// </summary>
+		public int FixedDamage { get; set; }
+
 		public AttackContext(Character attacker, Character target)
 		{
 			this.Attacker = attacker;

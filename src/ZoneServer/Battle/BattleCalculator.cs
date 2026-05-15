@@ -128,6 +128,15 @@ namespace Sabine.Zone.Battle
 				return result;
 			}
 
+			// PA_SACRIFICE and similar use FixedDamage to bypass the
+			// roll entirely — damage is set by the caller, post-defense
+			// and post-element reductions are skipped.
+			if (ctx.FixedDamage > 0)
+			{
+				result.Damage = ctx.FixedDamage;
+				return result;
+			}
+
 			var renewal = IsRenewal();
 			int baseDamage;
 

@@ -14,17 +14,26 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	[StatusEffectHandler(StatusId.Trust)]
 	public class TrustStatusHandler : IStatusEffectHandler
 	{
+		// eAthena status.c:2376: SC_FAITH grants +200*level max HP on
+		// top of the Holy resist. Snapshot in Val3 so the revert is
+		// symmetric with the resist delta in Val2.
 		public void OnStart(Character target, StatusEffect effect)
 		{
-			var bonus = 5 * effect.Level;
-			effect.Val2 = bonus;
-			target.Modifiers.SubElement[(int)ElementType.Holy] += bonus;
+			var resistBonus = 5 * effect.Level;
+			effect.Val2 = resistBonus;
+			target.Modifiers.SubElement[(int)ElementType.Holy] += resistBonus;
+
+			var hpBonus = 200 * effect.Level;
+			effect.Val3 = hpBonus;
+			target.AddBonusStat(ParameterType.HpMax, hpBonus);
 		}
 
 		public void OnEnd(Character target, StatusEffect effect)
 		{
 			if (effect.Val2 != 0)
 				target.Modifiers.SubElement[(int)ElementType.Holy] -= effect.Val2;
+			if (effect.Val3 != 0)
+				target.AddBonusStat(ParameterType.HpMax, -effect.Val3);
 		}
 	}
 
@@ -69,5 +78,27 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	{
 		public void OnStart(Character target, StatusEffect effect) { }
 		public void OnEnd(Character target, StatusEffect effect) { }
+	}
+
+	/// <summary>
+	/// SC_DEVOTION — maintains the caster's linked-target list so the
+	/// 5-link cap can be enforced and so death/disconnect can clear the
+	/// bonds. The redirect itself lives in DevotionListener.
+	/// </summary>
+	[StatusEffectHandler(StatusId.Devotion)]
+	public class DevotionStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			var caster = effect.Caster;
+			if (caster == null) return;
+			if (!caster.DevotionLinkedTargets.Contains(target))
+				caster.DevotionLinkedTargets.Add(target);
+		}
+
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+			effect.Caster?.DevotionLinkedTargets.Remove(target);
+		}
 	}
 }

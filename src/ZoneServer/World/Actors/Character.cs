@@ -158,6 +158,13 @@ namespace Sabine.Zone.World.Actors
 		public int AttackerHandleTest { get; set; }
 
 		/// <summary>
+		/// Characters currently linked to this one by CR_DEVOTION. Used to
+		/// enforce eAthena's 5-link cap and to drop the bonds on caster
+		/// death / disconnect. Maintained by the Devotion status handler.
+		/// </summary>
+		public System.Collections.Generic.List<Character> DevotionLinkedTargets { get; } = new();
+
+		/// <summary>
 		/// Returns the character's parameters.
 		/// </summary>
 		public Parameters Parameters { get; protected set; }
@@ -484,6 +491,16 @@ namespace Sabine.Zone.World.Actors
 		{
 			// TODO: Figure out what needs to happen when we kill
 			//   different kinds of entities.
+
+			// CR_DEVOTION drops on caster death (eAthena status.c:6567).
+			// Iterate over a snapshot — Stop mutates the list via the
+			// status handler's OnEnd hook.
+			if (this.DevotionLinkedTargets.Count > 0)
+			{
+				foreach (var linked in this.DevotionLinkedTargets.ToArray())
+					linked.StatusEffects?.Stop(StatusId.Devotion);
+				this.DevotionLinkedTargets.Clear();
+			}
 
 			this.Parameters.Hp = 0;
 			this.State = CharacterState.Dead;

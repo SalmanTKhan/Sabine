@@ -61,9 +61,30 @@ namespace Sabine.Zone.Skills.Handlers.Crusader
 	public class DevotionHandler : BuffSkillHandler
 	{
 		// eAthena CR_DEVOTION: redirects damage taken by the target
-		// to the caster. 5s/level. The actual redirection is wired
-		// via a damage-pipeline hook; here we only apply the marker.
+		// to the caster. 5s/level. eAthena caps concurrent links at 5
+		// (status.c:5738). The actual redirection lives in the
+		// DevotionListener; this handler enforces the cap and refreshes
+		// the bond on refresh of an existing link.
+		public const int MaxLinks = 5;
+
 		protected override StatusId StatusId => StatusId.Devotion;
 		protected override TimeSpan GetDuration(int level) => TimeSpan.FromSeconds(5 + 25 * level);
+
+		public override void Handle(UseSkillParams parameters)
+		{
+			var caster = parameters.Character;
+			var target = parameters.Target;
+			if (target == null) return;
+
+			// Refreshing an existing link is always allowed.
+			var alreadyLinked = target.StatusEffects != null
+				&& target.StatusEffects.TryGet(StatusId.Devotion, out var existing)
+				&& existing.Caster == caster;
+
+			if (!alreadyLinked && caster.DevotionLinkedTargets.Count >= MaxLinks)
+				return;
+
+			base.Handle(parameters);
+		}
 	}
 }

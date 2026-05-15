@@ -50,11 +50,11 @@ Verdict key:
 - **Defender** — WORKS. Long-range damage reduction in BattleCalculator.
 - **Auto Guard** — WORKS. 5%×level full-block roll on physical hits.
 - **Reflect Shield** — WORKS. 10+3×level% physical return; pierces filter.
-- **Devotion** — PARTIAL. Damage redirect listener exists; charge cap / link-loss disconnect logic incomplete.
-- **Providence** — PARTIAL. Element-class reduction not gated to Demon/Undead.
-- **Trust (Faith)** — PARTIAL. Flat reduction applied; no pre-/re-renewal split.
-- **Sacrifice** — PARTIAL. Flag only; finite-charge HP redirect not wired.
-- **Gospel** — STUB. Per-tick random buff roll missing.
+- **Devotion** — WORKS. Redirect listener + 5-link cap enforced via `Character.DevotionLinkedTargets`; bonds drop on caster death.
+- **Providence** — WORKS. SubElement[Holy] + SubRace[Demon] gating is correct as-is (BattleCalculator only reads SubRace for the attacker's race).
+- **Trust (Faith)** — WORKS. Holy resist + 200×level MaxHP bonus per eAthena status.c:2376.
+- **Sacrifice** — WORKS. Per-hit `SacrificeListener` charges 9% MaxHP, deals fixed damage, decrements 5-charge buffer, ends at zero.
+- **Gospel** — WORKS. 10s OnTick rolls representative subset of eAthena's gospel table on party (heal / Blessing / IncreaseAgi / Angelus / Concentration) and enemies (Curse / Blind / DecreaseAgi / smite damage).
 
 ## Priest / High Priest
 
