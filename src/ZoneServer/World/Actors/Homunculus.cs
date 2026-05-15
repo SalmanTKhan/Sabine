@@ -146,6 +146,33 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Death override: skip the loot drops, EXP awards, and
+		/// MVP/Emperium hooks that <see cref="Monster.Kill"/> runs
+		/// for wild mobs. The homunculus is removed from the map and
+		/// the persistent contract is marked Dead so the owner can
+		/// resurrect it later with AM_RESURRECTHOMUN.
+		/// </summary>
+		public override void Kill(Character killer)
+		{
+			// Bypass Monster.Kill entirely — it would call GiveExp,
+			// DropItems, MVP hooks, etc. Inline the Character.Kill
+			// state transition here instead (virtual dispatch means
+			// `base.Kill` would still hit Monster.Kill). The
+			// Homunculus.State property shadows Character.State with
+			// the persistent component, so the inherited CharacterState
+			// is reached through a base cast.
+			this.Parameters.Hp = 0;
+			((Character)this).State = Sabine.Shared.Const.CharacterState.Dead;
+
+			this.State.MarkDead();
+			this.State.Entity = null;
+			this.Map?.RemoveNpc(this);
+
+			if (this.Owner != null)
+				this.Owner.ServerMessage(Sabine.Shared.Util.Localization.Get("Your homunculus {0} has fallen."), this.Name);
+		}
+
+		/// <summary>
 		/// Casts one of the homunculus's skills at the given target.
 		/// Reuses the player skill-handler registry: each homun skill
 		/// has a regular [SkillHandler(SkillId.X)] handler keyed off
