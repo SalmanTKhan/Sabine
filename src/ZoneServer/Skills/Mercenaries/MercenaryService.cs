@@ -61,6 +61,16 @@ namespace Sabine.Zone.Skills.Mercenaries
 			entity.Warp(owner.Map.Id, owner.Position);
 
 			owner.Mercenary.Entity = entity;
+
+			// Push the mercenary panel state to the client. Sabine v50000+
+			// expects the init + skill list immediately after the entity
+			// appears; older profiles don't ship these ops and skip.
+			if (Sabine.Shared.Game.Version >= Sabine.Shared.Versions.S2500)
+			{
+				Sabine.Zone.Network.Send.ZC_MER_INIT(owner, entity);
+				Sabine.Zone.Network.Send.ZC_MER_SKILLINFO_LIST(owner, entity);
+			}
+
 			return true;
 		}
 

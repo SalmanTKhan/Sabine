@@ -3697,6 +3697,102 @@ namespace Sabine.Zone.Network
 			character.Connection.Send(packet);
 		}
 
+		// --- Mercenary senders ----------------------------------------------
+		// Layouts per rAthena clif.cpp clif_mercenary_info /
+		// clif_mercenary_skillblock / clif_mercenary_updatestatus.
+
+		/// <summary>
+		/// Sends the full mercenary panel state on hire / spawn. 0x029B,
+		/// body 78 (Sabine widens to 80 wire). Field order matches rA's
+		/// <c>clif_mercenary_info</c>.
+		/// </summary>
+		public static void ZC_MER_INIT(PlayerCharacter owner, Mercenary merc)
+		{
+			using var packet = Packet.Rent(Op.ZC_MER_INIT);
+
+			var data = merc.Data;
+			var contractSeconds = owner.Mercenary?.ContractSecondsRemaining ?? 0;
+			var faith = owner.Mercenary != null
+				? owner.Mercenary.GetFaith(owner.Mercenary.Faction)
+				: 0;
+
+			packet.PutInt(merc.Handle);                  // mercId / AID
+			packet.PutShort((short)data.AttackMin);      // atk
+			packet.PutShort((short)data.AttackMin);      // matk (no separate column today)
+			packet.PutShort(0);                          // hit
+			packet.PutShort(0);                          // crit
+			packet.PutShort((short)data.Defense);        // def
+			packet.PutShort((short)data.MagicDefense);   // mdef
+			packet.PutShort(0);                          // flee
+			packet.PutShort((short)data.AttackDelay);    // aspd
+			packet.PutString(merc.Name ?? string.Empty, 24);
+			packet.PutShort((short)data.Level);          // level
+			packet.PutInt(merc.Parameters.Hp);
+			packet.PutInt(merc.Parameters.HpMax);
+			packet.PutInt(merc.Parameters.Sp);
+			packet.PutInt(merc.Parameters.SpMax);
+			packet.PutInt(contractSeconds);              // expireTime (seconds)
+			packet.PutShort((short)faith);               // faith
+			packet.PutInt(0);                            // calls
+			packet.PutInt(0);                            // kills
+			packet.PutShort((short)data.AttackRange);    // atkRange
+
+			owner.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Dumps the mercenary's skill tree. 0x029D, variable. Each entry:
+		/// 2 skillId + 4 type + 2 level + 2 spCost + 2 atkRange + 24 name
+		/// + 1 upgradable = 37 bytes.
+		/// </summary>
+		public static void ZC_MER_SKILLINFO_LIST(PlayerCharacter owner, Mercenary merc)
+		{
+			using var packet = Packet.Rent(Op.ZC_MER_SKILLINFO_LIST);
+
+			var entries = Sabine.Shared.Game.CurrentData?.Mercenaries?.Entries;
+			if (entries != null && owner.Mercenary != null
+				&& entries.TryGetValue(owner.Mercenary.MobId, out var mercData)
+				&& !string.IsNullOrEmpty(mercData.OffensiveSkill)
+				&& Enum.TryParse<Sabine.Shared.Const.SkillId>(mercData.OffensiveSkill, out var skillId))
+			{
+				packet.PutShort((short)skillId);
+				packet.PutInt(1); // skill type — 1 = active
+				packet.PutShort((short)mercData.OffensiveSkillLevel);
+				packet.PutShort(0); // spCost (unknown without skill-db lookup)
+				packet.PutShort(0); // atkRange
+				packet.PutString(mercData.OffensiveSkill, 24);
+				packet.PutByte(0); // not upgradable
+			}
+
+			owner.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Reports the result of a mercenary feed-item use. 0x022F, body 3:
+		/// result byte + u16 itemId (Sabine raises itemId to u32 elsewhere
+		/// but this packet keeps the legacy size; see PacketTable.0900_EP9).
+		/// </summary>
+		public static void ZC_FEED_MER(PlayerCharacter owner, bool success, int itemId)
+		{
+			using var packet = Packet.Rent(Op.ZC_FEED_MER);
+			packet.PutByte(success ? (byte)1 : (byte)0);
+			packet.PutShort((short)itemId);
+			owner.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Single-stat update for the mercenary panel. 0x02A2, body 6:
+		/// u16 varId + u32 value. varId mirrors rA's SP_* constants
+		/// (SP_ATK1, SP_MATK1, SP_HIT, ... SP_MERCFAITH).
+		/// </summary>
+		public static void ZC_MER_PAR_CHANGE(PlayerCharacter owner, short varId, int value)
+		{
+			using var packet = Packet.Rent(Op.ZC_MER_PAR_CHANGE);
+			packet.PutShort(varId);
+			packet.PutInt(value);
+			owner.Connection.Send(packet);
+		}
+
 		// --- Pet senders ----------------------------------------------------
 		// Layouts per rAthena clif.cpp clif_sendegg / clif_pet_roulette /
 		// clif_catchpet_result.
