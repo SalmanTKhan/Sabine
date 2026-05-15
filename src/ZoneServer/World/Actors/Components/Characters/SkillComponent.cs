@@ -15,6 +15,20 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 	{
 		private readonly Dictionary<SkillId, Skill> _skills = new();
 
+		// Per-skill reuse-end timestamps. Skills with cooldown=0 in
+		// the data row (Alpha/Beta/most classic skills) never write
+		// here, so older Sabine versions remain effectively
+		// cooldown-free. Server-enforced per-skill cooldowns only
+		// arrived with the 3rd-job era in real RO; we honour that by
+		// gating off the data, not the version.
+		private readonly Dictionary<SkillId, DateTime> _reuseEnd = new();
+
+		// Global skill lockout end. Driven by AfterCastActDelay — the
+		// classic "you can't cast again until the animation finishes"
+		// gate that existed from Beta1 onwards. A non-zero value here
+		// blocks every skill, not just the one just used.
+		private DateTime _lockoutEnd;
+
 		public int Count => _skills.Count;
 
 		/// <summary>
@@ -201,17 +215,114 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
-		/// Clears any active per-skill cooldowns on the character. Today
-		/// this is a no-op hook — Sabine doesn't yet track per-skill
-		/// reuse timestamps (Skill.GetCooldown only reads the static
-		/// data row), so there's nothing to wipe. Existing as a stable
-		/// entry point so the GM /cooldown command and any future
-		/// cooldown-resetting logic (e.g. SC_FREEZE break, Berserk
-		/// expiry) have one place to call when the runtime tracking
-		/// lands.
+		/// Clears any active per-skill cooldowns and the global
+		/// after-cast lockout. Called by /cooldown, SC break paths,
+		/// and on map change.
 		/// </summary>
 		public void ClearCooldowns()
 		{
+			lock (_reuseEnd)
+				_reuseEnd.Clear();
+			_lockoutEnd = default;
+		}
+
+		/// <summary>
+		/// True when <paramref name="skillId"/>'s per-skill cooldown is
+		/// still ticking. Skills whose data row has <c>cooldown=0</c>
+		/// (Alpha/Beta-era skills) never enter the dictionary, so this
+		/// always returns false for them.
+		/// </summary>
+		public bool IsOnCooldown(SkillId skillId)
+		{
+			lock (_reuseEnd)
+			{
+				if (!_reuseEnd.TryGetValue(skillId, out var end))
+					return false;
+				if (DateTime.UtcNow >= end)
+				{
+					_reuseEnd.Remove(skillId);
+					return false;
+				}
+				return true;
+			}
+		}
+
+		/// <summary>
+		/// True when the character is inside the global post-cast
+		/// lockout (animation play-out from the previous cast).
+		/// Mirrors eAthena's <c>AfterCastActDelay</c> gate — applies
+		/// to every skill, not just the one that triggered it.
+		/// </summary>
+		public bool IsLockedOut() => DateTime.UtcNow < _lockoutEnd;
+
+		/// <summary>
+		/// Returns remaining cooldown for <paramref name="skillId"/>
+		/// in milliseconds. 0 when not on cooldown.
+		/// </summary>
+		public int GetCooldownRemainingMs(SkillId skillId)
+		{
+			lock (_reuseEnd)
+			{
+				if (!_reuseEnd.TryGetValue(skillId, out var end))
+					return 0;
+				var ms = (int)Math.Max(0, (end - DateTime.UtcNow).TotalMilliseconds);
+				return ms;
+			}
+		}
+
+		/// <summary>
+		/// Records a fresh cast: sets the per-skill cooldown (if the
+		/// skill data has one) and pushes the global after-cast
+		/// lockout out by the skill's <c>AfterCastActDelay</c> (which
+		/// every era has — it's the animation time the client renders
+		/// before another action is sent).
+		/// </summary>
+		public void NoteSkillUsed(Skill skill)
+		{
+			if (skill == null)
+				return;
+
+			var cooldownMs = skill.GetCooldown();
+			if (cooldownMs > 0)
+			{
+				lock (_reuseEnd)
+					_reuseEnd[skill.Id] = DateTime.UtcNow.AddMilliseconds(cooldownMs);
+			}
+
+			var delays = skill.Data?.Cast?.AfterCastActDelay;
+			if (delays != null && delays.Length > 0)
+			{
+				var idx = Math.Clamp(skill.Level - 1, 0, delays.Length - 1);
+				var delayMs = delays[idx];
+
+				// BA_POEMBRAGI also reduces the after-cast lockout —
+				// eAthena status.c stores val3 = 5*level for the delay
+				// leg of the buff. Stacks multiplicatively with the
+				// cast-time reduction in Skill.GetEffectiveCastTime.
+				if (delayMs > 0 && this.Character?.StatusEffects != null
+					&& this.Character.StatusEffects.TryGet(Sabine.Shared.Const.StatusId.PoemBragi, out var bragi))
+				{
+					var pct = Math.Clamp(5 * bragi.Level, 0, 95);
+					delayMs = delayMs * (100 - pct) / 100;
+				}
+
+				if (delayMs > 0)
+				{
+					var end = DateTime.UtcNow.AddMilliseconds(delayMs);
+					if (end > _lockoutEnd)
+						_lockoutEnd = end;
+				}
+			}
+
+			// EP12 client renders the cooldown sweep on the hotbar
+			// slot via ZC_SKILL_POSTDELAY. Pre-S2500 clients don't
+			// recognise the op (added at eA PV23), so gate the send.
+			if (this.Player != null
+				&& cooldownMs > 0
+				&& Sabine.Shared.Game.Version >= Sabine.Shared.Versions.S2500)
+			{
+				Send.ZC_SKILL_POSTDELAY(this.Player, skill.Id, cooldownMs);
+			}
 		}
 
 		/// <summary>
