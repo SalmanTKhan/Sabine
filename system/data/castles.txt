@@ -15,16 +15,17 @@
 //---------------------------------------------------------------------------
 
 // treasureBoxId maps each castle to a unique TREASURE_BOX row in
-// monsters.txt. The 4 WoE 1.0 regions reserve 5 box ids each so every
-// castle drops from its own pool:
-//   Aldebaran cas01..05 = 1324, 1325, 1332, 1333, 1334  (refining ores)
-//   Geffen    cas01..05 = 1326, 1327, 1335, 1336, 1337  (gems/jewels)
-//   Payon     cas01..05 = 1328, 1329, 1338, 1339, 1340  (orient/Old Box)
-//   Prontera  cas01..05 = 1330, 1331, 1341, 1342, 1343  (royal)
+// monsters.txt. All 30 castles now have their own pool — the 4 WoE 1.0
+// regions reserve 5 box ids each, and the 2 renewal regions add 5
+// more each on top:
+//   Aldebaran    cas01..05 = 1324, 1325, 1332, 1333, 1334  (refining ores)
+//   Geffen       cas01..05 = 1326, 1327, 1335, 1336, 1337  (gems/jewels)
+//   Payon        cas01..05 = 1328, 1329, 1338, 1339, 1340  (orient/Old Box)
+//   Prontera     cas01..05 = 1330, 1331, 1341, 1342, 1343  (royal)
+//   Arunafeltz   cas01..05 = 1344, 1345, 1346, 1347, 1348  (desert/jewel)
+//   Schwartzvald cas01..05 = 1349, 1350, 1351, 1352, 1353  (industrial/refining)
 // Pool richness rises from cas01 (base) to cas05 (premium with a
-// rare card slot). Renewal regions reuse the WoE 1.0 ids; per-castle
-// distinct pools across all 30 castles would need 10 more box ids
-// (deferred until renewal-specific data lands).
+// rare card slot) within every region.
 [
 { id:  0, map: "aldeg_cas01", name: "Neuschwanstein",   onGuildBreak: "Agit#aldeg_cas01", treasureBoxId: 1324 },
 { id:  1, map: "aldeg_cas02", name: "Hohenschwangau",   onGuildBreak: "Agit#aldeg_cas02", treasureBoxId: 1325 },
@@ -50,18 +51,18 @@
 { id: 18, map: "prtg_cas04",  name: "Skoegul",          onGuildBreak: "Agit#prtg_cas04",  treasureBoxId: 1342 },
 { id: 19, map: "prtg_cas05",  name: "Gondul",           onGuildBreak: "Agit#prtg_cas05",  treasureBoxId: 1343 },
 
-// Renewal: Arunafeltz / Schwartzvald — reuse Aldebaran + Payon ids.
-// Each renewal castle still gets its own slot (cas01 -> 1324, cas02
-// -> 1325, etc.) so they don't all clone the cas01 pool.
-{ id: 20, map: "arug_cas01",  name: "Mardol",           onGuildBreak: "Manager#aru01_01", treasureBoxId: 1324 },
-{ id: 21, map: "arug_cas02",  name: "Cyr",              onGuildBreak: "Manager#aru02_01", treasureBoxId: 1325 },
-{ id: 22, map: "arug_cas03",  name: "Horn",             onGuildBreak: "Manager#aru03_01", treasureBoxId: 1332 },
-{ id: 23, map: "arug_cas04",  name: "Gefn",             onGuildBreak: "Manager#aru04_01", treasureBoxId: 1333 },
-{ id: 24, map: "arug_cas05",  name: "Banadis",          onGuildBreak: "Manager#aru05_01", treasureBoxId: 1334 },
+// Renewal: Arunafeltz (desert/jewel theme) and Schwartzvald
+// (industrial/refining theme). Each renewal castle has its own box
+// id rather than aliasing a WoE 1.0 row.
+{ id: 20, map: "arug_cas01",  name: "Mardol",           onGuildBreak: "Manager#aru01_01", treasureBoxId: 1344 },
+{ id: 21, map: "arug_cas02",  name: "Cyr",              onGuildBreak: "Manager#aru02_01", treasureBoxId: 1345 },
+{ id: 22, map: "arug_cas03",  name: "Horn",             onGuildBreak: "Manager#aru03_01", treasureBoxId: 1346 },
+{ id: 23, map: "arug_cas04",  name: "Gefn",             onGuildBreak: "Manager#aru04_01", treasureBoxId: 1347 },
+{ id: 24, map: "arug_cas05",  name: "Banadis",          onGuildBreak: "Manager#aru05_01", treasureBoxId: 1348 },
 
-{ id: 25, map: "schg_cas01",  name: "Himinn",           onGuildBreak: "Manager#sch01_01", treasureBoxId: 1328 },
-{ id: 26, map: "schg_cas02",  name: "Andlangr",         onGuildBreak: "Manager#sch02_01", treasureBoxId: 1329 },
-{ id: 27, map: "schg_cas03",  name: "Vidblainn",        onGuildBreak: "Manager#sch03_01", treasureBoxId: 1338 },
-{ id: 28, map: "schg_cas04",  name: "Hljod",            onGuildBreak: "Manager#sch04_01", treasureBoxId: 1339 },
-{ id: 29, map: "schg_cas05",  name: "Skidbladnir",      onGuildBreak: "Manager#sch05_01", treasureBoxId: 1340 }
+{ id: 25, map: "schg_cas01",  name: "Himinn",           onGuildBreak: "Manager#sch01_01", treasureBoxId: 1349 },
+{ id: 26, map: "schg_cas02",  name: "Andlangr",         onGuildBreak: "Manager#sch02_01", treasureBoxId: 1350 },
+{ id: 27, map: "schg_cas03",  name: "Vidblainn",        onGuildBreak: "Manager#sch03_01", treasureBoxId: 1351 },
+{ id: 28, map: "schg_cas04",  name: "Hljod",            onGuildBreak: "Manager#sch04_01", treasureBoxId: 1352 },
+{ id: 29, map: "schg_cas05",  name: "Skidbladnir",      onGuildBreak: "Manager#sch05_01", treasureBoxId: 1353 }
 ]
