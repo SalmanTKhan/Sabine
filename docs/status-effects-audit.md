@@ -156,7 +156,9 @@ Verdict key:
 - **Ugly Dance** — WORKS. Per-tick 5+3*level SP drain on enemies.
 - **Lullaby** — WORKS. Per-tick Sleep proc roll on enemies.
 - **Mental Sensing (Loki's Veil)** — WORKS. Dispels Hide / Cloak on enemies entering the aura.
-- **Ensembles (RichmanKim / EternalChaos / DrumBattle / RingNibelungen / IntoAbyss / Siegfried / Ragnarok)** — PARTIAL. Aura placement works; per-ensemble effects collapsed into the shared `BardSong` marker — each can be split out incrementally as Whistle / AppleIdun / Humming were.
+- **Mr. Kim a Rich Man** — WORKS. New `StatusId.RichmanKim` aura; `RewardModifiers.GetExpMultiplier` amplifies the pre-share EXP pool by 25+25*level%.
+- **Ragnarok (BD_RAGNAROK)** — WORKS. Strips all dispellable buffs from characters in the aura via the shared `DispelCategory` API.
+- **Other ensembles (EternalChaos / DrumBattle / RingNibelungen / IntoAbyss / Siegfried)** — PARTIAL. Aura placement works; per-ensemble effects still collapsed into the shared `BardSong` marker — each can be split out incrementally as Whistle / AppleIdun / Humming were.
 - **Marionette / Marionette2** — WORKS. Donor / receiver pair tracked via `MarionettePair` helper; stat-transfer packed in vals.
 - **Longing Freedom** — STUB. Ensemble lock missing.
 - **Hermode** — WORKS. `StatusEffectComponent.DispelCategory(Buff)` short-circuits when the bearer has Hermode — matches eAthena's status_change_clear_buffs gate.

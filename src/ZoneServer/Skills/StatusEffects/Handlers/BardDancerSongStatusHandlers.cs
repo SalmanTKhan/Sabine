@@ -256,4 +256,15 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 
 		public void OnEnd(Character target, StatusEffect effect) { }
 	}
+
+	/// <summary>BD_RICHMANKIM ("Mr. Kim a Rich Man"): +25+25*level%
+	/// EXP gain for party members in the aura. The actual multiplier
+	/// lives in <c>RewardModifiers.GetExpMultiplier</c>; this handler
+	/// is a marker so the status icon broadcasts.</summary>
+	[StatusEffectHandler(StatusId.RichmanKim)]
+	public class RichmanKimStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect) { }
+		public void OnEnd(Character target, StatusEffect effect) { }
+	}
 }

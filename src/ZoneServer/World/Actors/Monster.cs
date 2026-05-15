@@ -244,8 +244,14 @@ namespace Sabine.Zone.World.Actors
 			if (killer is not PlayerCharacter playerCharacter)
 				return;
 
-			var baseExp = this.Data.BaseExp;
-			var jobExp = this.Data.BaseExp;
+			// Apply the cross-cutting reward multiplier on the pool
+			// before any party share. BD_RICHMANKIM and future event
+			// boosts amplify the whole party's gain when the killer is
+			// the aura bearer; per-member multipliers run later via the
+			// individual GainBaseExp paths.
+			var expMult = RewardModifiers.GetExpMultiplier(playerCharacter);
+			var baseExp = (int)(this.Data.BaseExp * expMult);
+			var jobExp = (int)(this.Data.BaseExp * expMult);
 
 			// Even-share among same-map party members when the
 			// killer's party has the option enabled. Falls back to
@@ -328,11 +334,12 @@ namespace Sabine.Zone.World.Actors
 				var map = this.Map;
 				var pos = this.Position;
 				var killerPlayer = killer as PlayerCharacter;
+				var rewardDropMult = RewardModifiers.GetDropMultiplier(killer);
 
 				for (var i = 0; i < dropsData.Count; ++i)
 				{
 					var dropData = dropsData[i];
-					var dropRate = ZoneServer.Instance.Conf.World.ItemDropRate / 100f;
+					var dropRate = (ZoneServer.Instance.Conf.World.ItemDropRate / 100f) * rewardDropMult;
 					var dropChance = dropData.Chance * dropRate;
 
 					if (dropChance < rnd.Next(100))

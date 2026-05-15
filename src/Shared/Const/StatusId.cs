@@ -185,6 +185,11 @@ namespace Sabine.Shared.Const
 		Dissonance = 233,
 		UglyDance = 234,
 
+		// BD_RICHMANKIM (Mr. Kim a Rich Man): +EXP gain aura for party
+		// members standing in the song. eAthena status.c:5662 stores
+		// val2 = 25 + 25*level (percent bonus).
+		RichmanKim = 235,
+
 		// Reborn 2-1 — eAthena reuses the SC_CONCENTRATION name
 		// across AC_CONCENTRATION (id 11 above) and LK_CONCENTRATION,
 		// but the gameplay payload is different, so the LK variant

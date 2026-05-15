@@ -299,7 +299,7 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.BD_RICHMANKIM)]
 	public class MrKimAMillionaireHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceEnsembleAura(p, StatusId.RichmanKim);
 	}
 
 	[SkillHandler(SkillId.BD_ETERNALCHAOS)]
