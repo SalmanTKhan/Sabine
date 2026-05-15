@@ -111,7 +111,7 @@ Verdict key:
 - **Strip Weapon / Shield / Armor / Helm** — WORKS. Status handlers unequip the matching slot on apply via `Inventory.FindEquipped` + `UnequipItem`. Re-equip block during status duration deferred.
 - **Plagiarism** — PARTIAL. Listener exists; copy-state expiration not durable across logout.
 - **Preserve** — STUB. Plagiarism state lock missing.
-- **Tunnel Drive** — STUB. Speed burst + cell-skip movement.
+- **Tunnel Drive** — WORKS. Status handler applies a per-level Speed delta (30 ms/level, capped at 120) mirroring eAthena's classic walk-while-hidden bonus.
 - **Chase Walk** — WORKS. OPTION_HIDE flipped; speed slowdown (eAthena 35-5*level%) applied via Speed delta. SP drain tick deferred.
 - **Reject Sword** — WORKS. `RejectSwordListener` rolls 15%*level reflect on melee non-skill hits, consumes one of 3 charges per fire, ends at zero.
 

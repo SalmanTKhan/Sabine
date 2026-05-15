@@ -48,6 +48,32 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	}
 
 	/// <summary>
+	/// SC_TUNNELDRIVE (RG_TUNNELDRIVE) — speed burst while Hiding is
+	/// active. eAthena status.c:5639 grants the Rogue a per-level walk-
+	/// speed delta that cancels Hiding's natural slowdown and tips
+	/// faster at higher levels. Sabine's Hiding doesn't slow movement
+	/// today, so this lands as a straight Speed bonus equivalent to the
+	/// eAthena per-cell delta (30 ms per level, capped to keep level-5
+	/// from instant-walking through walls).
+	/// </summary>
+	[StatusEffectHandler(StatusId.TunnelDrive)]
+	public class TunnelDriveStatusHandler : IStatusEffectHandler
+	{
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			var delta = System.Math.Clamp(30 * effect.Level, 0, 120);
+			effect.Val2 = delta;
+			target.Parameters.Modify(ParameterType.Speed, -delta);
+		}
+
+		public void OnEnd(Character target, StatusEffect effect)
+		{
+			if (effect.Val2 != 0)
+				target.Parameters.Modify(ParameterType.Speed, effect.Val2);
+		}
+	}
+
+	/// <summary>
 	/// SC_REJECTSWORD (ST_REJECTSWORD) — sword-only reflect with limited
 	/// charges. eAthena status.c:5706: val2 = 15*level (per-100 reflect
 	/// chance), val3 = 3 (charges remaining). Snapshot here so the future
