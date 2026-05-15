@@ -104,12 +104,10 @@ namespace Sabine.Zone.Network
 
 			Send.ZC_START_CAPTURE(character);
 
-			// Capture chance: rAthena uses pet_db.capture out of 10000.
-			// Sabine's PetData doesn't carry a capture-rate column today,
-			// so we use 50% as a placeholder until the column is plumbed.
-			// TODO: thread an actual capture rate through PetData.
-			var roll = Yggdrasil.Util.RandomProvider.Get().Next(0, 100);
-			var success = roll < 50;
+			// rAthena pet_db.CaptureRate is per-10000; the PetData loader
+			// defaults rows without an explicit value to 1000 (10%).
+			var roll = Yggdrasil.Util.RandomProvider.Get().Next(0, 10000);
+			var success = roll < petData.CaptureRate;
 
 			if (!success)
 			{

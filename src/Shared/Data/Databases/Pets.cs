@@ -74,6 +74,13 @@ namespace Sabine.Shared.Data.Databases
 		/// overrides land via the data file.
 		/// </summary>
 		public int MinFriendlyIntimacy { get; set; } = 900;
+
+		/// <summary>
+		/// Per-10000 capture success rate (rAthena <c>CaptureRate</c>).
+		/// 10000 = guaranteed, 1 = 0.01%. Default 1000 (10%) matches the
+		/// rA pre-renewal pet_db floor for unconfigured rows.
+		/// </summary>
+		public int CaptureRate { get; set; } = 1000;
 	}
 
 	/// <summary>
@@ -108,6 +115,7 @@ namespace Sabine.Shared.Data.Databases
 				AttackRate = entry.ReadInt("attackRate", 300),
 				DefenseAttackRate = entry.ReadInt("defenseAttackRate", 300),
 				MinFriendlyIntimacy = entry.ReadInt("minFriendlyIntimacy", 900),
+				CaptureRate = entry.ReadInt("captureRate", 1000),
 			};
 
 			this.AddOrReplace(data.MobId, data);
