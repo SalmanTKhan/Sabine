@@ -307,7 +307,12 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		public void Knockback(Position source, int distance)
 		{
 			if (this.Character.State == CharacterState.Dead) return;
-			// Add check for "Endure" state or Boss status which prevents knockback
+
+			// eAthena: SC_ENDURE and BL_MOB boss flag suppress knockback.
+			if (this.Character.StatusEffects?.Has(StatusId.Endure) == true)
+				return;
+			if (this.Character is Monster mob && (mob.Data.IsBoss || mob.Data.MvpExp > 0))
+				return;
 
 			var current = this.Character.Position;
 

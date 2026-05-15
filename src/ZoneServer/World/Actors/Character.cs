@@ -559,8 +559,24 @@ namespace Sabine.Zone.World.Actors
 			if (!result.IsMiss)
 			{
 				target.TakeDamage(damage, attacker);
-				target.StunEndTime = DateTime.Now.AddSeconds(1);
-				target.Controller.StopMove();
+
+				// SC_ENDURE: hits don't apply the dmotion stagger or
+				// stop the movement controller. eAthena status.c
+				// terminates the buff after 7 hits.
+				var endureActive = false;
+				if (target.StatusEffects != null && target.StatusEffects.TryGet(StatusId.Endure, out var endure))
+				{
+					endureActive = true;
+					endure.Val3--;
+					if (endure.Val3 <= 0)
+						target.StatusEffects.Stop(StatusId.Endure);
+				}
+
+				if (!endureActive)
+				{
+					target.StunEndTime = DateTime.Now.AddSeconds(1);
+					target.Controller.StopMove();
+				}
 				target.AttackerHandleTest = attacker.Handle;
 
 				// Update the monster's name if the display HP option

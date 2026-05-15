@@ -1,6 +1,7 @@
 using System;
 using Sabine.Shared.Const;
 using Sabine.Zone.Network;
+using Sabine.Zone.World.Actors;
 
 namespace Sabine.Zone.Skills.Handlers.Swordsman
 {
@@ -20,13 +21,22 @@ namespace Sabine.Zone.Skills.Handlers.Swordsman
 			if (target == null)
 				return;
 
-			// Bosses are immune in eAthena; closest analogue here is the
-			// IsHostileTo check — provoke must be cast on an enemy.
 			if (!caster.IsHostileTo(target))
+				return;
+
+			// eAthena flags SC_PROVOKE with SI_BOSS-immune; bosses and
+			// MVPs ignore the status outright and the aggro switch.
+			if (target is Monster bossCheck && (bossCheck.Data.IsBoss || bossCheck.Data.MvpExp > 0))
 				return;
 
 			var duration = TimeSpan.FromSeconds(30);
 			target.StatusEffects.Start(StatusId.Provoke, level, duration, caster, level);
+
+			// Force-target the caster, matching skill.c's mob_target call
+			// for SM_PROVOKE — the AI polls AttackerHandleTest each tick and
+			// switches into the Combat routine on the next pass.
+			if (target is Monster mob)
+				mob.AttackerHandleTest = caster.Handle;
 
 			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, 0, 0, 0, ActionType.Skill);
 		}

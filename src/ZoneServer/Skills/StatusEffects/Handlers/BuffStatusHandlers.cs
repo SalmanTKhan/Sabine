@@ -12,7 +12,15 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 	[StatusEffectHandler(StatusId.Endure)]
 	public class EndureStatusHandler : IStatusEffectHandler
 	{
-		public void OnStart(Character target, StatusEffect effect) { }
+		// eAthena status.c: SC_ENDURE ends after 7 hits or duration —
+		// whichever comes first. Val3 tracks remaining hits.
+		public const int MaxHits = 7;
+
+		public void OnStart(Character target, StatusEffect effect)
+		{
+			effect.Val3 = MaxHits;
+		}
+
 		public void OnEnd(Character target, StatusEffect effect) { }
 	}
 

@@ -23,17 +23,28 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 
 	/// <summary>
 	/// KN_RIDING / SC_RIDING — flips the OPTION_RIDING bit so the
-	/// Knight / Crusader is rendered on a peco-peco. Movement-speed
-	/// bonus is layered on separately via the parameter cache; this
-	/// handler just owns the visual flag.
+	/// Knight / Crusader is rendered on a peco-peco, and grants the
+	/// 25% movement-speed bonus from eAthena pc.c status_calc_pc
+	/// (DEFAULT_WALK_SPEED * 75 / 100). Mirrors the IncreaseAgi
+	/// Speed delta so the parameter cache stays consistent.
 	/// </summary>
 	[StatusEffectHandler(StatusId.Riding)]
 	public class RidingStatusHandler : IStatusEffectHandler
 	{
+		private const int SpeedDelta = 50;
+
 		public void OnStart(Character target, StatusEffect effect)
-			=> target.SetOptionFlag(OptionState.Riding, true);
+		{
+			target.SetOptionFlag(OptionState.Riding, true);
+			target.Parameters.Modify(ParameterType.Speed, -SpeedDelta);
+			effect.Val2 = SpeedDelta;
+		}
 
 		public void OnEnd(Character target, StatusEffect effect)
-			=> target.SetOptionFlag(OptionState.Riding, false);
+		{
+			target.SetOptionFlag(OptionState.Riding, false);
+			if (effect.Val2 != 0)
+				target.Parameters.Modify(ParameterType.Speed, effect.Val2);
+		}
 	}
 }

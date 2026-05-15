@@ -117,6 +117,13 @@ namespace Sabine.Zone.Battle
 		/// </summary>
 		public bool IsAreaOfEffect { get; set; }
 
+		/// <summary>
+		/// If set, the basic-attack path skips the crit roll and treats
+		/// the hit as a guaranteed critical (ignores DEF, deals max
+		/// roll). Used by KN_AUTOCOUNTER. Skill attacks ignore this.
+		/// </summary>
+		public bool ForceCrit { get; set; }
+
 		public AttackContext(Character attacker, Character target)
 		{
 			this.Attacker = attacker;

@@ -9,6 +9,7 @@ namespace Sabine.Zone.Battle.Listeners
 	{
 		public static void Initialize()
 		{
+			AutoCounterListener.Subscribe();
 			AutoGuardListener.Subscribe();
 			DevotionListener.Subscribe();
 			ReflectShieldListener.Subscribe();

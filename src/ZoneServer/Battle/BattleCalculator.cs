@@ -112,13 +112,13 @@ namespace Sabine.Zone.Battle
 					return result;
 				}
 			}
-			hitConfirmed:
+		hitConfirmed:
 
 			// SC_PARRYING (LK_PARRYING) — two-handed sword melee block.
 			// eAthena classic battle.c: chance = 20 + 3*level%, applies
 			// only to weapon attacks (BF_WEAPON, non-skill or weapon
 			// skills) and only when the target wields a two-handed
-			// sword. A successful parry zeroes the hit entirely;
+			// sword. A successful parry zeroes the hit entirely
 			// modeled here as IsMiss so the rest of the pipeline
 			// short-circuits without surfacing a "Parry" packet — the
 			// alpha / beta1 client doesn't render a parry frame.
@@ -141,7 +141,7 @@ namespace Sabine.Zone.Battle
 			// every physical hit while the buff is active, applied in
 			// the same pre-skill-ratio band as race mastery. Mirrors
 			// eAthena battle.c:battle_calc_misc_attack — `dmg += 20*level`
-			// on the rhw branch (some forks use 10/20 depending on era;
+			// on the rhw branch (some forks use 10/20 depending on era
 			// classic = 10*level).
 			raceMastery += GetAuraBladeBonus(attacker);
 
@@ -182,7 +182,8 @@ namespace Sabine.Zone.Battle
 			// Critical: ignores DEF, deals max-roll damage. Skills don't
 			// crit by default.
 			var critChance = Math.Max(0, attacker.Parameters.Critical);
-			if (critChance > 0 && rnd.Next(100) < critChance && ctx.SkillId == SkillId.None)
+			var forceCrit = ctx.ForceCrit && ctx.SkillId == SkillId.None;
+			if ((forceCrit || (critChance > 0 && rnd.Next(100) < critChance)) && ctx.SkillId == SkillId.None)
 			{
 				result.IsCritical = true;
 				baseDamage = (int)Math.Floor(attacker.Parameters.AttackMax * ctx.SkillRatio);
