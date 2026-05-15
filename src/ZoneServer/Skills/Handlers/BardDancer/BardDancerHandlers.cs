@@ -163,7 +163,7 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.BA_DISSONANCE)]
 	public class DissonanceHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong, affectsEnemies: true);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.Dissonance, affectsEnemies: true);
 	}
 
 	[SkillHandler(SkillId.BA_FROSTJOKER)]
@@ -188,25 +188,25 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.BA_WHISTLE)]
 	public class WhistleHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.Whistle);
 	}
 
 	[SkillHandler(SkillId.BA_ASSASSINCROSS)]
 	public class AssassinCrossOfSunsetHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.PowerChord);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.AssassinCross);
 	}
 
 	[SkillHandler(SkillId.BA_POEMBRAGI)]
 	public class PoemOfBragiHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.PoemBragi);
 	}
 
 	[SkillHandler(SkillId.BA_APPLEIDUN)]
 	public class AppleOfIdunHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.BardSong);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.AppleIdun);
 	}
 
 	// Dancer solos.
@@ -240,7 +240,7 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.DC_UGLYDANCE)]
 	public class UglyDanceHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.DancerDance, affectsEnemies: true);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.UglyDance, affectsEnemies: true);
 	}
 
 	[SkillHandler(SkillId.DC_SCREAM)]
@@ -265,13 +265,13 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 	[SkillHandler(SkillId.DC_HUMMING)]
 	public class HummingHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.DancerDance);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.Humming);
 	}
 
 	[SkillHandler(SkillId.DC_DONTFORGETME)]
 	public class DontForgetMeHandler : ITargetedSkillHandler
 	{
-		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.DancerDance, affectsEnemies: true);
+		public void Handle(UseSkillParams p) => SongPlacement.PlaceAura(p, StatusId.DontForgetMe, affectsEnemies: true);
 	}
 
 	[SkillHandler(SkillId.DC_FORTUNEKISS)]

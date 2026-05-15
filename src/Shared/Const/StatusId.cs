@@ -171,6 +171,20 @@ namespace Sabine.Shared.Const
 		ServiceForYou = 225,
 		FortuneKiss = 226,
 
+		// Per-song markers split out so each Bard/Dancer skill can hang
+		// its own stat-bonus handler. eAthena models each as a distinct
+		// SC_*; Sabine kept a shared BardSong/DancerDance marker until
+		// the per-tick aura pipeline grew. The numeric ids slot above
+		// the Reborn block so the existing Marionette/etc. stay stable.
+		Whistle = 227,
+		AssassinCross = 228,
+		PoemBragi = 229,
+		AppleIdun = 230,
+		Humming = 231,
+		DontForgetMe = 232,
+		Dissonance = 233,
+		UglyDance = 234,
+
 		// Reborn 2-1 — eAthena reuses the SC_CONCENTRATION name
 		// across AC_CONCENTRATION (id 11 above) and LK_CONCENTRATION,
 		// but the gameplay payload is different, so the LK variant

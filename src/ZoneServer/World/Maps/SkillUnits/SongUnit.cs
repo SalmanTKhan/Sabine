@@ -23,14 +23,23 @@ namespace Sabine.Zone.World.Maps.SkillUnits
 			this.AffectsEnemies = affectsEnemies;
 		}
 
+		// Per-tick the song unit fires OnTouch on every character
+		// standing on the cell. If the bearer already has the status,
+		// extend its duration instead of restarting it — restarting
+		// would re-run OnEnd/OnStart and spam the status-icon broadcast,
+		// pinging the stat-bonus cache every tick.
+		private static readonly TimeSpan TickWindow = TimeSpan.FromSeconds(5);
+
 		public override void OnTouch(Character entrant)
 		{
 			if (entrant == null) return;
 			var hostile = entrant.IsHostileTo(this.Owner);
 			if (this.AffectsEnemies != hostile) return;
-			if (entrant.StatusEffects.Has(this.AppliedStatus)) return;
 
-			entrant.StatusEffects.Start(this.AppliedStatus, this.SkillLevel, TimeSpan.FromSeconds(5), this.Owner);
+			if (entrant.StatusEffects.Refresh(this.AppliedStatus, TickWindow))
+				return;
+
+			entrant.StatusEffects.Start(this.AppliedStatus, this.SkillLevel, TickWindow, this.Owner);
 		}
 	}
 }

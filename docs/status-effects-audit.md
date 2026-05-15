@@ -141,8 +141,20 @@ Verdict key:
 
 ## Bard / Dancer / Clown / Gypsy
 
-- **Bard Song / Dancer Dance** — PARTIAL. Aura membership flagged; per-tick passive broadcast missing.
-- **Power Chord / Lullaby / Mental Sensing / Service For You / Fortune Kiss** — STUB. No specific song handlers.
+- **Aura pipeline** — WORKS. `SongUnit.OnTouch` now extends an active status's duration via `StatusEffectComponent.Refresh` instead of restarting it, preventing stat-bonus thrash and icon spam while a character stands inside the song footprint.
+- **Whistle** — WORKS. +4*level Flee.
+- **Assassin Cross of Sunset** — WORKS. +5*level% ASPD bonus.
+- **Poem of Bragi** — DEFERRED. Marker only; cast-time/delay reduction parks until cast bars ship.
+- **Apple of Idun** — WORKS. +5*level% MaxHP.
+- **Humming** — WORKS. +4*level Hit.
+- **Don't Forget Me** — WORKS. Enemy debuff: −3*level% ASPD + slower walk.
+- **Fortune Kiss** — WORKS. +5+2*level Critical.
+- **Service For You** — PARTIAL. Grants +INT bonus as stand-in; eAthena reduces SP cost on cast (needs cast pipeline).
+- **Dissonance** — WORKS. Per-tick 24+8*level DoT on enemies in the cell.
+- **Ugly Dance** — WORKS. Per-tick 5+3*level SP drain on enemies.
+- **Lullaby** — WORKS. Per-tick Sleep proc roll on enemies.
+- **Mental Sensing (Loki's Veil)** — WORKS. Dispels Hide / Cloak on enemies entering the aura.
+- **Ensembles (RichmanKim / EternalChaos / DrumBattle / RingNibelungen / IntoAbyss / Siegfried / Ragnarok)** — PARTIAL. Aura placement works; per-ensemble effects collapsed into the shared `BardSong` marker — each can be split out incrementally as Whistle / AppleIdun / Humming were.
 - **Marionette / Marionette2** — WORKS. Donor / receiver pair tracked via `MarionettePair` helper; stat-transfer packed in vals.
 - **Longing Freedom** — STUB. Ensemble lock missing.
 - **Hermode** — STUB. Dispel immunity not enforced.

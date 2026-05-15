@@ -92,6 +92,26 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Extends an active effect's remaining duration to at least the
+		/// given value without re-running OnEnd/OnStart hooks or
+		/// re-broadcasting the icon. Used by the per-tick song/dance
+		/// aura pipeline so a character standing in the unit keeps the
+		/// effect alive without ping-ponging stat bonuses or spamming
+		/// status icons. No-op if the effect is not currently active.
+		/// </summary>
+		public bool Refresh(StatusId id, TimeSpan duration)
+		{
+			lock (_syncLock)
+			{
+				if (!_effects.TryGetValue(id, out var effect))
+					return false;
+				if (effect.RemainingDuration < duration)
+					effect.ExtendDuration(duration);
+				return true;
+			}
+		}
+
+		/// <summary>
 		/// Ends the given status effect on the character if active.
 		/// </summary>
 		public void Stop(StatusId id)

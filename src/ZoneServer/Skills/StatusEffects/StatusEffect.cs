@@ -68,5 +68,16 @@ namespace Sabine.Zone.Skills.StatusEffects
 		{
 			this.RemainingDuration = this.Duration;
 		}
+
+		/// <summary>
+		/// Sets the remaining duration to the larger of the current value
+		/// and the supplied span. Used by the song/dance aura pipeline so
+		/// a per-tick refresh can't accidentally shorten the buff.
+		/// </summary>
+		public void ExtendDuration(TimeSpan duration)
+		{
+			if (duration > this.RemainingDuration)
+				this.RemainingDuration = duration;
+		}
 	}
 }
