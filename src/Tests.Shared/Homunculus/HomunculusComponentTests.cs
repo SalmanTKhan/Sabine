@@ -110,6 +110,61 @@ namespace Tests.Sabine.Shared.Homunculus
 		}
 
 		[Fact]
+		public void Snapshot_round_trip_preserves_all_state()
+		{
+			var c = NewLif("Snappy");
+			c.SetIntimacy(750);
+			c.SetHunger(80);
+			c.GainExp(50 * 4 * 4);
+			c.TryLearn(SkillId.HLIF_HEAL);
+			c.Rename("Renamed");
+
+			var snapshot = c.ToSnapshot();
+			Assert.NotNull(snapshot);
+			Assert.Equal((int)HomunculusType.Lif, snapshot.Type);
+			Assert.Equal("Renamed", snapshot.Name);
+			Assert.Equal(750, snapshot.Intimacy);
+			Assert.Equal(80, snapshot.Hunger);
+			Assert.Contains($"{(int)SkillId.HLIF_HEAL}:1", snapshot.Skills);
+
+			var reloaded = new HomunculusComponent(null);
+			reloaded.LoadFromSnapshot(snapshot);
+
+			Assert.Equal(HomunculusType.Lif, reloaded.Type);
+			Assert.Equal("Renamed", reloaded.Name);
+			Assert.Equal(c.Level, reloaded.Level);
+			Assert.Equal(c.Hp, reloaded.Hp);
+			Assert.Equal(c.HpMax, reloaded.HpMax);
+			Assert.Equal(750, reloaded.Intimacy);
+			Assert.Equal(80, reloaded.Hunger);
+			Assert.Equal(c.Exp, reloaded.Exp);
+			Assert.Equal(1, reloaded.GetSkillLevel(SkillId.HLIF_HEAL));
+		}
+
+		[Fact]
+		public void Snapshot_returns_null_for_empty_contract()
+		{
+			var c = new HomunculusComponent(null);
+			Assert.Null(c.ToSnapshot());
+
+			c.Create(HomunculusType.Lif, "T");
+			c.Clear();
+			Assert.Null(c.ToSnapshot());
+		}
+
+		[Fact]
+		public void Snapshot_active_downgrades_to_resting()
+		{
+			var c = NewLif();
+			typeof(HomunculusComponent)
+				.GetMethod("MarkActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+				.Invoke(c, null);
+
+			var snapshot = c.ToSnapshot();
+			Assert.Equal((int)HomunculusState.Resting, snapshot.State);
+		}
+
+		[Fact]
 		public void Clear_then_save_persists_empty_row()
 		{
 			var c = NewLif();

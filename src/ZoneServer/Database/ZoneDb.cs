@@ -165,7 +165,18 @@ namespace Sabine.Zone.Database
 			}
 
 			character.Vars.Perm.Load(this.GetVars("vars_character", character.Id));
-			character.Homunculus?.LoadFrom(character.Vars.Perm);
+
+			// Homunculus: prefer the DB-backed row; fall back to the
+			// legacy vars-keys path for characters who logged out before
+			// the schema migration shipped. Once a player saves under
+			// the new code their row exists, so this branch becomes the
+			// fast path on subsequent logins.
+			var homunSnapshot = this.LoadHomunculus(character.Id);
+			if (homunSnapshot != null)
+				character.Homunculus?.LoadFromSnapshot(homunSnapshot);
+			else
+				character.Homunculus?.LoadFrom(character.Vars.Perm);
+
 			character.Pet?.LoadFrom(character.Vars.Perm);
 			character.Mercenary?.LoadFrom(character.Vars.Perm);
 			character.Parameters.RecalculateAll();
@@ -389,7 +400,12 @@ namespace Sabine.Zone.Database
 				trans.Commit();
 			}
 
+			// Homunculus: write through to the dedicated row. The
+			// vars-keys SaveTo still runs so a rolled-back binary can
+			// read prior state during a backout window.
+			this.SaveHomunculus(character.Id, character.Homunculus?.ToSnapshot());
 			character.Homunculus?.SaveTo(character.Vars.Perm);
+
 			character.Pet?.SaveTo(character.Vars.Perm);
 			character.Mercenary?.SaveTo(character.Vars.Perm);
 			this.SaveVars("vars_character", character.Id, character.Vars.Perm.GetList());
@@ -1069,6 +1085,86 @@ namespace Sabine.Zone.Database
 				"UPDATE `auctions` SET `status` = @status WHERE `auctionId` = @id", conn);
 			cmd.AddParameter("@status", (int)status);
 			cmd.AddParameter("@id", auctionId);
+			cmd.ExecuteNonQuery();
+		}
+
+		// ----- Homunculus persistence -----------------------------------
+		// One row per character (UNIQUE on `characterId`). Replaces the
+		// legacy `homun.*` keys on `vars_character`. Save is an UPSERT
+		// so the same path covers both first-contract and ongoing
+		// updates; delete drops the row when the contract is cleared.
+		// Schema: `sql/updates/2026-05-15_001.sql`.
+
+		/// <summary>
+		/// Loads the persisted homunculus snapshot for the given
+		/// character, or <c>null</c> when no row exists.
+		/// </summary>
+		public Sabine.Zone.World.Actors.Components.Characters.HomunculusSnapshot LoadHomunculus(int characterId)
+		{
+			using var conn = this.GetConnection();
+			using var cmd = new MySqlCommand(
+				"SELECT * FROM `homunculus` WHERE `characterId` = @cid LIMIT 1", conn);
+			cmd.AddParameter("@cid", characterId);
+			using var reader = cmd.ExecuteReader();
+			if (!reader.Read()) return null;
+
+			return new Sabine.Zone.World.Actors.Components.Characters.HomunculusSnapshot
+			{
+				Type = reader.GetInt32("type"),
+				State = reader.GetInt32("state"),
+				Name = reader.GetStringSafe("name") ?? string.Empty,
+				Level = reader.GetInt32("level"),
+				Hp = reader.GetInt32("hp"),
+				HpMax = reader.GetInt32("hpMax"),
+				Intimacy = reader.GetInt32("intimacy"),
+				Hunger = reader.GetInt32("hunger"),
+				Exp = reader.GetInt32("exp"),
+				SkillPoints = reader.GetInt32("skillPoints"),
+				Skills = reader.GetStringSafe("skills") ?? string.Empty,
+			};
+		}
+
+		/// <summary>
+		/// Upserts the homunculus snapshot for the given character.
+		/// When <paramref name="snapshot"/> is null, deletes the row
+		/// instead — the empty-contract case.
+		/// </summary>
+		public void SaveHomunculus(int characterId, Sabine.Zone.World.Actors.Components.Characters.HomunculusSnapshot snapshot)
+		{
+			using var conn = this.GetConnection();
+			if (snapshot == null)
+			{
+				using var del = new MySqlCommand(
+					"DELETE FROM `homunculus` WHERE `characterId` = @cid", conn);
+				del.AddParameter("@cid", characterId);
+				del.ExecuteNonQuery();
+				return;
+			}
+
+			using var cmd = new MySqlCommand(
+				"INSERT INTO `homunculus` "
+				+ "(`characterId`, `type`, `state`, `name`, `level`, `hp`, `hpMax`, "
+				+ " `intimacy`, `hunger`, `exp`, `skillPoints`, `skills`) "
+				+ "VALUES (@cid, @type, @state, @name, @level, @hp, @hpMax, "
+				+ " @intimacy, @hunger, @exp, @skillPoints, @skills) "
+				+ "ON DUPLICATE KEY UPDATE "
+				+ " `type` = @type, `state` = @state, `name` = @name, "
+				+ " `level` = @level, `hp` = @hp, `hpMax` = @hpMax, "
+				+ " `intimacy` = @intimacy, `hunger` = @hunger, "
+				+ " `exp` = @exp, `skillPoints` = @skillPoints, `skills` = @skills",
+				conn);
+			cmd.AddParameter("@cid", characterId);
+			cmd.AddParameter("@type", snapshot.Type);
+			cmd.AddParameter("@state", snapshot.State);
+			cmd.AddParameter("@name", snapshot.Name ?? string.Empty);
+			cmd.AddParameter("@level", snapshot.Level);
+			cmd.AddParameter("@hp", snapshot.Hp);
+			cmd.AddParameter("@hpMax", snapshot.HpMax);
+			cmd.AddParameter("@intimacy", snapshot.Intimacy);
+			cmd.AddParameter("@hunger", snapshot.Hunger);
+			cmd.AddParameter("@exp", snapshot.Exp);
+			cmd.AddParameter("@skillPoints", snapshot.SkillPoints);
+			cmd.AddParameter("@skills", snapshot.Skills ?? string.Empty);
 			cmd.ExecuteNonQuery();
 		}
 

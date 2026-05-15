@@ -540,5 +540,85 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 					_learnedSkills[(SkillId)sid] = lv;
 			}
 		}
+
+		// --- DB-backed snapshot --------------------------------------------
+		// Mirrors the `homunculus` SQL table. Lets ZoneDb persist the
+		// state to a dedicated row instead of packing eleven keys into
+		// vars_character. Active is still downgraded to Resting on
+		// snapshot so the re-summon flow doesn't auto-spawn on login.
+
+		/// <summary>
+		/// Returns a snapshot of the current state for DB persistence.
+		/// Returns <c>null</c> when the contract is empty — the caller
+		/// uses that as the signal to delete any stored row.
+		/// </summary>
+		public HomunculusSnapshot ToSnapshot()
+		{
+			if (this.Type == HomunculusType.None) return null;
+			var stateToSave = this.State == HomunculusState.Active
+				? HomunculusState.Resting
+				: this.State;
+			return new HomunculusSnapshot
+			{
+				Type = (int)this.Type,
+				State = (int)stateToSave,
+				Name = this.Name,
+				Level = this.Level,
+				Hp = this.Hp,
+				HpMax = this.HpMax,
+				Intimacy = this.Intimacy,
+				Hunger = this.Hunger,
+				Exp = this.Exp,
+				SkillPoints = this.SkillPoints,
+				Skills = this.SerializeSkills(),
+			};
+		}
+
+		/// <summary>
+		/// Hydrates the component from a stored row. No-ops on null /
+		/// empty type — the caller falls back to the vars-keys path
+		/// in that case (during migration).
+		/// </summary>
+		public void LoadFromSnapshot(HomunculusSnapshot snapshot)
+		{
+			if (snapshot == null) return;
+			var type = (HomunculusType)snapshot.Type;
+			if (type == HomunculusType.None) return;
+
+			this.Type = type;
+			this.State = (HomunculusState)snapshot.State;
+			this.Name = snapshot.Name ?? type.ToString();
+			this.Level = snapshot.Level <= 0 ? 1 : snapshot.Level;
+			this.HpMax = snapshot.HpMax <= 0 ? 150 : snapshot.HpMax;
+			this.Hp = snapshot.Hp <= 0 ? this.HpMax : snapshot.Hp;
+			this.Intimacy = snapshot.Intimacy;
+			this.Hunger = snapshot.Hunger;
+			this.Exp = snapshot.Exp;
+			this.SkillPoints = snapshot.SkillPoints;
+			this.DeserializeSkills(snapshot.Skills ?? string.Empty);
+		}
+	}
+
+	/// <summary>
+	/// Flat DTO matching one row of the <c>homunculus</c> SQL table.
+	/// Used by ZoneDb to persist a contract without going through the
+	/// vars store. Skills are packed in the same delimited format
+	/// <see cref="HomunculusComponent"/> already uses for vars
+	/// (<c>&lt;skillId&gt;:&lt;level&gt;,...</c>) so the two paths
+	/// stay format-compatible during the migration.
+	/// </summary>
+	public class HomunculusSnapshot
+	{
+		public int Type { get; set; }
+		public int State { get; set; }
+		public string Name { get; set; } = string.Empty;
+		public int Level { get; set; }
+		public int Hp { get; set; }
+		public int HpMax { get; set; }
+		public int Intimacy { get; set; }
+		public int Hunger { get; set; }
+		public int Exp { get; set; }
+		public int SkillPoints { get; set; }
+		public string Skills { get; set; } = string.Empty;
 	}
 }
