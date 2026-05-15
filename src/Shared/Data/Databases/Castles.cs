@@ -33,6 +33,15 @@ namespace Sabine.Shared.Data.Databases
 		/// dispatch happens via <c>ScriptEvents.RaiseAsync</c>.
 		/// </summary>
 		public string OnGuildBreakEvent { get; set; }
+
+		/// <summary>
+		/// Monster id used for the castle's treasure boxes. Mirrors
+		/// rAthena's per-castle treasure assignment (each castle gets a
+		/// unique <c>mob_db</c> row so its drop pool can differ). 0 =
+		/// use the shared <c>TreasureSpawnService</c> rotation across
+		/// <c>TREASURE_BOX1..8</c>.
+		/// </summary>
+		public int TreasureBoxId { get; set; }
 	}
 
 	/// <summary>
@@ -53,6 +62,7 @@ namespace Sabine.Shared.Data.Databases
 				MapStringId = entry.ReadString("map"),
 				Name = entry.ReadString("name"),
 				OnGuildBreakEvent = entry.ReadString("onGuildBreak", string.Empty),
+				TreasureBoxId = entry.ReadInt("treasureBoxId", 0),
 			};
 
 			this.AddOrReplace(data.MapStringId, data);

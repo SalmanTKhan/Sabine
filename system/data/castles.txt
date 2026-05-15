@@ -14,41 +14,48 @@
 // shape.
 //---------------------------------------------------------------------------
 
+// treasureBoxId maps each castle to one of the 8 TREASURE_BOX rows in
+// monsters.txt. The 4 region themes split the boxes into pairs so
+// castles in the same region drop from a shared but differentiated
+// pool — Aldebaran (1/2) leans refining ores, Geffen (3/4) leans
+// gems/jewels, Payon (5/6) leans orient artifacts, Prontera (7/8)
+// leans royal loot. The renewal regions reuse the same four themes
+// so no additional monster data is required for them today.
 [
-{ id:  0, map: "aldeg_cas01", name: "Neuschwanstein",   onGuildBreak: "Agit#aldeg_cas01" },
-{ id:  1, map: "aldeg_cas02", name: "Hohenschwangau",   onGuildBreak: "Agit#aldeg_cas02" },
-{ id:  2, map: "aldeg_cas03", name: "Nuenberg",         onGuildBreak: "Agit#aldeg_cas03" },
-{ id:  3, map: "aldeg_cas04", name: "Wuerzburg",        onGuildBreak: "Agit#aldeg_cas04" },
-{ id:  4, map: "aldeg_cas05", name: "Rothenburg",       onGuildBreak: "Agit#aldeg_cas05" },
+{ id:  0, map: "aldeg_cas01", name: "Neuschwanstein",   onGuildBreak: "Agit#aldeg_cas01", treasureBoxId: 1324 },
+{ id:  1, map: "aldeg_cas02", name: "Hohenschwangau",   onGuildBreak: "Agit#aldeg_cas02", treasureBoxId: 1325 },
+{ id:  2, map: "aldeg_cas03", name: "Nuenberg",         onGuildBreak: "Agit#aldeg_cas03", treasureBoxId: 1324 },
+{ id:  3, map: "aldeg_cas04", name: "Wuerzburg",        onGuildBreak: "Agit#aldeg_cas04", treasureBoxId: 1325 },
+{ id:  4, map: "aldeg_cas05", name: "Rothenburg",       onGuildBreak: "Agit#aldeg_cas05", treasureBoxId: 1324 },
 
-{ id:  5, map: "gefg_cas01",  name: "Repherion",        onGuildBreak: "Agit#gefg_cas01" },
-{ id:  6, map: "gefg_cas02",  name: "Eeyolbriggar",     onGuildBreak: "Agit#gefg_cas02" },
-{ id:  7, map: "gefg_cas03",  name: "Yesnelph",         onGuildBreak: "Agit#gefg_cas03" },
-{ id:  8, map: "gefg_cas04",  name: "Bergel",           onGuildBreak: "Agit#gefg_cas04" },
-{ id:  9, map: "gefg_cas05",  name: "Mersetzdeitz",     onGuildBreak: "Agit#gefg_cas05" },
+{ id:  5, map: "gefg_cas01",  name: "Repherion",        onGuildBreak: "Agit#gefg_cas01",  treasureBoxId: 1326 },
+{ id:  6, map: "gefg_cas02",  name: "Eeyolbriggar",     onGuildBreak: "Agit#gefg_cas02",  treasureBoxId: 1327 },
+{ id:  7, map: "gefg_cas03",  name: "Yesnelph",         onGuildBreak: "Agit#gefg_cas03",  treasureBoxId: 1326 },
+{ id:  8, map: "gefg_cas04",  name: "Bergel",           onGuildBreak: "Agit#gefg_cas04",  treasureBoxId: 1327 },
+{ id:  9, map: "gefg_cas05",  name: "Mersetzdeitz",     onGuildBreak: "Agit#gefg_cas05",  treasureBoxId: 1326 },
 
-{ id: 10, map: "payg_cas01",  name: "Bright Arbor",     onGuildBreak: "Agit#payg_cas01" },
-{ id: 11, map: "payg_cas02",  name: "Scarlet Palace",   onGuildBreak: "Agit#payg_cas02" },
-{ id: 12, map: "payg_cas03",  name: "Holy Shadow",      onGuildBreak: "Agit#payg_cas03" },
-{ id: 13, map: "payg_cas04",  name: "Sacred Altar",     onGuildBreak: "Agit#payg_cas04" },
-{ id: 14, map: "payg_cas05",  name: "Bamboo Grove Hill", onGuildBreak: "Agit#payg_cas05" },
+{ id: 10, map: "payg_cas01",  name: "Bright Arbor",     onGuildBreak: "Agit#payg_cas01",  treasureBoxId: 1328 },
+{ id: 11, map: "payg_cas02",  name: "Scarlet Palace",   onGuildBreak: "Agit#payg_cas02",  treasureBoxId: 1329 },
+{ id: 12, map: "payg_cas03",  name: "Holy Shadow",      onGuildBreak: "Agit#payg_cas03",  treasureBoxId: 1328 },
+{ id: 13, map: "payg_cas04",  name: "Sacred Altar",     onGuildBreak: "Agit#payg_cas04",  treasureBoxId: 1329 },
+{ id: 14, map: "payg_cas05",  name: "Bamboo Grove Hill", onGuildBreak: "Agit#payg_cas05", treasureBoxId: 1328 },
 
-{ id: 15, map: "prtg_cas01",  name: "Kriemhild",        onGuildBreak: "Agit#prtg_cas01" },
-{ id: 16, map: "prtg_cas02",  name: "Swanhild",         onGuildBreak: "Agit#prtg_cas02" },
-{ id: 17, map: "prtg_cas03",  name: "Fadhgridh",        onGuildBreak: "Agit#prtg_cas03" },
-{ id: 18, map: "prtg_cas04",  name: "Skoegul",          onGuildBreak: "Agit#prtg_cas04" },
-{ id: 19, map: "prtg_cas05",  name: "Gondul",           onGuildBreak: "Agit#prtg_cas05" },
+{ id: 15, map: "prtg_cas01",  name: "Kriemhild",        onGuildBreak: "Agit#prtg_cas01",  treasureBoxId: 1330 },
+{ id: 16, map: "prtg_cas02",  name: "Swanhild",         onGuildBreak: "Agit#prtg_cas02",  treasureBoxId: 1331 },
+{ id: 17, map: "prtg_cas03",  name: "Fadhgridh",        onGuildBreak: "Agit#prtg_cas03",  treasureBoxId: 1330 },
+{ id: 18, map: "prtg_cas04",  name: "Skoegul",          onGuildBreak: "Agit#prtg_cas04",  treasureBoxId: 1331 },
+{ id: 19, map: "prtg_cas05",  name: "Gondul",           onGuildBreak: "Agit#prtg_cas05",  treasureBoxId: 1330 },
 
-// Renewal: Arunafeltz / Schwartzvald
-{ id: 20, map: "arug_cas01",  name: "Mardol",           onGuildBreak: "Manager#aru01_01" },
-{ id: 21, map: "arug_cas02",  name: "Cyr",              onGuildBreak: "Manager#aru02_01" },
-{ id: 22, map: "arug_cas03",  name: "Horn",             onGuildBreak: "Manager#aru03_01" },
-{ id: 23, map: "arug_cas04",  name: "Gefn",             onGuildBreak: "Manager#aru04_01" },
-{ id: 24, map: "arug_cas05",  name: "Banadis",          onGuildBreak: "Manager#aru05_01" },
+// Renewal: Arunafeltz / Schwartzvald — reuse Aldebaran + Geffen themes.
+{ id: 20, map: "arug_cas01",  name: "Mardol",           onGuildBreak: "Manager#aru01_01", treasureBoxId: 1324 },
+{ id: 21, map: "arug_cas02",  name: "Cyr",              onGuildBreak: "Manager#aru02_01", treasureBoxId: 1325 },
+{ id: 22, map: "arug_cas03",  name: "Horn",             onGuildBreak: "Manager#aru03_01", treasureBoxId: 1326 },
+{ id: 23, map: "arug_cas04",  name: "Gefn",             onGuildBreak: "Manager#aru04_01", treasureBoxId: 1327 },
+{ id: 24, map: "arug_cas05",  name: "Banadis",          onGuildBreak: "Manager#aru05_01", treasureBoxId: 1324 },
 
-{ id: 25, map: "schg_cas01",  name: "Himinn",           onGuildBreak: "Manager#sch01_01" },
-{ id: 26, map: "schg_cas02",  name: "Andlangr",         onGuildBreak: "Manager#sch02_01" },
-{ id: 27, map: "schg_cas03",  name: "Vidblainn",        onGuildBreak: "Manager#sch03_01" },
-{ id: 28, map: "schg_cas04",  name: "Hljod",            onGuildBreak: "Manager#sch04_01" },
-{ id: 29, map: "schg_cas05",  name: "Skidbladnir",      onGuildBreak: "Manager#sch05_01" }
+{ id: 25, map: "schg_cas01",  name: "Himinn",           onGuildBreak: "Manager#sch01_01", treasureBoxId: 1328 },
+{ id: 26, map: "schg_cas02",  name: "Andlangr",         onGuildBreak: "Manager#sch02_01", treasureBoxId: 1329 },
+{ id: 27, map: "schg_cas03",  name: "Vidblainn",        onGuildBreak: "Manager#sch03_01", treasureBoxId: 1330 },
+{ id: 28, map: "schg_cas04",  name: "Hljod",            onGuildBreak: "Manager#sch04_01", treasureBoxId: 1331 },
+{ id: 29, map: "schg_cas05",  name: "Skidbladnir",      onGuildBreak: "Manager#sch05_01", treasureBoxId: 1330 }
 ]

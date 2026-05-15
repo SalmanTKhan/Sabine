@@ -139,15 +139,20 @@ namespace Sabine.Zone.World.Woe
 					var spawned = new List<Monster>();
 
 					// 1-HP treasure boxes drop their inventory pool on the
-					// first hit (see monsters.txt rows 1324..1331). Each
-					// box id pulls from the same shared pool today;
-					// per-castle pool wiring is the next step once the
-					// castle/box mapping rows are ported.
+					// first hit (see monsters.txt rows 1324..1331). The
+					// box id comes from the castle's CastleData.TreasureBoxId
+					// — that maps the castle to one of four regional drop
+					// pools (ores / gems / orient / royal). Castles with
+					// no assigned id fall back to the shared 1324..1331
+					// rotation.
+					var castleBoxId = castle.Template?.TreasureBoxId ?? 0;
 					for (var i = 0; i < count; i++)
 					{
 						try
 						{
-							var boxId = TreasureBoxIds[i % TreasureBoxIds.Length];
+							var boxId = castleBoxId > 0
+								? castleBoxId
+								: TreasureBoxIds[i % TreasureBoxIds.Length];
 							var monster = new Monster((IdentityId)boxId);
 							var pos = map.GetRandomWalkablePosition();
 							monster.Warp(map.Id, pos);
