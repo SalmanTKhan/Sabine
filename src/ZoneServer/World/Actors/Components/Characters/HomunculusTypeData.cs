@@ -84,6 +84,62 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				StrPerLevel = 1, AgiPerLevel = 1, VitPerLevel = 1,
 				IntPerLevel = 2, DexPerLevel = 1, LukPerLevel = 0,
 			},
+
+			// Evolved forms — eAthena classic gives ~30% steeper growth
+			// across the board. Stat profile stays the same as the
+			// base family (Lif2 still INT-leaning, Amistr2 still tank).
+			[HomunculusType.Lif2] = new GrowthCurve
+			{
+				HpPerLevel = 28, AtkPerLevel = 2, DefPerLevel = 2,
+				StrPerLevel = 1, AgiPerLevel = 1, VitPerLevel = 1,
+				IntPerLevel = 3, DexPerLevel = 2, LukPerLevel = 1,
+			},
+			[HomunculusType.Amistr2] = new GrowthCurve
+			{
+				HpPerLevel = 40, AtkPerLevel = 3, DefPerLevel = 4,
+				StrPerLevel = 3, AgiPerLevel = 1, VitPerLevel = 3,
+				IntPerLevel = 0, DexPerLevel = 1, LukPerLevel = 1,
+			},
+			[HomunculusType.Filir2] = new GrowthCurve
+			{
+				HpPerLevel = 22, AtkPerLevel = 4, DefPerLevel = 1,
+				StrPerLevel = 1, AgiPerLevel = 3, VitPerLevel = 1,
+				IntPerLevel = 0, DexPerLevel = 3, LukPerLevel = 1,
+			},
+			[HomunculusType.Vanilmirth2] = new GrowthCurve
+			{
+				HpPerLevel = 26, AtkPerLevel = 3, DefPerLevel = 2,
+				StrPerLevel = 2, AgiPerLevel = 1, VitPerLevel = 1,
+				IntPerLevel = 3, DexPerLevel = 1, LukPerLevel = 1,
+			},
+
+			// S-class — renewal-era. Bumped per-level numbers reflect
+			// the +stat advantage S-class homunculi have over their
+			// evolved counterparts in rA's homunculus_db.yml.
+			[HomunculusType.Eira] = new GrowthCurve
+			{
+				HpPerLevel = 32, AtkPerLevel = 3, DefPerLevel = 2,
+				StrPerLevel = 2, AgiPerLevel = 2, VitPerLevel = 2,
+				IntPerLevel = 4, DexPerLevel = 2, LukPerLevel = 2,
+			},
+			[HomunculusType.Bayeri] = new GrowthCurve
+			{
+				HpPerLevel = 46, AtkPerLevel = 4, DefPerLevel = 5,
+				StrPerLevel = 4, AgiPerLevel = 1, VitPerLevel = 4,
+				IntPerLevel = 1, DexPerLevel = 2, LukPerLevel = 2,
+			},
+			[HomunculusType.Sera] = new GrowthCurve
+			{
+				HpPerLevel = 26, AtkPerLevel = 5, DefPerLevel = 2,
+				StrPerLevel = 2, AgiPerLevel = 4, VitPerLevel = 1,
+				IntPerLevel = 1, DexPerLevel = 4, LukPerLevel = 2,
+			},
+			[HomunculusType.Dieter] = new GrowthCurve
+			{
+				HpPerLevel = 30, AtkPerLevel = 4, DefPerLevel = 3,
+				StrPerLevel = 3, AgiPerLevel = 2, VitPerLevel = 2,
+				IntPerLevel = 4, DexPerLevel = 2, LukPerLevel = 1,
+			},
 		};
 
 		// Per-type favored foods: the first entry is the canonical
@@ -153,7 +209,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 		public static FoodEntry GetFood(HomunculusType type, int itemId)
 		{
-			if (!_foods.TryGetValue(type, out var list)) return null;
+			var family = ResolveFamily(type);
+			if (!_foods.TryGetValue(family, out var list)) return null;
 			foreach (var entry in list)
 				if (entry.ItemId == itemId) return entry;
 			return null;
@@ -162,19 +219,43 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		/// <summary>
 		/// All food entries this homunculus type accepts, in the order
 		/// they were declared. Used by the feed path to pick whichever
-		/// food the player happens to be carrying.
+		/// food the player happens to be carrying. Evolved and S-class
+		/// forms reuse their base family's food list — eAthena handles
+		/// it the same way.
 		/// </summary>
 		public static IReadOnlyList<FoodEntry> GetFoods(HomunculusType type)
-			=> _foods.TryGetValue(type, out var list) ? list : new List<FoodEntry>();
+			=> _foods.TryGetValue(ResolveFamily(type), out var list) ? list : new List<FoodEntry>();
 
+		/// <summary>
+		/// Per-form learnable skill list. Evolved / S-class forms
+		/// inherit the base family's tree (caller-side max-level
+		/// bumps for evolved tiers are handled in
+		/// <see cref="HomunculusComponent.TryLearn"/>).
+		/// </summary>
 		public static IReadOnlyList<SkillEntry> GetSkills(HomunculusType type)
-			=> _skills.TryGetValue(type, out var list) ? list : new List<SkillEntry>();
+			=> _skills.TryGetValue(ResolveFamily(type), out var list) ? list : new List<SkillEntry>();
+
+		private static HomunculusType ResolveFamily(HomunculusType type)
+			=> type.GetBaseFamily() is var family && family != HomunculusType.None ? family : type;
 
 		public static SkillEntry FindSkill(HomunculusType type, SkillId skillId)
 		{
 			foreach (var entry in GetSkills(type))
 				if (entry.SkillId == skillId) return entry;
 			return null;
+		}
+
+		/// <summary>
+		/// Max-level cap bonus for evolved (+5) and S-class (+10)
+		/// forms over the base entry's <see cref="SkillEntry.MaxLevel"/>.
+		/// Mirrors rA's skill-tree bump on evolution: a Lif can take
+		/// HLIF_HEAL to 5; Lif2 to 10; Eira to 10 as well.
+		/// </summary>
+		public static int GetMaxLevelBonus(HomunculusType type)
+		{
+			if (type.IsSClass()) return 10;
+			if (type.IsEvolved()) return 5;
+			return 0;
 		}
 	}
 }

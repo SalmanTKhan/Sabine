@@ -48,11 +48,42 @@ namespace Sabine.Zone.Commands
 			return CommandResult.Okay;
 		}
 
-		private CommandResult HomEvolve(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homevolve");
 		private CommandResult MakeHomun(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "makehomun");
 		private CommandResult HomStats(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homstats");
-		private CommandResult HomShuffle(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "homshuffle");
-		private CommandResult HomMutate(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args) => this.NotImplHomun(sender, "hommutate");
+
+		private CommandResult HomEvolve(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (target.Homunculus == null || !target.Homunculus.HasContract) { sender.ServerMessage(Localization.Get("No homunculus.")); return CommandResult.Okay; }
+
+			var result = target.Homunculus.Evolve();
+			if (result == Sabine.Zone.World.Actors.Components.Characters.HomunculusType.None)
+				sender.ServerMessage(Localization.Get("Cannot evolve: requires a base homunculus with intimacy >= {0}."), Sabine.Zone.World.Actors.Components.Characters.HomunculusComponent.EvolveIntimacyThreshold);
+			else
+				sender.ServerMessage(Localization.Get("Homunculus evolved into {0}."), result);
+			return CommandResult.Okay;
+		}
+
+		private CommandResult HomMutate(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (target.Homunculus == null || !target.Homunculus.HasContract) { sender.ServerMessage(Localization.Get("No homunculus.")); return CommandResult.Okay; }
+
+			var result = target.Homunculus.Mutate();
+			if (result == Sabine.Zone.World.Actors.Components.Characters.HomunculusType.None)
+				sender.ServerMessage(Localization.Get("Cannot mutate: requires an evolved homunculus at level {0} with intimacy {1}."),
+					Sabine.Zone.World.Actors.Components.Characters.HomunculusComponent.MutateLevelThreshold,
+					Sabine.Zone.World.Actors.Components.Characters.HomunculusComponent.MutateIntimacyThreshold);
+			else
+				sender.ServerMessage(Localization.Get("Homunculus mutated into {0}."), result);
+			return CommandResult.Okay;
+		}
+
+		private CommandResult HomShuffle(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
+		{
+			if (target.Homunculus == null || !target.Homunculus.HasContract) { sender.ServerMessage(Localization.Get("No homunculus.")); return CommandResult.Okay; }
+			target.Homunculus.ShuffleBaselineStats();
+			sender.ServerMessage(Localization.Get("Homunculus stats shuffled. HP: {0}/{1}."), target.Homunculus.Hp, target.Homunculus.HpMax);
+			return CommandResult.Okay;
+		}
 
 		private CommandResult HomFriendly(PlayerCharacter sender, PlayerCharacter target, string message, string commandName, Arguments args)
 		{

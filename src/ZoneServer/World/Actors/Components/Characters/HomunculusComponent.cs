@@ -12,6 +12,63 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		Amistr = 2,
 		Filir = 3,
 		Vanilmirth = 4,
+
+		// Evolved forms (eAthena mob ids 6009-6012). Reached via
+		// AM_BIOETHICS + intimacy >= 910 + Stone of Sage in classic.
+		Lif2 = 5,
+		Amistr2 = 6,
+		Filir2 = 7,
+		Vanilmirth2 = 8,
+
+		// S-class mutations (eAthena mob ids 6048-6051). Renewal-era
+		// addition; require an already-evolved homun at level 99 with
+		// intimacy 1000. Each S-class is rolled within its base
+		// family at mutate time.
+		Eira = 9,        // Lif S-class
+		Bayeri = 10,     // Amistr S-class
+		Sera = 11,       // Filir S-class
+		Dieter = 12,     // Vanilmirth S-class
+	}
+
+	/// <summary>
+	/// Family groupings used by Evolve / Mutate to find the base→evo
+	/// and evo→S-class transitions. eAthena hard-codes these in
+	/// <c>homun_class2mapid</c>; we keep the same mapping.
+	/// </summary>
+	public static class HomunculusTypeExtensions
+	{
+		public static HomunculusType GetBaseFamily(this HomunculusType type) => type switch
+		{
+			HomunculusType.Lif or HomunculusType.Lif2 or HomunculusType.Eira => HomunculusType.Lif,
+			HomunculusType.Amistr or HomunculusType.Amistr2 or HomunculusType.Bayeri => HomunculusType.Amistr,
+			HomunculusType.Filir or HomunculusType.Filir2 or HomunculusType.Sera => HomunculusType.Filir,
+			HomunculusType.Vanilmirth or HomunculusType.Vanilmirth2 or HomunculusType.Dieter => HomunculusType.Vanilmirth,
+			_ => HomunculusType.None,
+		};
+
+		public static HomunculusType GetEvolvedForm(this HomunculusType type) => type switch
+		{
+			HomunculusType.Lif => HomunculusType.Lif2,
+			HomunculusType.Amistr => HomunculusType.Amistr2,
+			HomunculusType.Filir => HomunculusType.Filir2,
+			HomunculusType.Vanilmirth => HomunculusType.Vanilmirth2,
+			_ => HomunculusType.None,
+		};
+
+		public static HomunculusType GetSClassForm(this HomunculusType type) => type switch
+		{
+			HomunculusType.Lif2 => HomunculusType.Eira,
+			HomunculusType.Amistr2 => HomunculusType.Bayeri,
+			HomunculusType.Filir2 => HomunculusType.Sera,
+			HomunculusType.Vanilmirth2 => HomunculusType.Dieter,
+			_ => HomunculusType.None,
+		};
+
+		public static bool IsEvolved(this HomunculusType type)
+			=> type is HomunculusType.Lif2 or HomunculusType.Amistr2 or HomunculusType.Filir2 or HomunculusType.Vanilmirth2;
+
+		public static bool IsSClass(this HomunculusType type)
+			=> type is HomunculusType.Eira or HomunculusType.Bayeri or HomunculusType.Sera or HomunculusType.Dieter;
 	}
 
 	public enum HomunculusState
@@ -171,6 +228,87 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			this.Name = newName;
 		}
 
+		// --- Evolution / Mutation ----------------------------------------
+		// eAthena classic gates: Evolve needs intimacy ≥ 910 (Loyal
+		// band) on a base form; Mutate needs an evolved form at level
+		// 99 with intimacy 1000. Both consume a Stone of Sage (7619)
+		// in eAthena but service-level item consumption is left to
+		// callers — this component just owns the state transition.
+
+		/// <summary>Minimum intimacy to attempt evolution (Loyal band).</summary>
+		public const int EvolveIntimacyThreshold = 910;
+
+		/// <summary>Minimum level to attempt S-class mutation.</summary>
+		public const int MutateLevelThreshold = 99;
+
+		/// <summary>Minimum intimacy to attempt S-class mutation.</summary>
+		public const int MutateIntimacyThreshold = 1000;
+
+		/// <summary>
+		/// Promotes a base homunculus to its evolved form. The level,
+		/// EXP, intimacy, and learned skills carry over; HpMax /
+		/// stat profile rebuilds from the new growth curve. Returns
+		/// the new type on success or <see cref="HomunculusType.None"/>
+		/// when the gate fails (already evolved, wrong family,
+		/// intimacy too low, dead, or no contract).
+		/// </summary>
+		public HomunculusType Evolve()
+		{
+			if (!this.HasContract) return HomunculusType.None;
+			if (this.State == HomunculusState.Dead) return HomunculusType.None;
+			if (this.Intimacy < EvolveIntimacyThreshold) return HomunculusType.None;
+
+			var evolved = this.Type.GetEvolvedForm();
+			if (evolved == HomunculusType.None) return HomunculusType.None;
+
+			this.Type = evolved;
+			this.ShuffleBaselineStats();
+			this.Entity?.RefreshFromState();
+			this.NotifyOwner();
+			return evolved;
+		}
+
+		/// <summary>
+		/// Mutates an evolved homunculus into its S-class form.
+		/// Level/EXP/intimacy carry; HpMax rebuilds from the S-class
+		/// growth curve. Returns the new type on success or
+		/// <see cref="HomunculusType.None"/> when the gate fails.
+		/// </summary>
+		public HomunculusType Mutate()
+		{
+			if (!this.HasContract) return HomunculusType.None;
+			if (this.State == HomunculusState.Dead) return HomunculusType.None;
+			if (!this.Type.IsEvolved()) return HomunculusType.None;
+			if (this.Level < MutateLevelThreshold) return HomunculusType.None;
+			if (this.Intimacy < MutateIntimacyThreshold) return HomunculusType.None;
+
+			var sclass = this.Type.GetSClassForm();
+			if (sclass == HomunculusType.None) return HomunculusType.None;
+
+			this.Type = sclass;
+			this.ShuffleBaselineStats();
+			this.Entity?.RefreshFromState();
+			this.NotifyOwner();
+			return sclass;
+		}
+
+		/// <summary>
+		/// Re-rolls the HP baseline using the current type's growth
+		/// curve. Used after Evolve / Mutate, and exposed standalone
+		/// for the homshuffle command (rA classic stat-shuffle on a
+		/// non-evolved homun is mostly nostalgia, but the GM chat
+		/// command stub expects to call it).
+		/// </summary>
+		public void ShuffleBaselineStats()
+		{
+			var growth = HomunculusTypeData.GetGrowth(this.Type);
+			var levelBonus = this.Level - 1;
+			// Base HP scales with the new form's per-level growth. The
+			// living-entity stat bump runs via RefreshFromState.
+			this.HpMax = 150 + levelBonus * growth.HpPerLevel;
+			this.Hp = this.HpMax;
+		}
+
 		/// <summary>
 		/// Wipes the contract entirely — used by the dismiss path.
 		/// Unlike <see cref="MarkResting"/>, this resets the type so
@@ -277,7 +415,8 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				&& this.GetSkillLevel(entry.Prerequisite) < entry.PrerequisiteLevel) return 0;
 
 			var current = this.GetSkillLevel(skillId);
-			if (current >= entry.MaxLevel) return 0;
+			var maxLevel = entry.MaxLevel + HomunculusTypeData.GetMaxLevelBonus(this.Type);
+			if (current >= maxLevel) return 0;
 
 			_learnedSkills[skillId] = current + 1;
 			this.SkillPoints--;
