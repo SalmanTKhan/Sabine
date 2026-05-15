@@ -23,5 +23,15 @@ namespace Sabine.Shared.Const
 
 		/// <summary>Castle soldier guardian. eAthena id 1287.</summary>
 		public const int SOLDIER_GUARDIAN = 1287;
+
+		/// <summary>WoE treasure boxes. eAthena ids 1324..1331.</summary>
+		public const int TREASURE_BOX1 = 1324;
+		public const int TREASURE_BOX2 = 1325;
+		public const int TREASURE_BOX3 = 1326;
+		public const int TREASURE_BOX4 = 1327;
+		public const int TREASURE_BOX5 = 1328;
+		public const int TREASURE_BOX6 = 1329;
+		public const int TREASURE_BOX7 = 1330;
+		public const int TREASURE_BOX8 = 1331;
 	}
 }

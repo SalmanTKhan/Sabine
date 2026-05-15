@@ -60,6 +60,11 @@ namespace Sabine.Zone.World.Woe
 		/// (matching eAthena's `agitstart`). Idempotent — calling
 		/// while already active no-ops with a warning.
 		/// </summary>
+		// Key under which the active flag rides in vars_world. Persisted
+		// across restarts so CheckBootRecovery can tell whether a crash
+		// landed mid-session.
+		private const string ActiveVarKey = "woe.active";
+
 		public void Start()
 		{
 			if (this.IsActive)
@@ -70,6 +75,17 @@ namespace Sabine.Zone.World.Woe
 			this.IsActive = true;
 			this.StartedAt = DateTime.UtcNow;
 			Log.Info("WoE started.");
+
+			// Persist the active flag so a crash mid-session is visible
+			// on the next boot via CheckBootRecovery.
+			try
+			{
+				var world = ZoneServer.Instance.World;
+				world.Vars.Perm.SetInt(ActiveVarKey, 1);
+				world.SaveVars();
+			}
+			catch (Exception ex) { Log.Error("WoeService.Start: SaveVars: {0}", ex); }
+
 			try { this.Started?.Invoke(); }
 			catch (Exception ex) { Log.Error("WoeService.Started handler: {0}", ex); }
 			_ = this.RaiseAgitEvent("OnAgitStart");
@@ -88,9 +104,35 @@ namespace Sabine.Zone.World.Woe
 			}
 			this.IsActive = false;
 			Log.Info("WoE ended.");
+
+			try
+			{
+				var world = ZoneServer.Instance.World;
+				world.Vars.Perm.SetInt(ActiveVarKey, 0);
+				world.SaveVars();
+			}
+			catch (Exception ex) { Log.Error("WoeService.End: SaveVars: {0}", ex); }
+
 			try { this.Ended?.Invoke(); }
 			catch (Exception ex) { Log.Error("WoeService.Ended handler: {0}", ex); }
 			_ = this.RaiseAgitEvent("OnAgitEnd");
+		}
+
+		/// <summary>
+		/// Reads the persisted active flag from vars_world. When it's
+		/// set, the previous run was either active at shutdown or
+		/// crashed mid-session — log a warning and clear the flag so
+		/// the next clean End() doesn't double-clear.
+		/// </summary>
+		/// <param name="worldVars">The world's permanent variable store.</param>
+		public void CheckBootRecovery(Sabine.Shared.Util.Variables worldVars)
+		{
+			if (worldVars == null) return;
+			var was = worldVars.GetInt(ActiveVarKey, 0);
+			if (was == 0) return;
+
+			Log.Warning("WoeService: previous run shut down mid-session ({0}=1 on boot). Castles / treasure flags were preserved; review agit logs if a session window was active.", ActiveVarKey);
+			worldVars.SetInt(ActiveVarKey, 0);
 		}
 
 		/// <summary>

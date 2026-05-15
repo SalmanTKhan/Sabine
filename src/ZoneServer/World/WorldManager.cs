@@ -168,6 +168,7 @@ namespace Sabine.Zone.World
 			this.LoadParties();
 			this.LoadCastles();
 			this.LoadAuctions();
+			this.Mail.StartExpirationTimer();
 			this.SetupUpdates();
 		}
 
@@ -312,6 +313,11 @@ namespace Sabine.Zone.World
 			this.Guardians.Attach(this.Woe);
 			this.Treasures.Attach(this.Woe);
 			this.Treasures.StartPolling();
+
+			// Surface "previous run shut down mid-session" before the
+			// schedule timer starts, so the warning fires at boot rather
+			// than on the next agit start tick.
+			this.Woe.CheckBootRecovery(this.Vars.Perm);
 
 			// Auction resolution loop (Slice G).
 			this.Auctions.StartPolling();

@@ -23,9 +23,26 @@ namespace Sabine.Zone.World.Woe
 	/// </remarks>
 	public class TreasureSpawnService
 	{
-		// TODO(slice-a): wire to per-castle treasure-drop tables once
-		// the eAthena `npc/guild/*_data.txt` rows are converted.
+		// Per-castle drop tables (eAthena `npc/guild/<map>_data.txt`)
+		// are still deferred; today every box rolls from the shared
+		// TREASURE_BOX1..8 pool defined in monsters.txt. The data file
+		// exposes 8 distinct ids so future per-castle table assignment
+		// can wire one box id per castle without churning the spawner.
 		private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
+
+		// rA `mob_db.txt` ids 1324..1331; we rotate through them so each
+		// spawn pass paints a mix on the map.
+		private static readonly int[] TreasureBoxIds =
+		{
+			Sabine.Shared.Const.MonsterId.TREASURE_BOX1,
+			Sabine.Shared.Const.MonsterId.TREASURE_BOX2,
+			Sabine.Shared.Const.MonsterId.TREASURE_BOX3,
+			Sabine.Shared.Const.MonsterId.TREASURE_BOX4,
+			Sabine.Shared.Const.MonsterId.TREASURE_BOX5,
+			Sabine.Shared.Const.MonsterId.TREASURE_BOX6,
+			Sabine.Shared.Const.MonsterId.TREASURE_BOX7,
+			Sabine.Shared.Const.MonsterId.TREASURE_BOX8,
+		};
 
 		private readonly object _syncLock = new();
 		private readonly Dictionary<string, List<Monster>> _spawned =
@@ -121,17 +138,17 @@ namespace Sabine.Zone.World.Woe
 					var count = Math.Clamp(4 + (castle.Economy / 4), 4, 16);
 					var spawned = new List<Monster>();
 
-					// TODO(slice-a): treasure NPCs should be Npc-typed
-					// click-to-loot interactables. Stubbed as Soldier
-					// Guardian mobs for now so the spawn path is
-					// observable end-to-end; replace with a proper
-					// `TreasureChestNpc` wrapper once the inventory
-					// drop API for non-mob NPCs is accessible.
+					// 1-HP treasure boxes drop their inventory pool on the
+					// first hit (see monsters.txt rows 1324..1331). Each
+					// box id pulls from the same shared pool today;
+					// per-castle pool wiring is the next step once the
+					// castle/box mapping rows are ported.
 					for (var i = 0; i < count; i++)
 					{
 						try
 						{
-							var monster = new Monster((IdentityId)MonsterId.SOLDIER_GUARDIAN);
+							var boxId = TreasureBoxIds[i % TreasureBoxIds.Length];
+							var monster = new Monster((IdentityId)boxId);
 							var pos = map.GetRandomWalkablePosition();
 							monster.Warp(map.Id, pos);
 							spawned.Add(monster);

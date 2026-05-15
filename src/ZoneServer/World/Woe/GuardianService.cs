@@ -76,6 +76,13 @@ namespace Sabine.Zone.World.Woe
 
 				var count = Math.Clamp(castle.Defense / 20, 1, 8);
 				var spawned = new List<Monster>();
+
+				// eAthena defense scaling: each defense investment level
+				// adds 1% to guardian HP, capping around +100% at level
+				// 100. Matches the rA `mob_guardian` HP curve closely
+				// enough for the alpha-era data we have today.
+				var defenseScale = 1.0 + (castle.Defense / 100.0);
+
 				for (var i = 0; i < count; i++)
 				{
 					var monsterId = PickGuardianId(i);
@@ -84,6 +91,14 @@ namespace Sabine.Zone.World.Woe
 						var monster = new Monster((IdentityId)monsterId);
 						if (monster.Data.AiName != null)
 							monster.AttachAi(monster.Data.AiName);
+
+						// Apply HP scaling after the base stats are
+						// copied from MonsterData; the setter clamps Hp
+						// so we reorder writes to seat the new max first.
+						var scaledMax = (int)(monster.Parameters.HpMax * defenseScale);
+						monster.Parameters.HpMax = scaledMax;
+						monster.Parameters.Hp = scaledMax;
+
 						var pos = map.GetRandomWalkablePosition();
 						monster.Warp(map.Id, pos);
 						spawned.Add(monster);
