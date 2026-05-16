@@ -95,30 +95,13 @@ namespace Sabine.Zone.Skills.StatusEffects.Handlers
 		{
 			var resist = 20 + 5 * effect.Level;
 			effect.Val2 = resist;
-			target.Modifiers.SubElement[(int)ElementType.Fire] += resist;
-			target.Modifiers.SubElement[(int)ElementType.Water] += resist;
-			target.Modifiers.SubElement[(int)ElementType.Wind] += resist;
-			target.Modifiers.SubElement[(int)ElementType.Earth] += resist;
-			target.Modifiers.SubElement[(int)ElementType.Holy] += resist;
-			target.Modifiers.SubElement[(int)ElementType.Dark] += resist;
-			target.Modifiers.SubElement[(int)ElementType.Poison] += resist;
-			target.Modifiers.SubElement[(int)ElementType.Ghost] += resist;
-			target.Modifiers.SubElement[(int)ElementType.Undead] += resist;
+			target.Modifiers.AddSubElementAllExceptNeutral(resist);
 		}
 
 		public void OnEnd(Character target, StatusEffect effect)
 		{
 			if (effect.Val2 == 0) return;
-			var r = effect.Val2;
-			target.Modifiers.SubElement[(int)ElementType.Fire] -= r;
-			target.Modifiers.SubElement[(int)ElementType.Water] -= r;
-			target.Modifiers.SubElement[(int)ElementType.Wind] -= r;
-			target.Modifiers.SubElement[(int)ElementType.Earth] -= r;
-			target.Modifiers.SubElement[(int)ElementType.Holy] -= r;
-			target.Modifiers.SubElement[(int)ElementType.Dark] -= r;
-			target.Modifiers.SubElement[(int)ElementType.Poison] -= r;
-			target.Modifiers.SubElement[(int)ElementType.Ghost] -= r;
-			target.Modifiers.SubElement[(int)ElementType.Undead] -= r;
+			target.Modifiers.AddSubElementAllExceptNeutral(-effect.Val2);
 		}
 	}
 }

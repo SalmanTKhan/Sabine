@@ -26,11 +26,17 @@ namespace Sabine.Zone.World.Instances
 		private readonly object _syncLock = new();
 		private readonly Dictionary<int, Instance> _instances = new();
 
-		// Counter for synthesizing instance map ids. We pick a high
-		// base so the synthesized values never collide with the
-		// statically-loaded `MapsDb` ids (those are typically below
-		// 10000); using `int.MaxValue / 2` gives a generous runway.
-		private int _nextMapId = int.MaxValue / 2;
+		/// <summary>
+		/// Base offset for synthesized instance map ids. Chosen well
+		/// above the highest static <c>MapsDb</c> entry (typically
+		/// under 10000) so runtime-allocated instance map ids can
+		/// never collide with statically-loaded maps.
+		/// </summary>
+		private const int InstanceMapIdBase = int.MaxValue / 2;
+
+		// Counter for synthesizing instance map ids; advances from
+		// InstanceMapIdBase on every Create().
+		private int _nextMapId = InstanceMapIdBase;
 		private int _nextInstanceId;
 
 		/// <summary>

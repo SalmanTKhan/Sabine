@@ -233,6 +233,21 @@ namespace Sabine.Zone.Battle
 		}
 
 		/// <summary>
+		/// Adds <paramref name="delta"/> to <see cref="SubElement"/> for
+		/// every elemental defense element except Neutral — the "blanket
+		/// elemental resist" applied by skills like BD_SIEGFRIED. Pass a
+		/// negative <paramref name="delta"/> to revert on effect end.
+		/// </summary>
+		public void AddSubElementAllExceptNeutral(int delta)
+		{
+			// Indices 1..9 in the SubElement[] array correspond to
+			// ElementType.Water..ElementType.Undead per ElementType.cs.
+			// Neutral (0) is intentionally skipped.
+			for (var i = (int)ElementType.Water; i <= (int)ElementType.Undead; i++)
+				this.SubElement[i] += delta;
+		}
+
+		/// <summary>
 		/// Returns the per-weapon-type ATK rate bonus the attacker has
 		/// accumulated for the given weapon (eAthena
 		/// <c>sd->weapon_atk_rate[wt]</c>). Out-of-range types map to 0.
