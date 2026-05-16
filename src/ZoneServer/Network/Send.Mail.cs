@@ -148,6 +148,21 @@ namespace Sabine.Zone.Network
 			character.Connection.Send(packet);
 		}
 
+		/// <summary>
+		/// Acks a CZ_REQ_MAIL_RETURN (return-to-sender) request.
+		/// fail = 0 = success, 1 = failure. Mirrors eAthena's
+		/// <c>clif_Mail_return</c> (op 0x0274, 8 bytes).
+		/// </summary>
+		public static void ZC_ACK_MAIL_RETURN(PlayerCharacter character, int mailId, short fail)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_MAIL_RETURN);
+
+			packet.PutInt(mailId);
+			packet.PutShort(fail);
+
+			character.Connection.Send(packet);
+		}
+
 		private static long ToUnixSeconds(DateTime utc)
 			=> new DateTimeOffset(utc, TimeSpan.Zero).ToUnixTimeSeconds();
 	}

@@ -1,4 +1,5 @@
 using Sabine.Shared.Network;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Mail;
 
 namespace Sabine.Zone.Network
@@ -126,6 +127,29 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Return-to-sender request (CZ_REQ_MAIL_RETURN). Bounces the
+		/// mail back to its original sender via
+		/// <see cref="MailManager.ReturnToSender"/>; refused if the
+		/// attachment was already taken or the mail was itself a bounce.
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_MAIL_RETURN)]
+		public void CZ_REQ_MAIL_RETURN(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+			var mailId = packet.GetInt();
+			var _ = packet.GetString(24);   // sender name echoed by client; ignored — we re-resolve from DB.
+
+			if (mailId <= 0)
+			{
+				Send.ZC_ACK_MAIL_RETURN(character, 0, 1);
+				return;
+			}
+
+			var ok = ZoneServer.Instance.World.Mail.ReturnToSender(character, mailId);
+			Send.ZC_ACK_MAIL_RETURN(character, mailId, (short)(ok ? 0 : 1));
+		}
+
+		/// <summary>
 		/// Send-mail request (CZ_MAIL_SEND). Validates recipient,
 		/// snapshots the staged item + zeny, persists, and notifies.
 		/// </summary>
@@ -150,7 +174,7 @@ namespace Sabine.Zone.Network
 			var itemIdentified = true;
 			var itemDamaged = false;
 
-			Sabine.Zone.World.Actors.Item stagedItem = null;
+			Item stagedItem = null;
 			if (draft.HasItem)
 			{
 				if (!character.Inventory.TryGetItem(draft.InventoryIndex, out stagedItem)
@@ -198,7 +222,7 @@ namespace Sabine.Zone.Network
 					character.Parameters.Zeny += zeny;
 				if (stagedItem != null && itemAmount > 0)
 				{
-					var refund = new Sabine.Zone.World.Actors.Item(itemClassId)
+					var refund = new Item(itemClassId)
 					{
 						Amount = itemAmount,
 						RefineLevel = itemRefine,

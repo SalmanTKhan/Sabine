@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 using Yggdrasil.Logging;
@@ -19,6 +20,42 @@ namespace Sabine.Zone.World.Mail
 
 		private readonly object _syncRoot = new();
 		private readonly Dictionary<int, List<MailMessage>> _inboxByReceiver = new();
+
+		private Timer _expirationTimer;
+		private static readonly TimeSpan ExpirationInterval = TimeSpan.FromHours(6);
+
+		/// <summary>
+		/// Persistence seam. Defaults to a live <c>ZoneDb</c> adapter;
+		/// tests substitute an in-memory fake to exercise the manager's
+		/// validation rules without a database.
+		/// </summary>
+		public IMailRepository Repository { get; set; } = new ZoneDbMailRepository();
+
+		/// <summary>
+		/// Hook invoked after a new mail row lands in someone's inbox.
+		/// Defaults to pushing <c>ZC_MAIL_RECEIVE</c> + <c>ZC_MAIL_WINDOWS</c>
+		/// to that receiver if they're currently online. Tests can swap
+		/// in a no-op or capture lambda.
+		/// </summary>
+		public Action<int, MailMessage> OnNewMailNotifier { get; set; } = NotifyOnlineReceiver;
+
+		private static void NotifyOnlineReceiver(int receiverId, MailMessage msg)
+		{
+			if (ZoneServer.Instance?.World?.Maps == null)
+				return;
+			if (!ZoneServer.Instance.World.Maps.TryGetPlayerById(receiverId, out var receiver))
+				return;
+
+			Network.Send.ZC_MAIL_RECEIVE(receiver, msg);
+			Network.Send.ZC_MAIL_WINDOWS(receiver, 0);
+		}
+
+		/// <summary>
+		/// Sender name used for system-generated mail (auto-refunds
+		/// from expired attachments, etc.). Surfaced as a const so
+		/// tests can assert against it.
+		/// </summary>
+		public const string SystemSenderName = "Postman";
 
 		/// <summary>
 		/// Send result for <see cref="Send"/>; mirrors the
@@ -51,7 +88,7 @@ namespace Sabine.Zone.World.Mail
 			{
 				if (!_inboxByReceiver.TryGetValue(receiverId, out var list))
 				{
-					list = ZoneServer.Instance.Database.LoadMailFor(receiverId);
+					list = this.Repository.LoadMailFor(receiverId);
 					list.Sort((a, b) => b.SentAt.CompareTo(a.SentAt));
 					_inboxByReceiver[receiverId] = list;
 				}
@@ -71,7 +108,7 @@ namespace Sabine.Zone.World.Mail
 		{
 			message = null;
 
-			var receiverId = ZoneServer.Instance.Database.GetCharacterIdByName(receiverName);
+			var receiverId = this.Repository.GetCharacterIdByName(receiverName);
 			if (receiverId <= 0)
 				return SendResult.ReceiverUnknown;
 
@@ -91,7 +128,7 @@ namespace Sabine.Zone.World.Mail
 				AttachedItemDamaged = itemDamaged,
 			};
 
-			ZoneServer.Instance.Database.InsertMail(message);
+			this.Repository.InsertMail(message);
 
 			lock (_syncRoot)
 			{
@@ -99,13 +136,7 @@ namespace Sabine.Zone.World.Mail
 					list.Insert(0, message);
 			}
 
-			// If the receiver is online, push the new-mail notification
-			// + open the window so they see the inbox refresh.
-			if (ZoneServer.Instance.World.Maps.TryGetPlayerById(receiverId, out var receiver))
-			{
-				Network.Send.ZC_MAIL_RECEIVE(receiver, message);
-				Network.Send.ZC_MAIL_WINDOWS(receiver, 0);
-			}
+			this.OnNewMailNotifier?.Invoke(receiverId, message);
 
 			return SendResult.Success;
 		}
@@ -126,7 +157,7 @@ namespace Sabine.Zone.World.Mail
 				return msg;
 
 			msg.Read = true;
-			ZoneServer.Instance.Database.UpdateMailRead(mailId);
+			this.Repository.UpdateMailRead(mailId);
 			return msg;
 		}
 
@@ -170,7 +201,7 @@ namespace Sabine.Zone.World.Mail
 				receiver.Parameters.Zeny += msg.Zeny;
 
 			msg.AttachmentTaken = true;
-			ZoneServer.Instance.Database.UpdateMailAttachmentTaken(mailId);
+			this.Repository.UpdateMailAttachmentTaken(mailId);
 			return TakeResult.Success;
 		}
 
@@ -193,7 +224,7 @@ namespace Sabine.Zone.World.Mail
 				list.Remove(msg);
 			}
 
-			ZoneServer.Instance.Database.DeleteMail(mailId);
+			this.Repository.DeleteMail(mailId);
 			return true;
 		}
 
@@ -211,7 +242,7 @@ namespace Sabine.Zone.World.Mail
 				{
 					try
 					{
-						list = ZoneServer.Instance.Database.LoadMailFor(player.Id);
+						list = this.Repository.LoadMailFor(player.Id);
 						list.Sort((a, b) => b.SentAt.CompareTo(a.SentAt));
 						_inboxByReceiver[player.Id] = list;
 					}
@@ -225,6 +256,213 @@ namespace Sabine.Zone.World.Mail
 
 			if (list.Any(m => !m.Read))
 				Network.Send.ZC_MAIL_WINDOWS(player, 0);
+		}
+
+		/// <summary>
+		/// Bounces a mail back to its original sender. The receiver
+		/// must own the row, the attachment must not have been claimed,
+		/// and the mail must not itself already be a bounce (avoids
+		/// ping-pong loops). On success the original row is deleted and
+		/// a new row is inserted with sender / receiver swapped, title
+		/// prefixed "RE: ", and the attachment carried over verbatim.
+		/// </summary>
+		public bool ReturnToSender(PlayerCharacter receiver, int mailId)
+		{
+			MailMessage original;
+			lock (_syncRoot)
+			{
+				if (!_inboxByReceiver.TryGetValue(receiver.Id, out var list))
+					return false;
+				original = list.FirstOrDefault(m => m.Id == mailId);
+			}
+
+			if (original == null) return false;
+			if (original.ReceiverId != receiver.Id) return false;
+			if (original.AttachmentTaken) return false;
+			if (original.IsReturned) return false;
+			if (original.SenderId == receiver.Id) return false; // no self-bounce
+
+			// Original sender must still exist as a character — otherwise
+			// the bounce would land in nobody's inbox.
+			var bouncedReceiverName = this.Repository.GetCharacterName(original.SenderId);
+			if (string.IsNullOrEmpty(bouncedReceiverName))
+				return false;
+
+			var bounce = new MailMessage
+			{
+				SenderId = receiver.Id,
+				SenderName = receiver.Name,
+				ReceiverId = original.SenderId,
+				Title = "RE: " + (original.Title ?? string.Empty),
+				Body = original.Body ?? string.Empty,
+				SentAt = DateTime.UtcNow,
+				Zeny = original.Zeny,
+				AttachedItemClassId = original.AttachedItemClassId,
+				AttachedItemAmount = original.AttachedItemAmount,
+				AttachedItemRefine = original.AttachedItemRefine,
+				AttachedItemIdentified = original.AttachedItemIdentified,
+				AttachedItemDamaged = original.AttachedItemDamaged,
+				IsReturned = true,
+			};
+
+			// Trim the title back to the column width (40 chars) — the
+			// "RE: " prefix could push a max-length original past it.
+			if (bounce.Title.Length > 40)
+				bounce.Title = bounce.Title.Substring(0, 40);
+
+			try
+			{
+				this.Repository.InsertMail(bounce);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("MailManager.ReturnToSender: insert failed: {0}", ex);
+				return false;
+			}
+
+			// Original row is gone; pull from cache + delete from DB.
+			lock (_syncRoot)
+			{
+				if (_inboxByReceiver.TryGetValue(receiver.Id, out var list))
+					list.RemoveAll(m => m.Id == mailId);
+
+				// If the bounced-to sender is already loaded, splice the
+				// new message in. If not, the next inbox open will load
+				// it fresh from DB.
+				if (_inboxByReceiver.TryGetValue(bounce.ReceiverId, out var senderList))
+					senderList.Insert(0, bounce);
+			}
+
+			this.Repository.DeleteMail(mailId);
+
+			this.OnNewMailNotifier?.Invoke(bounce.ReceiverId, bounce);
+
+			return true;
+		}
+
+		/// <summary>
+		/// Starts the periodic auto-purge timer. Called once from
+		/// <c>WorldManager.Load</c> at zone-server boot. Safe to call
+		/// twice (idempotent).
+		/// </summary>
+		public void StartExpirationTimer()
+		{
+			if (_expirationTimer != null)
+				return;
+
+			_expirationTimer = new Timer(this.ExpirationTick, null,
+				ExpirationInterval, ExpirationInterval);
+		}
+
+		private void ExpirationTick(object _)
+		{
+			try
+			{
+				var days = ZoneServer.Instance.Conf.World.MailExpireDays;
+				this.PurgeExpired(days);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("MailManager.ExpirationTick: {0}", ex);
+			}
+		}
+
+		/// <summary>
+		/// Single sweep of the expiration logic. Pulled out of
+		/// <see cref="ExpirationTick"/> so tests can drive it
+		/// deterministically. Returns the purge result.
+		/// </summary>
+		public ExpirationResult PurgeExpired(int days)
+		{
+			var result = new ExpirationResult();
+			if (days <= 0)
+				return result;
+
+			var expiring = this.Repository.LoadExpiringMail(days);
+
+			// Refund: for each expiring mail with an unclaimed
+			// attachment (zeny or item), insert a system-mail back to
+			// the original sender carrying the same attachment. The
+			// bounced row itself is marked IsReturned so it can't be
+			// bounced again if it expires too.
+			foreach (var expired in expiring)
+			{
+				if (expired.AttachmentTaken)
+					continue;
+				if (!expired.HasAttachment)
+					continue;
+
+				// Refunds going to characters who no longer exist are
+				// dropped — system mail to a deleted CID would be
+				// orphaned and never collectable.
+				if (string.IsNullOrEmpty(this.Repository.GetCharacterName(expired.SenderId)))
+					continue;
+
+				var refund = new MailMessage
+				{
+					SenderId = 0,
+					SenderName = SystemSenderName,
+					ReceiverId = expired.SenderId,
+					Title = "Returned: " + (expired.Title ?? string.Empty),
+					Body = "Your mail to " + (expired.SenderName ?? "an unknown recipient")
+						+ " was not collected in time. Your attachment is returned.",
+					SentAt = DateTime.UtcNow,
+					Zeny = expired.Zeny,
+					AttachedItemClassId = expired.AttachedItemClassId,
+					AttachedItemAmount = expired.AttachedItemAmount,
+					AttachedItemRefine = expired.AttachedItemRefine,
+					AttachedItemIdentified = expired.AttachedItemIdentified,
+					AttachedItemDamaged = expired.AttachedItemDamaged,
+					IsReturned = true,
+				};
+
+				if (refund.Title.Length > 40)
+					refund.Title = refund.Title.Substring(0, 40);
+
+				try
+				{
+					this.Repository.InsertMail(refund);
+					result.Refunded++;
+
+					lock (_syncRoot)
+					{
+						if (_inboxByReceiver.TryGetValue(refund.ReceiverId, out var senderList))
+							senderList.Insert(0, refund);
+					}
+
+					this.OnNewMailNotifier?.Invoke(refund.ReceiverId, refund);
+				}
+				catch (Exception ex)
+				{
+					Log.Error("MailManager.PurgeExpired: refund insert failed for original mail {0}: {1}", expired.Id, ex);
+				}
+			}
+
+			result.Purged = this.Repository.PurgeExpiredMail(days);
+			if (result.Purged > 0)
+			{
+				Log.Info("MailManager: purged {0} expired mail row(s), refunded {1} attachment(s).",
+					result.Purged, result.Refunded);
+
+				// Drop cached inboxes so the next read reflects the
+				// removed rows instead of serving stale entries.
+				lock (_syncRoot)
+					_inboxByReceiver.Clear();
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Outcome of one <see cref="PurgeExpired"/> sweep.
+		/// </summary>
+		public struct ExpirationResult
+		{
+			/// <summary>Total mail rows deleted from the database.</summary>
+			public int Purged;
+
+			/// <summary>How many of those had attachments refunded to the sender.</summary>
+			public int Refunded;
 		}
 	}
 }

@@ -27,6 +27,13 @@ namespace Sabine.Zone.World.Mail
 		public bool Read { get; set; }
 		public bool AttachmentTaken { get; set; }
 
+		/// <summary>
+		/// True when this row is itself a bounce — sent back to the
+		/// original sender via <c>MailManager.ReturnToSender</c>. Used
+		/// to refuse a second bounce so a back-and-forth can't loop.
+		/// </summary>
+		public bool IsReturned { get; set; }
+
 		public bool HasAttachment
 			=> this.Zeny > 0 || (this.AttachedItemClassId > 0 && this.AttachedItemAmount > 0);
 	}
