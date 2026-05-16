@@ -19,17 +19,35 @@ namespace Sabine.Zone.Network
 		/// <summary>
 		/// Notifies clients about a skill being used.
 		/// </summary>
+		/// <remarks>
+		/// At S2500+ this routes to <c>ZC_NOTIFY_SKILL2</c> (0x01DE/33,
+		/// int32 damage) per eA/rA at PV&gt;=3. Legacy 0x00AE/31 with
+		/// int16 damage is preserved for older Sabine versions whose
+		/// clients only understand that op. Source-delay is scaled
+		/// through <see cref="Send.ZC_NOTIFY_ACT.ScaleToKroAnimationSpeed"/>
+		/// at S2500+ so skill animations don't fall into the &gt;432
+		/// 1x-cap band on EP12 clients.
+		/// </remarks>
 		public static void ZC_NOTIFY_SKILL(Character character, int targetId, SkillId skillId, int level, int damage, int attackTime, int attackedTime, ActionType action)
 		{
-			using var packet = Packet.Rent(Op.ZC_NOTIFY_SKILL);
+			var useV2 = Game.Version >= Versions.S2500;
+			var op = useV2 ? Op.ZC_NOTIFY_SKILL2 : Op.ZC_NOTIFY_SKILL;
+			var srcDelay = useV2 ? ZC_NOTIFY_ACT.ScaleToKroAnimationSpeed(attackTime) : attackTime;
+
+			using var packet = Packet.Rent(op);
 
 			packet.PutShort((short)skillId);
 			packet.PutInt(character.Handle);
 			packet.PutInt(targetId);
 			packet.PutInt(Game.GetTick());
-			packet.PutInt(attackTime);
+			packet.PutInt(srcDelay);
 			packet.PutInt(attackedTime);
-			packet.PutShort((short)damage);
+
+			if (useV2)
+				packet.PutInt(damage);
+			else
+				packet.PutShort((short)damage);
+
 			packet.PutShort((short)level);
 			packet.PutShort(1); // count
 			packet.PutByte((byte)action);
@@ -40,7 +58,7 @@ namespace Sabine.Zone.Network
 		/// <summary>
 		/// Notifies clients about a positional skill being used.
 		/// </summary>
-		public static void ZC_NOTIFY_SKILL_POSITION(Character character, int targetId, SkillId skillId, int level, Position pos, int damage, int attackTime, int attackedTime, ActionType action)
+		public static void ZC_NOTIFY_SKILL_POSITION(Character character, int targetId, SkillId skillId, int level, Position pos, int damage, int attackTime, int attackedTime, int hitCount, ActionType action)
 		{
 			using var packet = Packet.Rent(Op.ZC_NOTIFY_SKILL_POSITION);
 
@@ -54,7 +72,7 @@ namespace Sabine.Zone.Network
 			packet.PutShort((short)pos.Y);
 			packet.PutShort((short)damage);
 			packet.PutShort((short)level);
-			packet.PutShort(1); // count
+			packet.PutShort((short)hitCount);
 			packet.PutByte((byte)action);
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);
@@ -70,11 +88,25 @@ namespace Sabine.Zone.Network
 			packet.PutInt(character.Handle);
 			packet.PutShort((short)character.BodyState);
 			packet.PutShort((short)character.HealthState);
-			// Third short is opt0 (option) for the alpha / beta1 client —
-			// falcon, peco-peco, cart, hide, cloak. EffectState (opt3)
-			// belongs to a separate slot on newer client packets that
-			// Sabine doesn't yet emit.
-			packet.PutShort((short)character.OptionState);
+
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_STATE_CHANGE 0x0229 at PACKETVER >= 7
+				// widens effectState (opt3) from int16 to int32. Body =
+				// 4 AID + 2 bodyState + 2 healthState + 4 effectState +
+				// 1 isPKModeON = 13, wire = 15.
+				// Ref: rathena packets_struct.hpp:4532.
+				packet.PutInt((int)character.OptionState);
+			}
+			else
+			{
+				// Third short is opt0 (option) for the alpha / beta1 client —
+				// falcon, peco-peco, cart, hide, cloak. EffectState (opt3)
+				// belongs to a separate slot on newer client packets that
+				// Sabine doesn't yet emit.
+				packet.PutShort((short)character.OptionState);
+			}
+
 			packet.PutByte(0); // isPKModeOn
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);
@@ -132,12 +164,16 @@ namespace Sabine.Zone.Network
 		/// </summary>
 		public static void ZC_CART_EQUIPMENT_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
+			var useV6 = Game.Version >= Versions.Sabine;
+			var useV3 = !useV6 && Game.Version >= Versions.S2500;
 			using var packet = Packet.Rent(Op.ZC_CART_EQUIPMENT_ITEMLIST);
 			foreach (var item in items)
 			{
 				if (!item.Type.IsEquip())
 					continue;
-				packet.AddEquipItem(item, item.WearSlots);
+				if (useV6) packet.AddEquipItemV6(item, item.WearSlots);
+				else if (useV3) packet.AddEquipItemV3(item, item.WearSlots);
+				else packet.AddEquipItem(item, item.WearSlots);
 			}
 			character.Connection.Send(packet);
 		}
@@ -147,12 +183,16 @@ namespace Sabine.Zone.Network
 		/// </summary>
 		public static void ZC_CART_NORMAL_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
+			var useV6 = Game.Version >= Versions.Sabine;
+			var useV3 = !useV6 && Game.Version >= Versions.S2500;
 			using var packet = Packet.Rent(Op.ZC_CART_NORMAL_ITEMLIST);
 			foreach (var item in items)
 			{
 				if (item.Type.IsEquip())
 					continue;
-				packet.AddNormalItem(item);
+				if (useV6) packet.AddNormalItemV6(item);
+				else if (useV3) packet.AddNormalItemV3(item);
+				else packet.AddNormalItem(item);
 			}
 			character.Connection.Send(packet);
 		}
@@ -163,6 +203,16 @@ namespace Sabine.Zone.Network
 		public static void ZC_ADD_ITEM_TO_CART(PlayerCharacter character, Item item)
 		{
 			using var packet = Packet.Rent(Op.ZC_ADD_ITEM_TO_CART);
+
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_ADD_ITEM_TO_CART 0x0a0b at PACKETVER_MAIN_NUM
+				// >= 20181121. Wire = 49.
+				// Ref: rathena packets_struct.hpp:2483.
+				packet.AddCartStoreItemV6(item);
+				character.Connection.Send(packet);
+				return;
+			}
 
 			packet.PutShort((short)item.InventoryId);
 			packet.PutInt(item.Amount);
@@ -363,7 +413,20 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_RECOVERY);
 			packet.PutShort((short)type);
-			packet.PutShort((short)amount);
+
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_RECOVERY 0xa27 at PACKETVER >= 20141022
+				// widens amount from int16 to int32. Body = 2 type + 4
+				// amount, wire = 8.
+				// Ref: rathena packets.hpp:1210, map/clif.cpp clif_heal.
+				packet.PutInt(amount);
+			}
+			else
+			{
+				packet.PutShort((short)amount);
+			}
+
 			character.Connection.Send(packet);
 		}
 	}

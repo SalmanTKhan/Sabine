@@ -12,6 +12,24 @@ using Yggdrasil.Util;
 namespace Sabine.Zone.World.Actors
 {
 	/// <summary>
+	/// One entry of an item's modern bonus-effect options array,
+	/// matching rA's <c>struct ItemOptions</c> (index + value + param).
+	/// MAX_ITEM_OPTIONS is 5 in current rA; the wire shape is exactly
+	/// 5 bytes per option for a 25-byte block.
+	/// </summary>
+	public struct ItemOption
+	{
+		/// <summary>Option/bonus id (rA <c>itemoption_db</c> key).</summary>
+		public short Index;
+
+		/// <summary>Magnitude of the bonus.</summary>
+		public short Value;
+
+		/// <summary>Parameter byte (most options unused; defaults to 0).</summary>
+		public byte Param;
+	}
+
+	/// <summary>
 	/// Represents an item, either inside a player's inventory or on a map.
 	/// </summary>
 	public class Item : IActor
@@ -126,6 +144,50 @@ namespace Sabine.Zone.World.Actors
 		/// engraving when rendering `[Recipient]'s ItemName`.
 		/// </summary>
 		public string EngravedName { get; set; } = string.Empty;
+
+		/// <summary>
+		/// Modern rA item-options array (slot index + value + param).
+		/// Sized to MAX_ITEM_OPTIONS = 5 and zero-initialised; future
+		/// item-script code can mutate entries to grant ItemDB bonus
+		/// effects. Required by the rA V6 inventory wire shape Sabine
+		/// targets (PACKETVER_MAIN_NUM &gt;= 20181121).
+		/// </summary>
+		public ItemOption[] Options { get; } = new ItemOption[5];
+
+		/// <summary>
+		/// Bind-on-equip flag carried by the rA V6 inventory shape. 0
+		/// for stock items; future Bind-on-Equip implementations can
+		/// flip the bits per rAthena's BOUND_ACCOUNT / GUILD / PARTY
+		/// / CHARACTER constants.
+		/// </summary>
+		public ushort BindOnEquipType { get; set; }
+
+		/// <summary>
+		/// Unix timestamp at which a rental item expires. 0 = permanent.
+		/// Plumbed for the rA V6 shape; rental flow not yet implemented.
+		/// </summary>
+		public int HireExpireDate { get; set; }
+
+		/// <summary>
+		/// True if the player has marked this inventory entry as a
+		/// favourite (rA PV>=20160921). Persisted server-side for the
+		/// modern client's favourite-tab feature.
+		/// </summary>
+		public bool IsFavorite { get; set; }
+
+		/// <summary>
+		/// Visual sprite override (look) for the modern V6 layout;
+		/// matches rA's `wItemSpriteNumber`. 0 falls back to ClassId.
+		/// </summary>
+		public ushort SpriteNumber { get; set; }
+
+		/// <summary>
+		/// Refining grade (S/A/B/C) added to rA at PACKETVER &gt;=
+		/// 20200916. Sabine targets the pre-grade PV range and keeps
+		/// this at 0; the field exists so future PR's can flip into the
+		/// grade-aware wire shape without touching the item plumbing.
+		/// </summary>
+		public byte Grade { get; set; }
 
 		/// <summary>
 		/// Gets or sets the id of the map the item is on, if any.
