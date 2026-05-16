@@ -1,0 +1,8 @@
+# ZC_NOTIFY_PLAYERMOVE, S2500. Total 12 bytes.
+# Op 0x0087 (LE) + tick 0x12345678 + packed_move (100,200) -> (110,210), sx=8, sy=8.
+#
+# Format: each line is hex bytes, optional inline comments after `#`.
+
+87 00                                                # wire_id: ZC_NOTIFY_PLAYERMOVE
+78 56 34 12                                          # move_start_time = 0x12345678 (305419896 ms)
+19 0C 81 B8 D2 88                                    # packed_move: (100,200) -> (110,210), sx=8 sy=8

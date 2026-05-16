@@ -73,12 +73,14 @@
 			Register(Op.CZ_STANDING_RESURRECTION, 0x0292, 2);
 			Register(Op.ZC_BOSS_INFO, 0x0293, 70);
 			Register(Op.ZC_READ_BOOK, 0x0294, 10);
-			Register(Op.ZC_EQUIPMENT_ITEMLIST2, 0x0295, -1);
-			Register(Op.ZC_STORE_EQUIPMENT_ITEMLIST2, 0x0296, -1);
-			Register(Op.ZC_CART_EQUIPMENT_ITEMLIST2, 0x0297, -1);
+			// Variant consolidation: *_EQUIPMENT_ITEMLIST2 = base op moved wire slot.
+			Redefine(Op.ZC_EQUIPMENT_ITEMLIST, 0x0295, -1);
+			Redefine(Op.ZC_STORE_EQUIPMENT_ITEMLIST, 0x0296, -1);
+			Redefine(Op.ZC_CART_EQUIPMENT_ITEMLIST, 0x0297, -1);
 			Register(Op.ZC_CASH_TIME_COUNTER, 0x0298, 8);
 			Register(Op.ZC_CASH_ITEM_DELETE, 0x0299, 6);
-			Register(Op.ZC_ITEM_PICKUP_ACK2, 0x029A, 27);
+			// Variant consolidation: ZC_ITEM_PICKUP_ACK2 = base op moved wire slot.
+			Redefine(Op.ZC_ITEM_PICKUP_ACK, 0x029A, 27);
 			Register(Op.ZC_MER_INIT, 0x029B, 70);
 			Register(Op.ZC_MER_PROPERTY, 0x029C, 66);
 			Register(Op.ZC_MER_SKILLINFO_LIST, 0x029D, -1);

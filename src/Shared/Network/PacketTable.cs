@@ -31,6 +31,7 @@ namespace Sabine.Shared.Network
 			[Versions.S2000] = LoadVersion2000,
 			[Versions.S2500] = LoadVersion2500,
 			[Versions.Ragexe20211103] = LoadVersion21103,
+			[Versions.Sabine] = LoadVersionSabine,
 		};
 
 		/// <summary>
@@ -47,13 +48,25 @@ namespace Sabine.Shared.Network
 			NetworkToHost.Clear();
 			HostToNetwork.Clear();
 
+			// Sabine-native profile inherits S2500 effective bodies
+			// (not Ragexe) so it skips any historical table newer
+			// than S2500, then runs its own renumber pass last.
+			var isSabine = Game.Version == Versions.Sabine;
+			var stackCeiling = isSabine ? Versions.S2500 : Game.Version;
+
 			foreach (var (version, loadTable) in Tables.OrderBy(static a => a.Key))
 			{
-				if (Game.Version < version)
+				if (version == Versions.Sabine)
+					continue;
+
+				if (stackCeiling < version)
 					break;
 
 				loadTable();
 			}
+
+			if (isSabine)
+				LoadVersionSabine();
 
 			BuildLists();
 		}

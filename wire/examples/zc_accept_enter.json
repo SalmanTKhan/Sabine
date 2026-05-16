@@ -1,0 +1,19 @@
+{
+  "op": "ZC_ACCEPT_ENTER",
+  "phase": "s2500",
+  "wire_id": "0x02EB",
+  "size_bytes": 13,
+  "body": {
+    "server_tick": 0,
+    "position": { "x": 100, "y": 200, "dir": 0 },
+    "x_size":   5,
+    "y_size":   5,
+    "font":     0
+  },
+  "_derivation_notes": [
+    "packed_pos uses eA WBUFPOS layout:",
+    "  b0 = x >> 2                                               = 25   (0x19)",
+    "  b1 = ((x & 3) << 6) | ((y >> 4) & 0x3F)                   = 12   (0x0C)",
+    "  b2 = ((y & 15) << 4) | (dir & 15)                         = 0x80"
+  ]
+}

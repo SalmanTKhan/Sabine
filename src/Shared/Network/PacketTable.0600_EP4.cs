@@ -45,9 +45,10 @@
 			Register(Op.ZC_NOTIFY_POSITION_TO_GUILDM, 0x01EB, 10);
 			Register(Op.ZC_GUILD_MEMBER_MAP_CHANGE, 0x01EC, 26);
 			Register(Op.CZ_CHOPOKGI, 0x01ED, 2);
-			Register(Op.ZC_NORMAL_ITEMLIST2, 0x01EE, -1);
-			Register(Op.ZC_CART_NORMAL_ITEMLIST2, 0x01EF, -1);
-			Register(Op.ZC_STORE_NORMAL_ITEMLIST2, 0x01F0, -1);
+			// Variant consolidation: *_ITEMLIST2 = base op moved wire slots.
+			Redefine(Op.ZC_NORMAL_ITEMLIST, 0x01EE, -1);
+			Redefine(Op.ZC_CART_NORMAL_ITEMLIST, 0x01EF, -1);
+			Redefine(Op.ZC_STORE_NORMAL_ITEMLIST, 0x01F0, -1);
 			Register(Op.AC_NOTIFY_ERROR, 0x01F1, -1);
 			Register(Op.ZC_UPDATE_CHARSTAT2, 0x01F2, 20);
 			Register(Op.ZC_NOTIFY_EFFECT2, 0x01F3, 10);

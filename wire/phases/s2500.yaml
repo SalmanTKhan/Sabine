@@ -1,0 +1,3941 @@
+# S2500 — kRO Sak EP12 / 2008-09-10aSakexe / PV23.
+#
+# This file lists the active wire surface at this profile, grouped under
+# the same headings as docs/interop-s2500-open-midgard.md. Bodies are
+# derived from Sabine's emit/consume code at HEAD; see each op's `refs:`
+# block for the exact line.
+#
+# Framing convention (see ../README.md): every op below is preceded on
+# the wire by `[wire_id u16 LE]` for fixed-size, or
+# `[wire_id u16 LE][total_size u16 LE]` for `size: dynamic`. The `body:`
+# blocks exclude those framing bytes; `size:` includes them.
+
+phase: s2500
+inherits_from: null
+clientexe: 2008-09-10aSakexe
+sabine_version_constant: Versions.S2500
+packetver: 23
+
+# Coverage notes (2026-05):
+# - Sections 1-9 cover the originally-verified 47 ops.
+# - Sections 10-22 add ops emitted by Send.* methods or consumed by
+#   PacketHandler.* methods at S2500. Wire IDs declared by an explicit
+#   Register/Redefine call in PacketTable.2500_sakEP12.cs are populated
+#   directly; ops that only inherit from lower-PV registrations carry
+#   `wire_id: unknown` + a TODO until a packet capture confirms the
+#   runtime value (the Sabine PacketTable's auto-shifting Register
+#   semantics make static derivation unreliable for those rows).
+#
+# Intentional wire-id collisions:
+# - 0x0071: HC_ACCEPT_ENTER (dynamic) vs HC_NOTIFY_ZONESVR (28 fixed);
+#   client disambiguates by size.
+# - 0x0111: ZC_ADD_SKILL vs ZC_SKILLINFO_UPDATE; identical body, server
+#   picks which name to emit.
+# - 0x02D4: ZC_ITEM_PICKUP_ACK vs ZC_ITEM_PICKUP_ACK3; Sabine routes
+#   the legacy op through the v3 wire form at S2500.
+# - 0x02D2: ZC_CART_EQUIPMENT_ITEMLIST vs ZC_CART_EQUIPMENT_ITEMLIST3;
+#   same routing pattern.
+# - 0x02E9: ZC_CART_NORMAL_ITEMLIST vs ZC_CART_NORMAL_ITEMLIST3.
+
+ops:
+
+  # ====================================================================
+  # 1. LOGIN (Auth server)
+  # ====================================================================
+
+  - op: CA_LOGIN_HAN
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02B0
+        size: 85
+        body:
+          - { name: version,  type: u32 }
+          - { name: username, type: string_fixed, length: 24 }
+          # MD5 hash of (server-supplied salt || password). 24 bytes
+          # because the field is sized for plaintext, not for the hash.
+          - { name: password, type: string_fixed, length: 24 }
+          - { name: client_type, type: u8 }
+          # The remaining 28 bytes carry client-info that Sabine ignores.
+          - { name: client_info, type: blob, length: 28 }
+    refs:
+      - "src/AuthServer/Network/PacketHandler.cs:21"
+
+  - op: CA_LOGIN
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm runtime ID; declared 0x0064 at alpha.
+        size: 55
+        body:
+          - { name: version,  type: u32 }
+          - { name: username, type: string_fixed, length: 24 }
+          - { name: password, type: string_fixed, length: 24 }
+          - { name: lang_type, type: u8 }
+    refs:
+      - "src/AuthServer/Network/PacketHandler.cs:21"
+
+  - op: CA_LOGIN2
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x01DD
+        size: 47
+        body:
+          - { name: version,   type: u32 }
+          - { name: username,  type: string_fixed, length: 24 }
+          - { name: hash,      type: blob, length: 16 }
+          - { name: lang_type, type: u8 }
+    refs:
+      - "src/AuthServer/Network/PacketHandler.cs:21"
+
+  - op: CA_REQ_HASH
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x01DB
+        size: 2
+        body: []
+    refs:
+      - "src/AuthServer/Network/PacketHandler.cs:105"
+
+  - op: AC_ACCEPT_LOGIN
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0069
+        size: dynamic
+        body:
+          - { name: session_id1,    type: u32 }
+          - { name: account_id,     type: u32 }
+          - { name: session_id2,    type: u32 }
+          - { name: client_ip,      type: u32 }
+          - { name: last_login,     type: string_fixed, length: 26 }
+          - { name: sex,            type: u8 }
+          - { name: servers,        type: array<CHAR_SERVER_ENTRY>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/AuthServer/Network/Send.cs:38"
+
+  - op: AC_REFUSE_LOGIN
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x006A
+        size: 23
+        body:
+          - { name: error_code,    type: u8, enum: LoginConnectError }
+          - { name: error_message, type: string_fixed, length: 20 }
+    refs:
+      - "src/AuthServer/Network/Send.cs:21"
+
+  - op: AC_ACK_HASH
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x01DC
+        size: dynamic
+        body:
+          - { name: salt, type: blob, count_kind: bytes_remaining }
+    refs:
+      - "src/AuthServer/Network/Send.cs:89"
+
+  # ====================================================================
+  # 2. CHAR SELECT (Char server)
+  # ====================================================================
+
+  - op: CH_ENTER
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0065
+        size: 17
+        body:
+          - { name: account_id,  type: u32 }
+          - { name: session_id1, type: u32 }
+          - { name: session_id2, type: u32 }
+          - { name: pad,         type: pad, length: 2 }
+          - { name: sex,         type: u8 }
+    refs:
+      - "src/CharServer/Network/PacketHandler.cs:22"
+
+  - op: CH_SELECT_CHAR
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0066
+        size: 3
+        body:
+          - { name: slot, type: u8 }
+    refs:
+      - "src/CharServer/Network/PacketHandler.cs:92"
+
+  - op: CH_MAKE_CHAR
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0067
+        size: 37
+        body:
+          - { name: name,    type: string_fixed, length: 24 }
+          - { name: str,     type: u8 }
+          - { name: agi,     type: u8 }
+          - { name: vit,     type: u8 }
+          - { name: int,     type: u8 }
+          - { name: dex,     type: u8 }
+          - { name: luk,     type: u8 }
+          - { name: slot,    type: u8 }
+          - { name: hair_color_id, type: u16 }
+          - { name: hair_id, type: u16 }
+    refs:
+      - "src/CharServer/Network/PacketHandler.cs:149"
+
+  - op: CH_DELETE_CHAR
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0068.
+        size: 46
+        body:
+          - { name: character_id, type: u32 }
+          - { name: pad,          type: pad, length: 40 }
+    refs:
+      - "src/CharServer/Network/PacketHandler.cs:234"
+
+  - op: CH_DELETE_CHAR2
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x01FB
+        size: 56
+        body:
+          - { name: character_id,  type: u32 }
+          - { name: email_address, type: string_fixed, length: 50 }
+    refs:
+      - "src/CharServer/Network/PacketHandler.cs:234"
+
+  - op: PING
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0187
+        size: 6
+        body:
+          - { name: account_id, type: u32 }
+    refs:
+      - "src/CharServer/Network/PacketHandler.cs:273"
+
+  - op: HC_ACCEPT_ENTER
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0071
+        size: dynamic
+        body:
+          - { name: header_reserved, type: pad, length: 20 }
+          - { name: characters,
+              type: array<CHARACTER_INFO>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/CharServer/Network/Send.cs:50"
+
+  - op: HC_REFUSE_ENTER
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x006C
+        size: 3
+        body:
+          - { name: reason, type: u8, enum: CharConnectError }
+    refs:
+      - "src/CharServer/Network/Send.cs:36"
+
+  - op: HC_NOTIFY_ZONESVR
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0071     # collides with HC_ACCEPT_ENTER on this wire id
+        size: 28
+        body:
+          - { name: character_id, type: u32 }
+          - { name: map_name,     type: string_fixed, length: 16 }
+          - { name: zone_ip,      type: u32 }
+          - { name: zone_port,    type: u16 }
+    refs:
+      - "src/CharServer/Network/Send.cs:85"
+    notes: |
+      Yes, this op shares 0x0071 with HC_ACCEPT_ENTER. The client
+      disambiguates by size — 28 fixed bytes (notify-zonesvr) vs the
+      `total_size` dynamic header HC_ACCEPT_ENTER carries. Don't try
+      to "fix" the collision; the client expects this exact reuse.
+
+  - op: HC_ACCEPT_MAKECHAR
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x006D
+        size: 110
+        body:
+          - { name: character, type: CHARACTER_INFO }    # 108 bytes
+    refs:
+      - "src/CharServer/Network/Send.cs:119"
+
+  - op: HC_REFUSE_MAKECHAR
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x006E.
+        size: 3
+        body:
+          - { name: error, type: u8, enum: CharCreateError }
+    refs:
+      - "src/CharServer/Network/Send.cs:105"
+
+  - op: HC_ACCEPT_DELETECHAR
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x006F.
+        size: 2
+        body: []
+    refs:
+      - "src/CharServer/Network/Send.cs:132"
+
+  - op: HC_REFUSE_DELETECHAR
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0070.
+        size: 3
+        body:
+          - { name: reason, type: u8 }
+    refs:
+      - "src/CharServer/Network/Send.cs:143"
+
+  # ====================================================================
+  # 3. MAP ENTER / WORLD BOOTSTRAP (Zone server)
+  # ====================================================================
+
+  - op: CZ_ENTER
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0436
+        size: 19
+        body:
+          - { name: filler_0,     type: pad, length: 2 }
+          - { name: account_id,   type: u32 }
+          - { name: filler_1,     type: pad, length: 1 }
+          - { name: character_id, type: u32 }
+          - { name: filler_2,     type: pad, length: 4 }
+          - { name: tick,         type: tick }
+          - { name: sex,          type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:38"
+      - "eA src/map/clif.c clif_parse_WantToConnection"
+
+  - op: ZC_ACCEPT_ENTER
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02EB
+        size: 13
+        body:
+          - { name: server_tick, type: tick }
+          - { name: position,    type: packed_pos }
+          - { name: x_size,      type: u8 }
+          - { name: y_size,      type: u8 }
+          - { name: font,        type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:81"
+
+  - op: ZC_REFUSE_ENTER
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0074
+        size: 3
+        body:
+          - { name: reason, type: u8, enum: EnterError }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:100"
+
+  - op: ZC_AID
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0283
+        size: 6
+        body:
+          - { name: account_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:53"
+    notes: |
+      Pre-S2500 the AID arrives as a raw 4-byte prelude (no op header).
+      At S2500+ it gets an actual op. See Send.cs:60-73 for the split.
+
+  - op: ZC_NOTIFY_TIME
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x007F
+        size: 6
+        body:
+          - { name: server_tick, type: tick }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:114"
+
+  - op: CZ_NOTIFY_ACTORINIT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x007D
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:162"
+
+  - op: CZ_REQUEST_TIME
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0089
+        size: 8
+        body:
+          - { name: client_tick, type: tick }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:336"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:511"
+
+  - op: CZ_REQUEST_QUIT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x001E.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:352"
+
+  - op: ZC_ACCEPT_QUIT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x001F.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/Send.cs:287"
+
+  - op: ZC_REFUSE_QUIT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0020.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/Send.cs:297"
+
+  - op: CZ_REQ_DISCONNECT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x018A
+        size: 4
+        body:
+          - { name: s1, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1577"
+
+  - op: ZC_ACK_REQ_DISCONNECT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x018B
+        size: 4
+        body:
+          - { name: s1, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1524"
+
+  - op: SC_NOTIFY_BAN
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0081.
+        size: 3
+        body:
+          - { name: reason, type: u8, enum: DisconnectReason }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1014"
+
+  # ====================================================================
+  # 4. MOVEMENT
+  # ====================================================================
+
+  - op: CZ_REQUEST_MOVE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x00A7
+        size: 8
+        body:
+          - { name: filler,      type: pad, length: 3 }
+          - { name: destination, type: packed_pos }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:366"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:516"
+
+  - op: ZC_NOTIFY_PLAYERMOVE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0087
+        size: 12
+        body:
+          - { name: move_start_time, type: tick }
+          - { name: move,            type: packed_move }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:328"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:489"
+
+  - op: ZC_NOTIFY_MOVE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0086
+        size: 16
+        body:
+          - { name: gid,             type: u32 }
+          - { name: move,            type: packed_move }
+          - { name: move_start_time, type: tick }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:311"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:488"
+
+  - op: ZC_NOTIFY_STANDENTRY4
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02EE
+        size: 60
+        body:
+          - { name: gid,                type: u32 }
+          - { name: speed,              type: u16 }
+          - { name: body_state,         type: u16 }
+          - { name: health_state,       type: u16 }
+          - { name: effect_state,       type: u32 }
+          - { name: class_id,           type: u16 }
+          - { name: hair_id,            type: u16 }
+          - { name: weapon,             type: u32 }
+          - { name: head_bottom_look,   type: u16 }
+          - { name: head_top_look,      type: u16 }
+          - { name: head_middle_look,   type: u16 }
+          - { name: hair_palette,       type: u16 }
+          - { name: body_palette,       type: u16 }
+          - { name: head_dir,           type: u16 }
+          - { name: guild_id,           type: u32 }
+          - { name: guild_emblem_ver,   type: u16 }
+          - { name: honor,              type: u16 }
+          - { name: virtue,             type: u32 }
+          - { name: is_pk_mode_on,      type: u8 }
+          - { name: sex,                type: u8 }
+          - { name: position,           type: packed_pos }
+          - { name: x_size,             type: u8 }
+          - { name: y_size,             type: u8 }
+          - { name: state,              type: u8 }
+          - { name: clevel,             type: u16 }
+          - { name: font,               type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Character.cs:290"
+      - "rA src/map/clif.cpp clif_set_unit_idle"
+
+  - op: ZC_NOTIFY_NEWENTRY4
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02ED
+        size: 59
+        body:
+          - { name: gid,                type: u32 }
+          - { name: speed,              type: u16 }
+          - { name: body_state,         type: u16 }
+          - { name: health_state,       type: u16 }
+          - { name: effect_state,       type: u32 }
+          - { name: class_id,           type: u16 }
+          - { name: hair_id,            type: u16 }
+          - { name: weapon,             type: u32 }
+          - { name: head_bottom_look,   type: u16 }
+          - { name: head_top_look,      type: u16 }
+          - { name: head_middle_look,   type: u16 }
+          - { name: hair_palette,       type: u16 }
+          - { name: body_palette,       type: u16 }
+          - { name: head_dir,           type: u16 }
+          - { name: guild_id,           type: u32 }
+          - { name: guild_emblem_ver,   type: u16 }
+          - { name: honor,              type: u16 }
+          - { name: virtue,             type: u32 }
+          - { name: is_pk_mode_on,      type: u8 }
+          - { name: sex,                type: u8 }
+          - { name: position,           type: packed_pos }
+          - { name: x_size,             type: u8 }
+          - { name: y_size,             type: u8 }
+          - { name: clevel,             type: u16 }
+          - { name: font,               type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Character.cs:323"
+
+  - op: ZC_NOTIFY_MOVEENTRY4
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02EC
+        size: 67
+        body:
+          - { name: object_type,        type: u8 }
+          - { name: gid,                type: u32 }
+          - { name: speed,              type: u16 }
+          - { name: body_state,         type: u16 }
+          - { name: health_state,       type: u16 }
+          - { name: effect_state,       type: u32 }
+          - { name: class_id,           type: u16 }
+          - { name: hair_id,            type: u16 }
+          - { name: weapon,             type: u32 }
+          - { name: head_bottom_look,   type: u16 }
+          - { name: move_start_time,    type: tick }
+          - { name: head_top_look,      type: u16 }
+          - { name: head_middle_look,   type: u16 }
+          - { name: hair_palette,       type: u16 }
+          - { name: body_palette,       type: u16 }
+          - { name: head_dir,           type: u16 }
+          - { name: guild_id,           type: u32 }
+          - { name: guild_emblem_ver,   type: u16 }
+          - { name: honor,              type: u16 }
+          - { name: virtue,             type: u32 }
+          - { name: is_pk_mode_on,      type: u8 }
+          - { name: sex,                type: u8 }
+          - { name: move,               type: packed_move }
+          - { name: x_size,             type: u8 }
+          - { name: y_size,             type: u8 }
+          - { name: clevel,             type: u16 }
+          - { name: font,               type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Character.cs:354"
+
+  - op: ZC_NOTIFY_VANISH
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0080
+        size: 7
+        body:
+          - { name: gid,  type: u32 }
+          - { name: type, type: u8, enum: DisappearType }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:244"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:487"
+
+  - op: ZC_STOPMOVE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0088
+        size: 10
+        body:
+          - { name: gid, type: u32 }
+          - { name: x,   type: u16 }
+          - { name: y,   type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:351"
+
+  - op: CZ_CHANGE_DIRECTION
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; PacketTable.2500 only ChangeSize.
+        size: 26
+        body:
+          - { name: filler,    type: pad, length: 5 }
+          - { name: head_turn, type: u8, enum: HeadTurn }
+          - { name: pad,       type: pad, length: 1 }
+          - { name: filler2,   type: pad, length: 1 }
+          - { name: direction, type: u8, enum: Direction }
+          - { name: tail,      type: pad, length: 16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:980"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:19"
+
+  - op: ZC_CHANGE_DIRECTION
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm runtime ID.
+        size: 9
+        body:
+          - { name: gid,       type: u32 }
+          - { name: head_turn, type: u8, enum: HeadTurn }
+          - { name: pad,       type: pad, length: 1 }
+          - { name: direction, type: u8, enum: Direction }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:753"
+
+  - op: ZC_NOTIFY_FONT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02EF
+        size: 8
+        body:
+          - { name: gid,  type: u32 }
+          - { name: font, type: u16 }
+    refs:
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:132"
+
+  # ====================================================================
+  # 5. COMBAT
+  # ====================================================================
+
+  - op: CZ_REQUEST_ACT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0437
+        size: 7
+        body:
+          - { name: target_gid, type: u32 }
+          - { name: action,     type: u8, enum: ActionType }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:850"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:519"
+
+  - op: ZC_NOTIFY_ACT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x008A
+        size: 29
+        body:
+          - { name: src_gid,    type: u32 }
+          - { name: dst_gid,    type: u32 }
+          - { name: server_tick, type: tick }
+          - { name: src_speed,  type: u32 }
+          - { name: dst_speed,  type: u32 }
+          - { name: damage,     type: i16 }
+          - { name: div_,       type: i16 }
+          - { name: type,       type: u8, enum: ActionType }
+          - { name: damage2,    type: i16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:826"
+
+  - op: CZ_CANCEL_LOCKON
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00B4.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:968"
+
+  - op: ZC_ATTACK_FAILURE_FOR_DISTANCE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00D5.
+        size: 16
+        body:
+          - { name: target_gid, type: u32 }
+          - { name: target_x,   type: u16 }
+          - { name: target_y,   type: u16 }
+          - { name: char_x,     type: u16 }
+          - { name: char_y,     type: u16 }
+          - { name: range,      type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:936"
+      - "src/ZoneServer/Network/Send.Beta1.cs:339"
+
+  - op: ZC_ATTACK_RANGE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00D6.
+        size: 4
+        body:
+          - { name: range, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:354"
+
+  - op: ZC_ACTION_FAILURE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00D7.
+        size: 4
+        body:
+          - { name: reason, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:364"
+
+  - op: ZC_RECOVERY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00D9.
+        size: 6
+        body:
+          - { name: type,   type: u16, enum: ParameterType }
+          - { name: amount, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:384"
+
+  - op: ZC_STATE_CHANGE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00B5.
+        size: 13
+        body:
+          - { name: gid,           type: u32 }
+          - { name: body_state,    type: u16 }
+          - { name: health_state,  type: u16 }
+          - { name: option_state,  type: u16 }
+          - { name: is_pk_mode_on, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:84"
+
+  - op: ZC_MVP
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x010C.
+        size: 6
+        body:
+          - { name: gid, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1458"
+
+  - op: ZC_MVP_GETTING_SPECIAL_EXP
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x010B.
+        size: 6
+        body:
+          - { name: exp_amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1471"
+
+  - op: ZC_MVP_GETTING_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x010A.
+        size: 4
+        body:
+          - { name: item_id, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1485"
+
+  # ====================================================================
+  # 6. UI — hotbar, quests, config, names
+  # ====================================================================
+
+  - op: ZC_SHORTCUT_KEY_LIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02B9
+        size: 191
+        body:
+          - { name: slots,
+              type: array<HOTKEY_SLOT>,
+              count_kind: elements,
+              count_value: 27 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2018"
+
+  - op: CZ_SHORTCUT_KEY_CHANGE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02BA
+        size: 11
+        body:
+          - { name: index,    type: u16 }
+          - { name: is_skill, type: u8 }
+          - { name: id,       type: u32 }
+          - { name: count,    type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:233"
+
+  - op: ZC_ALL_QUEST_LIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02B1
+        size: dynamic
+        body:
+          - { name: count,    type: u32 }
+          - { name: quests,   type: array<QUEST_INDEX>,
+              count_kind: elements, count_from: count }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2040"
+
+  - op: ZC_ALL_QUEST_MISSION
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02B2
+        size: dynamic
+        body:
+          - { name: count,    type: u32 }
+          - { name: missions, type: array<QUEST_MISSION>,
+              count_kind: elements, count_from: count }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2067"
+
+  - op: ZC_ADD_QUEST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02B3
+        size: 107
+        body:
+          - { name: quest_id,        type: u32 }
+          - { name: state,           type: u8, enum: QuestState }
+          - { name: accept_time,     type: u32 }
+          - { name: expire_time,     type: u32 }
+          - { name: objective_count, type: u16 }
+          - { name: objectives,      type: array<QUEST_OBJECTIVE>,
+              count_kind: elements, count_value: 3 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2100"
+
+  - op: ZC_DEL_QUEST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02B4
+        size: 6
+        body:
+          - { name: quest_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2127"
+
+  - op: ZC_UPDATE_MISSION_HUNT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02B5
+        size: dynamic
+        body:
+          - { name: mobs,    type: u16 }
+          - { name: entries, type: array<HUNT_PROGRESS>,
+              count_kind: elements, count_value: 3 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2147"
+
+  - op: ZC_CONFIG
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02D9
+        size: 10
+        body:
+          - { name: type, type: u32 }
+          - { name: flag, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2225"
+
+  - op: CZ_CONFIG
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02D8
+        size: 10
+        body:
+          - { name: type, type: u32 }
+          - { name: flag, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:318"
+
+  - op: ZC_ACK_REQNAME
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0095
+        size: 30
+        body:
+          - { name: gid,  type: u32 }
+          - { name: name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:367"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:490"
+
+  - op: CZ_REQNAME
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x008C
+        size: 11
+        body:
+          - { name: filler, type: pad, length: 5 }
+          - { name: handle, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:488"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:512"
+
+  - op: CZ_REQ_USER_COUNT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C1.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:566"
+
+  - op: ZC_USER_COUNT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C2.
+        size: 6
+        body:
+          - { name: count, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:705"
+
+  - op: CZ_REQ_EMOTION
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00BF.
+        size: 3
+        body:
+          - { name: emotion_id, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:622"
+
+  - op: ZC_EMOTION
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C0.
+        size: 7
+        body:
+          - { name: gid,        type: u32 }
+          - { name: emotion_id, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:718"
+
+  - op: CZ_REQ_ITEM_EXPLANATION_BYNAME
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x018E.
+        size: 26
+        body:
+          - { name: item_string_id, type: string_fixed, length: 16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:646"
+
+  - op: ZC_REQ_ITEM_EXPLANATION_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x018F.
+        size: dynamic
+        body:
+          - { name: name,        type: string_fixed, length: 16 }
+          - { name: description, type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:734"
+
+  - op: ZC_NPCACK_MAPMOVE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm runtime ID for warp ack.
+        size: 22
+        body:
+          - { name: map_name, type: string_fixed, length: 16 }
+          - { name: x,        type: u16 }
+          - { name: y,        type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:776"
+
+  - op: ZC_NPCACK_SERVERMOVE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm runtime ID for server-move.
+        size: 28
+        body:
+          - { name: map_name, type: string_fixed, length: 16 }
+          - { name: x,        type: u16 }
+          - { name: y,        type: u16 }
+          - { name: ip,       type: u32 }
+          - { name: port,     type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:798"
+
+  - op: ZC_SPRITE_CHANGE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: at S2500 may route through ZC_SPRITE_CHANGE2.
+        size: 8
+        body:
+          - { name: gid,   type: u32 }
+          - { name: type,  type: u8, enum: SpriteType }
+          - { name: value, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:670"
+
+  - op: ZC_SPRITE_CHANGE2
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x01D7
+        size: 11
+        body:
+          - { name: gid,    type: u32 }
+          - { name: type,   type: u8, enum: SpriteType }
+          - { name: value1, type: u16 }
+          - { name: value2, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:688"
+
+  - op: ZC_RESTART_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00B3.
+        size: 3
+        body:
+          - { name: type, type: u8, enum: RestartType }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1511"
+
+  - op: CZ_RESTART
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00B2.
+        size: 3
+        body:
+          - { name: type, type: u8, enum: RestartType }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:719"
+
+  - op: ZC_NOTIFY_EFFECT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x019B
+        size: 10
+        body:
+          - { name: gid,       type: u32 }
+          - { name: effect_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1973"
+
+  - op: ZC_NOTIFY_EFFECT2
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x01F3
+        size: 10
+        body:
+          - { name: gid,       type: u32 }
+          - { name: effect_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2000"
+
+  # ====================================================================
+  # 7. SKILLS
+  # ====================================================================
+
+  - op: ZC_SKILLINFO_LIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x010F
+        size: dynamic
+        body:
+          - { name: skills,
+              type: array<SKILL_INFO>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1538"
+
+  - op: ZC_ADD_SKILL
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0111
+        size: 39
+        body:
+          - { name: skill, type: SKILL_INFO }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1553"
+    notes: |
+      Shares wire id 0x0111 with ZC_SKILLINFO_UPDATE; the two ops have
+      identical body layout, so the wire collision is intentional and
+      semantic-only.
+
+  - op: ZC_SKILLINFO_UPDATE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0111
+        size: 39
+        body:
+          - { name: skill, type: SKILL_INFO }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1577"
+
+  - op: CZ_UPGRADE_SKILLLEVEL
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0112.
+        size: 4
+        body:
+          - { name: skill_id, type: u16, enum: SkillId }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:576"
+
+  - op: ZC_ACK_TOUSESKILL
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0110
+        size: 13
+        body:
+          - { name: skill_id,    type: u16, enum: SkillId }
+          - { name: fail_reason, type: u32, enum: SkillFailReason }
+          - { name: result,      type: u8,  enum: SkillUseResult }
+          - { name: fail_type,   type: u8,  enum: SkillFailType }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1619"
+
+  - op: ZC_SKILL_POSTDELAY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x043D
+        size: 8
+        body:
+          - { name: skill_id, type: u16, enum: SkillId }
+          - { name: tick_ms,  type: u32 }
+    refs:
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:79"
+      - "src/ZoneServer/Network/Send.Skills.cs:329"
+      - "eA src/map/clif.c clif_skill_postdelay"
+    notes: |
+      eA's packet_db lists 0x043D under the 2008-11-13aSakexe block —
+      *after* the PV23 cutoff. The 2008-09-10 EP12 client EXE already
+      knows the op, so emitting it is safe; just don't expect to find
+      a packet_db row at packet_ver:23.
+
+  - op: ZC_NOTIFY_SKILL
+    direction: S2C
+    versions:
+      s2500:
+        # At S2500 Sabine routes through ZC_NOTIFY_SKILL2 (0x01DE).
+        wire_id: 0x01DE
+        size: 33
+        body:
+          - { name: skill_id,      type: u16, enum: SkillId }
+          - { name: src_gid,       type: u32 }
+          - { name: target_gid,    type: u32 }
+          - { name: start_tick,    type: tick }
+          - { name: src_delay,     type: u32 }
+          - { name: dst_delay,     type: u32 }
+          - { name: damage,        type: i32 }
+          - { name: level,         type: u16 }
+          - { name: hit_count,     type: u16 }
+          - { name: action,        type: u8, enum: ActionType }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:31"
+
+  - op: ZC_NOTIFY_SKILL_POSITION
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0115
+        size: 35
+        body:
+          - { name: skill_id,    type: u16, enum: SkillId }
+          - { name: src_gid,     type: u32 }
+          - { name: target_gid,  type: u32 }
+          - { name: start_tick,  type: tick }
+          - { name: src_delay,   type: u32 }
+          - { name: dst_delay,   type: u32 }
+          - { name: x,           type: u16 }
+          - { name: y,           type: u16 }
+          - { name: damage,      type: i16 }
+          - { name: level,       type: u16 }
+          - { name: hit_count,   type: u16 }
+          - { name: action,      type: u8, enum: ActionType }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:61"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:507"
+
+  - op: ZC_NOTIFY_GROUNDSKILL
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0117
+        size: 18
+        body:
+          - { name: skill_id,   type: u16, enum: SkillId }
+          - { name: src_gid,    type: u32 }
+          - { name: level,      type: u16 }
+          - { name: x,          type: u16 }
+          - { name: y,          type: u16 }
+          - { name: start_tick, type: tick }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:308"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:508"
+
+  - op: ZC_USE_SKILL
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x011A.
+        size: 15
+        body:
+          - { name: skill_id,  type: u16, enum: SkillId }
+          - { name: level,     type: u16 }
+          - { name: target_id, type: u32 }
+          - { name: src_gid,   type: u32 }
+          - { name: result,    type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:104"
+
+  - op: CZ_USE_SKILL
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0438
+        size: 10
+        body:
+          - { name: level,      type: u16 }
+          - { name: skill_id,   type: u16, enum: SkillId }
+          - { name: target_gid, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1692"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:520"
+
+  - op: CZ_USE_SKILL_TOGROUND
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0116.
+        size: 10
+        body:
+          - { name: level,    type: u16 }
+          - { name: skill_id, type: u16, enum: SkillId }
+          - { name: x,        type: u16 }
+          - { name: y,        type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1759"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:27"
+
+  - op: ZC_USESKILL_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x013E.
+        size: 24
+        body:
+          - { name: src_gid,    type: u32 }
+          - { name: target_gid, type: u32 }
+          - { name: x,          type: u16 }
+          - { name: y,          type: u16 }
+          - { name: skill_id,   type: u16, enum: SkillId }
+          - { name: element,    type: u32 }
+          - { name: delay,      type: u32 }
+          - { name: disposable, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:273"
+
+  - op: ZC_SKILL_ENTRY
+    direction: S2C
+    versions:
+      s2500:
+        # Sabine routes through ZC_SKILL_ENTRY2 (0x01C9) at Beta2+.
+        wire_id: 0x01C9
+        size: dynamic
+        body:
+          - { name: target_gid, type: u32 }
+          - { name: caster_gid, type: u32 }
+          - { name: x,          type: u16 }
+          - { name: y,          type: u16 }
+          - { name: skill_id,   type: u32 }
+          - { name: radius,     type: u8 }
+          - { name: visible,    type: u8 }
+          - { name: level,      type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:451"
+      - "src/ZoneServer/Network/Send.Beta1.cs:121"
+
+  - op: ZC_SKILL_DISAPPEAR
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0120.
+        size: 6
+        body:
+          - { name: skill_object_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:494"
+
+  - op: CZ_REMEMBER_WARPPOINT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x011D.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:46"
+
+  - op: ZC_ACK_REMEMBER_WARPPOINT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x011E.
+        size: 3
+        body:
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:179"
+
+  - op: CZ_SELECT_WARPPOINT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x011B.
+        size: 20
+        body:
+          - { name: skill_id, type: u16, enum: SkillId }
+          - { name: map_name, type: string_fixed, length: 16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:20"
+
+  - op: ZC_WARPLIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x011C.
+        size: dynamic
+        body:
+          - { name: skill_id, type: u16, enum: SkillId }
+          - { name: maps,     type: array<MAP_NAME_16>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:193"
+
+  - op: CZ_REQ_ITEMIDENTIFY
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0178.
+        size: 4
+        body:
+          - { name: index, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:214"
+
+  - op: ZC_ACK_ITEMIDENTIFY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0179.
+        size: 5
+        body:
+          - { name: index,  type: u16 }
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:230"
+
+  - op: CZ_REQ_OPEN_MEMBER_INFO
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0157.
+        size: 6
+        body:
+          - { name: target_gid, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:241"
+
+  - op: ZC_ACK_OPEN_MEMBER_INFO
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0158.
+        size: dynamic
+        body:
+          - { name: target_id, type: u32 }
+          - { name: items,     type: array<MEMBER_INFO_ITEM>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:245"
+
+  - op: CZ_RESET
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0197.
+        size: 4
+        body:
+          - { name: reset_type, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:295"
+
+  - op: CZ_CHANGE_MAPTYPE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0198.
+        size: 8
+        body:
+          - { name: x,        type: u16 }
+          - { name: y,        type: u16 }
+          - { name: map_type, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:322"
+
+  # ====================================================================
+  # 8. INVENTORY / ITEMS
+  # ====================================================================
+
+  - op: CZ_ITEM_PICKUP
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x009F
+        size: 14
+        body:
+          - { name: filler,     type: pad, length: 4 }
+          - { name: item_handle, type: u32 }
+          - { name: filler2,    type: pad, length: 4 }
+    refs:
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:20"
+      - "src/ZoneServer/Network/PacketHandler.cs:1021"
+
+  - op: CZ_ITEM_THROW
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm runtime; PacketTable.2500 ChangeSize=15.
+        size: 15
+        body:
+          - { name: filler,       type: pad, length: 7 }
+          - { name: inventory_id, type: u16 }
+          - { name: amount,       type: u16 }
+          - { name: tail,         type: pad, length: 2 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1049"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:21"
+
+  - op: CZ_USE_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0439
+        size: 8
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: item_handle,  type: u32 }
+    refs:
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:509"
+
+  - op: ZC_ITEM_ENTRY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x009E
+        size: 17
+        body:
+          - { name: handle,     type: u32 }
+          - { name: class_id,   type: u16 }
+          - { name: identified, type: u8 }
+          - { name: x,          type: u16 }
+          - { name: y,          type: u16 }
+          - { name: sub_x,      type: u8 }
+          - { name: sub_y,      type: u8 }
+          - { name: amount,     type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Item.cs:177"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:496"
+
+  - op: ZC_ITEM_FALL_ENTRY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm runtime ID.
+        size: 17
+        body:
+          - { name: handle,     type: u32 }
+          - { name: class_id,   type: u16 }
+          - { name: identified, type: u8 }
+          - { name: x,          type: u16 }
+          - { name: y,          type: u16 }
+          - { name: sub_x,      type: u8 }
+          - { name: sub_y,      type: u8 }
+          - { name: amount,     type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1281"
+
+  - op: ZC_ITEM_DISAPPEAR
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x00A1
+        size: 6
+        body:
+          - { name: handle, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1294"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:497"
+
+  - op: ZC_ITEM_PICKUP_ACK
+    direction: S2C
+    versions:
+      s2500:
+        # At S2500 Sabine routes this through ZC_ITEM_PICKUP_ACK3
+        # (0x02D4 size 29); the legacy 0x00A0 op is unknown to EP12 clients.
+        wire_id: 0x02D4
+        size: 29
+        body:
+          - { name: inventory_id,       type: u16 }
+          - { name: amount,             type: u16 }
+          - { name: class_id,           type: u16 }
+          - { name: identified,         type: u8 }
+          - { name: damaged,            type: u8 }
+          - { name: refine,             type: u8 }
+          - { name: card1,              type: u16 }
+          - { name: card2,              type: u16 }
+          - { name: card3,              type: u16 }
+          - { name: card4,              type: u16 }
+          - { name: slots,              type: u16 }
+          - { name: type,               type: u8 }
+          - { name: result,             type: u8, enum: PickUpResult }
+          - { name: expire_time,        type: u32 }
+          - { name: bind_on_equip_type, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1039"
+
+  - op: ZC_ITEM_PICKUP_ACK3
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02D4
+        size: 29
+        body:
+          # Same body as ZC_ITEM_PICKUP_ACK above; v3 is the op Sabine
+          # actually emits at S2500.
+          - { name: inventory_id,       type: u16 }
+          - { name: amount,             type: u16 }
+          - { name: class_id,           type: u16 }
+          - { name: identified,         type: u8 }
+          - { name: damaged,            type: u8 }
+          - { name: refine,             type: u8 }
+          - { name: card1,              type: u16 }
+          - { name: card2,              type: u16 }
+          - { name: card3,              type: u16 }
+          - { name: card4,              type: u16 }
+          - { name: slots,              type: u16 }
+          - { name: type,               type: u8 }
+          - { name: result,             type: u8, enum: PickUpResult }
+          - { name: expire_time,        type: u32 }
+          - { name: bind_on_equip_type, type: u16 }
+    refs:
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:105"
+
+  - op: ZC_USE_ITEM_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x00A8
+        size: 7
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: new_amount,   type: u16 }
+          - { name: success,      type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1337"
+
+  - op: ZC_ITEM_THROW_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00AF.
+        size: 6
+        body:
+          - { name: inventory_id,  type: u16 }
+          - { name: remove_amount, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1321"
+
+  - op: ZC_NORMAL_ITEMLIST3
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02E8
+        size: dynamic
+        body:
+          - { name: items, type: array<NORMAL_ITEM_V3>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1089"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:125"
+
+  - op: ZC_EQUIPMENT_ITEMLIST3
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02D0
+        size: dynamic
+        body:
+          - { name: items, type: array<EQUIP_ITEM_V3>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1224"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:101"
+
+  - op: ZC_STORE_NORMAL_ITEMLIST3
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02EA
+        size: dynamic
+        body:
+          - { name: items, type: array<NORMAL_ITEM_V3>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1116"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:127"
+
+  - op: ZC_STORE_EQUIPMENT_ITEMLIST3
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02D1
+        size: dynamic
+        body:
+          - { name: items, type: array<EQUIP_ITEM_V3>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1247"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:102"
+
+  - op: ZC_CART_NORMAL_ITEMLIST3
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02E9
+        size: dynamic
+        body:
+          - { name: items, type: array<NORMAL_ITEM_V3>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:168"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:126"
+
+  - op: ZC_CART_EQUIPMENT_ITEMLIST3
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02D2
+        size: dynamic
+        body:
+          - { name: items, type: array<EQUIP_ITEM_V3>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:151"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:103"
+
+  - op: CZ_REQ_WEAR_EQUIP
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00A9.
+        size: 6
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: equip_slots,  type: u16, enum: EquipSlots }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1258"
+
+  - op: ZC_REQ_WEAR_EQUIP_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00AA.
+        size: 7
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: equip_slots,  type: u16, enum: EquipSlots }
+          - { name: success,      type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1376"
+
+  - op: CZ_REQ_TAKEOFF_EQUIP
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00AB.
+        size: 4
+        body:
+          - { name: inventory_id, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1348"
+
+  - op: ZC_REQ_TAKEOFF_EQUIP_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00AC.
+        size: 7
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: equip_slots,  type: u16, enum: EquipSlots }
+          - { name: success,      type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1400"
+
+  - op: ZC_EQUIP_ARROW
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x013C / 0x00D8.
+        size: 4
+        body:
+          - { name: inventory_id, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1422"
+      - "src/ZoneServer/Network/Send.Beta1.cs:374"
+
+  - op: ZC_SELECT_DEALTYPE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C4.
+        size: 6
+        body:
+          - { name: npc_handle, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1446"
+
+  - op: CZ_ACK_SELECT_DEALTYPE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C5.
+        size: 7
+        body:
+          - { name: npc_handle, type: u32 }
+          - { name: option,     type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1375"
+
+  - op: ZC_PC_PURCHASE_ITEMLIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C6.
+        size: dynamic
+        body:
+          - { name: items, type: array<NPC_BUY_ENTRY>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1139"
+
+  - op: ZC_PC_SELL_ITEMLIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C7.
+        size: dynamic
+        body:
+          - { name: items, type: array<NPC_SELL_ENTRY>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1167"
+
+  - op: CZ_PC_PURCHASE_ITEMLIST
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C8.
+        size: dynamic
+        body:
+          - { name: items, type: array<NPC_BUY_REQ>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1407"
+
+  - op: CZ_PC_SELL_ITEMLIST
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00C9.
+        size: dynamic
+        body:
+          - { name: items, type: array<NPC_SELL_REQ>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1497"
+
+  - op: ZC_PC_PURCHASE_RESULT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00CA.
+        size: 3
+        body:
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1199"
+
+  - op: ZC_PC_SELL_RESULT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00CB.
+        size: 3
+        body:
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1211"
+
+  - op: ZC_CLOSE_STORE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00F8.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1435"
+
+  - op: CZ_CLOSE_STORE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; PacketTable.2500 ChangeSize=22.
+        size: 22
+        body:
+          - { name: pad, type: pad, length: 20 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1564"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:25"
+
+  - op: CZ_MOVE_ITEM_FROM_BODY_TO_STORE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0094
+        size: 14
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+          - { name: pad,    type: pad, length: 6 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:66"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:514"
+
+  - op: CZ_MOVE_ITEM_FROM_STORE_TO_BODY
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; PacketTable.2500 ChangeSize=8.
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:118"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:24"
+
+  - op: ZC_ADD_ITEM_TO_STORE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00F4.
+        size: 21
+        body:
+          - { name: index,      type: u16 }
+          - { name: amount,     type: u32 }
+          - { name: class_id,   type: u16 }
+          - { name: type,       type: u8 }
+          - { name: identified, type: u8 }
+          - { name: damaged,    type: u8 }
+          - { name: refine,     type: u8 }
+          - { name: card1,      type: u16 }
+          - { name: card2,      type: u16 }
+          - { name: card3,      type: u16 }
+          - { name: card4,      type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:359"
+
+  - op: ZC_DELETE_ITEM_FROM_STORE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00F6.
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:387"
+
+  - op: ZC_NOTIFY_STOREITEM_COUNTINFO
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00F2.
+        size: 6
+        body:
+          - { name: current_amount, type: u16 }
+          - { name: max_amount,     type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:344"
+
+  # ====================================================================
+  # 9. STATS
+  # ====================================================================
+
+  - op: ZC_PAR_CHANGE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x00B0
+        size: 8
+        body:
+          - { name: type,  type: u16, enum: ParameterType }
+          - { name: value, type: i32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:437"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:476"
+
+  - op: ZC_LONGPAR_CHANGE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x00B1
+        size: 8
+        body:
+          - { name: type,  type: u16, enum: ParameterType }
+          - { name: value, type: i32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:487"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:477"
+
+  - op: ZC_STATUS
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x00BD
+        size: 44
+        body:
+          - { name: stat_points,  type: u16 }
+          - { name: str,          type: u8 }
+          - { name: str_needed,   type: u8 }
+          - { name: agi,          type: u8 }
+          - { name: agi_needed,   type: u8 }
+          - { name: vit,          type: u8 }
+          - { name: vit_needed,   type: u8 }
+          - { name: int,          type: u8 }
+          - { name: int_needed,   type: u8 }
+          - { name: dex,          type: u8 }
+          - { name: dex_needed,   type: u8 }
+          - { name: luk,          type: u8 }
+          - { name: luk_needed,   type: u8 }
+          - { name: atk1,         type: i16 }
+          - { name: atk2,         type: i16 }
+          - { name: matk1,        type: i16 }
+          - { name: matk2,        type: i16 }
+          - { name: def1,         type: i16 }
+          - { name: def2,         type: i16 }
+          - { name: mdef1,        type: i16 }
+          - { name: mdef2,        type: i16 }
+          - { name: hit,          type: i16 }
+          - { name: flee1,        type: i16 }
+          - { name: flee2,        type: i16 }
+          - { name: critical,     type: i16 }
+          - { name: aspd,         type: i16 }
+          - { name: pad,          type: pad, length: 2 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:526"
+    notes: |
+      ZC_STATUS body length depends on which sub-stats Sabine packs at
+      this phase. The 44-byte form above matches Beta2+ behavior; if a
+      future audit shows the EP12 client wants a different sub-stat
+      width, update this op and re-confirm against the C# emitter
+      (Send.cs:526 onwards).
+
+  - op: ZC_STATUS_CHANGE_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00BC.
+        size: 6
+        body:
+          - { name: type,    type: u16, enum: ParameterType }
+          - { name: success, type: u8 }
+          - { name: value,   type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:511"
+
+  - op: CZ_REQ_STATUS
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00BA.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:515"
+
+  - op: CZ_STATUS_CHANGE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x00BB.
+        size: 5
+        body:
+          - { name: type,   type: u16, enum: ParameterType }
+          - { name: change, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:527"
+
+  # ====================================================================
+  # 10. CHAT / WHISPER / BROADCAST
+  # ====================================================================
+
+  - op: CZ_REQUEST_CHAT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x00F3
+        size: dynamic
+        body:
+          - { name: text, type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:414"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:513"
+
+  - op: ZC_NOTIFY_CHAT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x008D.
+        size: dynamic
+        body:
+          - { name: author_gid, type: u32 }
+          - { name: message,    type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:595"
+
+  - op: ZC_NOTIFY_PLAYERCHAT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x008E.
+        size: dynamic
+        body:
+          - { name: message, type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:612"
+
+  - op: CZ_WHISPER
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0096.
+        size: dynamic
+        body:
+          - { name: target_name, type: string_fixed, length: 16 }
+          - { name: message,     type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1591"
+
+  - op: ZC_WHISPER
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0097.
+        size: dynamic
+        body:
+          - { name: from_name, type: string_fixed, length: 16 }
+          - { name: message,   type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:626"
+
+  - op: ZC_ACK_WHISPER
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0098.
+        size: 3
+        body:
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:641"
+
+  - op: CZ_BROADCAST
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x0099.
+        size: dynamic
+        body:
+          - { name: text, type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1615"
+
+  - op: ZC_BROADCAST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: confirm; alpha declared 0x009A.
+        size: dynamic
+        body:
+          - { name: message, type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:654"
+
+  # ====================================================================
+  # 11. PARTY / GROUP
+  # ====================================================================
+  # Legacy alpha-era party ops; runtime IDs are shifted from declared
+  # values, so each row carries `wire_id: unknown` until packet capture
+  # confirms. Bodies were derived from the Send/PacketHandler code.
+
+  - op: CZ_MAKE_GROUP
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00F9.
+        size: 26
+        body:
+          - { name: name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2206"
+
+  - op: ZC_ACK_MAKE_GROUP
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00FA.
+        size: 3
+        body:
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1939"
+
+  - op: ZC_GROUP_LIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00FB.
+        size: dynamic
+        body:
+          - { name: party_name, type: string_fixed, length: 24 }
+          - { name: members,    type: array<PARTY_MEMBER>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:21"
+
+  - op: CZ_REQ_JOIN_GROUP
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00FC.
+        size: 6
+        body:
+          - { name: target_account_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:368"
+
+  - op: ZC_ACK_REQ_JOIN_GROUP
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00FD.
+        size: 27
+        body:
+          - { name: target_name, type: string_fixed, length: 24 }
+          - { name: result,      type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:89"
+
+  - op: ZC_REQ_JOIN_GROUP
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00FE.
+        size: 30
+        body:
+          - { name: inviter_account_id, type: u32 }
+          - { name: party_name,         type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:61"
+
+  - op: CZ_JOIN_GROUP
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00FF.
+        size: 10
+        body:
+          - { name: inviter_account_id, type: u32 }
+          - { name: flag,               type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:403"
+
+  - op: CZ_REQ_LEAVE_GROUP
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0100.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2243"
+
+  - op: ZC_GROUPINFO_CHANGE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0101.
+        size: 6
+        body:
+          - { name: reason, type: u8 }
+          - { name: pad,    type: pad, length: 3 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:149"
+
+  - op: CZ_CHANGE_GROUPEXPOPTION
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0102.
+        size: 6
+        body:
+          - { name: exp_option, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:264"
+
+  - op: CZ_REQ_EXPEL_GROUP_MEMBER
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0103.
+        size: 30
+        body:
+          - { name: account_id, type: u32 }
+          - { name: name,       type: string_fixed, length: 24 }
+          - { name: pad,        type: pad, length: 2 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:342"
+
+  - op: ZC_DELETE_MEMBER_FROM_GROUP
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0105.
+        size: 31
+        body:
+          - { name: account_id, type: u32 }
+          - { name: name,       type: string_fixed, length: 24 }
+          - { name: flag,       type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:44"
+
+  - op: ZC_NOTIFY_HP_TO_GROUPM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0106.
+        size: 14
+        body:
+          - { name: member_id, type: u32 }
+          - { name: hp,        type: u32 }
+          - { name: max_hp,    type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:422"
+
+  - op: ZC_NOTIFY_POSITION_TO_GROUPM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0107.
+        size: 10
+        body:
+          - { name: member_id, type: u32 }
+          - { name: x,         type: u16 }
+          - { name: y,         type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:404"
+
+  - op: CZ_REQUEST_CHAT_PARTY
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0108.
+        size: dynamic
+        body:
+          - { name: message, type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:191"
+
+  - op: ZC_NOTIFY_CHAT_PARTY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0109.
+        size: dynamic
+        body:
+          - { name: sender_id, type: u32 }
+          - { name: message,   type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:164"
+
+  - op: CZ_PARTY_JOIN_REQ
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02C4
+        size: 26
+        body:
+          - { name: target_name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:448"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:89"
+
+  - op: ZC_PARTY_JOIN_REQ_ACK
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02C5
+        size: 30
+        body:
+          - { name: target_name, type: string_fixed, length: 24 }
+          - { name: result,      type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:121"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:90"
+
+  - op: ZC_PARTY_JOIN_REQ
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02C6
+        size: 30
+        body:
+          - { name: party_id,   type: u32 }
+          - { name: party_name, type: string_fixed, length: 24 }
+          - { name: pad,        type: pad, length: 2 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:106"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:91"
+
+  - op: CZ_PARTY_JOIN_REQ_ACK
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02C7
+        size: 7
+        body:
+          - { name: party_id, type: u32 }
+          - { name: flag,     type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:482"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:92"
+
+  - op: CZ_PARTY_CONFIG
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02C8
+        size: 3
+        body:
+          - { name: exp_flag, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Skills.cs:531"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:93"
+
+  - op: ZC_PARTY_CONFIG
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x02C9
+        size: 3
+        body:
+          - { name: exp_share_flag, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:135"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:94"
+
+  # ====================================================================
+  # 12. CHAT ROOMS (legacy alpha-era; runtime IDs unconfirmed)
+  # ====================================================================
+
+  - op: CZ_CREATE_CHATROOM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00D5.
+        size: dynamic
+        body:
+          - { name: limit,    type: u16 }
+          - { name: privacy,  type: u8 }
+          - { name: password, type: string_fixed, length: 8 }
+          - { name: title,    type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1957"
+
+  - op: ZC_ACK_CREATE_CHATROOM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00D6.
+        size: 3
+        body:
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1771"
+
+  - op: ZC_ROOM_NEWENTRY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00D7.
+        size: dynamic
+        body:
+          - { name: owner_handle, type: u32 }
+          - { name: room_id,      type: u32 }
+          - { name: limit,        type: u16 }
+          - { name: member_count, type: u16 }
+          - { name: privacy,      type: u8 }
+          - { name: title,        type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1784"
+
+  - op: ZC_DESTROY_ROOM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00D8.
+        size: 6
+        body:
+          - { name: room_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1823"
+
+  - op: CZ_REQ_ENTER_ROOM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00D9.
+        size: 14
+        body:
+          - { name: room_id,  type: u32 }
+          - { name: password, type: string_fixed, length: 8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2040"
+
+  - op: ZC_REFUSE_ENTER_ROOM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00DA.
+        size: 3
+        body:
+          - { name: reason, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1837"
+
+  - op: ZC_ENTER_ROOM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00DB.
+        size: dynamic
+        body:
+          - { name: room_id, type: u32 }
+          - { name: members, type: array<ROOM_MEMBER>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1850"
+
+  - op: ZC_MEMBER_NEWENTRY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00DC.
+        size: 28
+        body:
+          - { name: member_count, type: u16 }
+          - { name: name,         type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1871"
+
+  - op: ZC_MEMBER_EXIT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00DD.
+        size: 29
+        body:
+          - { name: member_count, type: u16 }
+          - { name: name,         type: string_fixed, length: 24 }
+          - { name: reason,       type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1892"
+
+  - op: CZ_CHANGE_CHATROOM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00DE.
+        size: dynamic
+        body:
+          - { name: limit,    type: u16 }
+          - { name: privacy,  type: u8 }
+          - { name: password, type: string_fixed, length: 8 }
+          - { name: title,    type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1991"
+
+  - op: ZC_CHANGE_CHATROOM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00DF.
+        size: dynamic
+        body:
+          - { name: owner_handle, type: u32 }
+          - { name: room_id,      type: u32 }
+          - { name: limit,        type: u16 }
+          - { name: member_count, type: u16 }
+          - { name: privacy,      type: u8 }
+          - { name: title,        type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1804"
+
+  - op: CZ_REQ_ROLE_CHANGE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E0.
+        size: 30
+        body:
+          - { name: role, type: u32 }
+          - { name: name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2111"
+
+  - op: ZC_ROLE_CHANGE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E1.
+        size: 30
+        body:
+          - { name: role, type: u32 }
+          - { name: name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1917"
+
+  - op: CZ_REQ_EXPEL_MEMBER
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E2.
+        size: 26
+        body:
+          - { name: name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2160"
+
+  - op: CZ_EXIT_ROOM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E3.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2080"
+
+  # ====================================================================
+  # 13. TRADE / EXCHANGE (legacy alpha-era)
+  # ====================================================================
+
+  - op: CZ_REQ_EXCHANGE_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E4.
+        size: 6
+        body:
+          - { name: target_gid, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1820"
+
+  - op: ZC_REQ_EXCHANGE_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E5.
+        size: 26
+        body:
+          - { name: trader_name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1652"
+
+  - op: CZ_ACK_EXCHANGE_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E6.
+        size: 3
+        body:
+          - { name: response, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1850"
+
+  - op: ZC_ACK_EXCHANGE_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E7.
+        size: 3
+        body:
+          - { name: response, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1666"
+
+  - op: CZ_ADD_EXCHANGE_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E8.
+        size: 8
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: amount,       type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1875"
+
+  - op: ZC_ADD_EXCHANGE_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00E9.
+        size: 19
+        body:
+          - { name: amount, type: u32 }
+          - { name: name,   type: string_fixed, length: 16 }
+          - { name: pad,    type: pad, length: 1 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1695"
+
+  - op: ZC_ACK_ADD_EXCHANGE_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00EA.
+        size: 5
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: result,       type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1727"
+
+  - op: CZ_CONCLUDE_EXCHANGE_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00EB.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1919"
+
+  - op: ZC_CONCLUDE_EXCHANGE_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00EC.
+        size: 3
+        body:
+          - { name: side, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1743"
+
+  - op: CZ_CANCEL_EXCHANGE_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00ED.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1900"
+
+  - op: ZC_CANCEL_EXCHANGE_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00EE.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1678"
+
+  - op: CZ_EXEC_EXCHANGE_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00EF.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:1938"
+
+  - op: ZC_EXEC_EXCHANGE_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00F0.
+        size: 3
+        body:
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1757"
+
+  # ====================================================================
+  # 14. CART (legacy alpha-era)
+  # ====================================================================
+
+  - op: CZ_MOVE_ITEM_FROM_BODY_TO_CART
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0126.
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:21"
+
+  - op: CZ_MOVE_ITEM_FROM_CART_TO_BODY
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0127.
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:61"
+
+  - op: CZ_MOVE_ITEM_FROM_STORE_TO_CART
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0128.
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:92"
+
+  - op: CZ_MOVE_ITEM_FROM_CART_TO_STORE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0129.
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:129"
+
+  - op: CZ_REQ_CARTOFF
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x012A.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:160"
+
+  - op: ZC_CARTOFF
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x012B.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:219"
+
+  - op: ZC_NOTIFY_CARTITEM_COUNTINFO
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0121.
+        size: 14
+        body:
+          - { name: current_count,  type: u16 }
+          - { name: max_count,      type: u16 }
+          - { name: current_weight, type: u32 }
+          - { name: max_weight,     type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:136"
+
+  - op: ZC_CART_NORMAL_ITEMLIST
+    direction: S2C
+    versions:
+      s2500:
+        # At S2500 Sabine routes through ZC_CART_NORMAL_ITEMLIST3 (0x02E9).
+        wire_id: 0x02E9
+        size: dynamic
+        body:
+          - { name: items, type: array<NORMAL_ITEM_V3>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:168"
+
+  - op: ZC_CART_EQUIPMENT_ITEMLIST
+    direction: S2C
+    versions:
+      s2500:
+        # At S2500 routes through ZC_CART_EQUIPMENT_ITEMLIST3 (0x02D2).
+        wire_id: 0x02D2
+        size: dynamic
+        body:
+          - { name: items, type: array<EQUIP_ITEM_V3>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:151"
+
+  - op: ZC_ADD_ITEM_TO_CART
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0124.
+        size: 21
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: amount,       type: u32 }
+          - { name: class_id,     type: u16 }
+          - { name: type,         type: u8 }
+          - { name: identified,   type: u8 }
+          - { name: damaged,      type: u8 }
+          - { name: refine,       type: u8 }
+          - { name: card1,        type: u16 }
+          - { name: card2,        type: u16 }
+          - { name: card3,        type: u16 }
+          - { name: card4,        type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:185"
+
+  - op: ZC_DELETE_ITEM_FROM_CART
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0125.
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:208"
+
+  - op: ZC_ACK_ADDITEM_TO_CART
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x012C.
+        size: 3
+        body:
+          - { name: success, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:228"
+
+  # ====================================================================
+  # 15. VENDING (player shops; legacy alpha-era IDs)
+  # ====================================================================
+
+  - op: ZC_OPENSTORE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x012D.
+        size: 4
+        body:
+          - { name: item_count, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:238"
+
+  - op: CZ_REQ_CLOSESTORE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x012E.
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:175"
+
+  - op: CZ_REQ_OPENSTORE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x012F.
+        size: dynamic
+        body:
+          - { name: store_name, type: string_fixed, length: 80 }
+          - { name: items,      type: array<VENDING_OPEN_ENTRY>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:185"
+
+  - op: CZ_REQ_BUY_FROMMC
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0130.
+        size: 6
+        body:
+          - { name: merchant_handle, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:260"
+
+  - op: ZC_STORE_ENTRY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0131.
+        size: 86
+        body:
+          - { name: owner_handle, type: u32 }
+          - { name: store_name,   type: string_fixed, length: 80 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:248"
+
+  - op: ZC_DISAPPEAR_ENTRY
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0132.
+        size: 6
+        body:
+          - { name: gid, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:271"
+
+  - op: ZC_PC_PURCHASE_ITEMLIST_FROMMC
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0133.
+        size: dynamic
+        body:
+          - { name: merchant_handle, type: u32 }
+          - { name: items,           type: array<VENDING_LIST_ENTRY>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:281"
+
+  - op: CZ_PC_PURCHASE_ITEMLIST_FROMMC
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0134.
+        size: dynamic
+        body:
+          - { name: merchant_handle, type: u32 }
+          - { name: items,           type: array<VENDING_BUY_REQ>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:282"
+
+  - op: ZC_PC_PURCHASE_RESULT_FROMMC
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0135.
+        size: 7
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u16 }
+          - { name: result, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:298"
+
+  - op: ZC_PC_PURCHASE_MYITEMLIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0136.
+        size: dynamic
+        body:
+          - { name: owner_handle, type: u32 }
+          - { name: items,        type: array<VENDING_LIST_ENTRY>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:310"
+
+  - op: ZC_DELETEITEM_FROM_MCSTORE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0137.
+        size: 6
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:328"
+
+  # ====================================================================
+  # 16. PET / HOMUNCULUS / MERCENARY
+  # ====================================================================
+
+  - op: CZ_RENAME_PET
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x01A5.
+        size: 26
+        body:
+          - { name: name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2265"
+
+  - op: CZ_PET_ACT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x01A9.
+        size: 6
+        body:
+          - { name: action_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2289"
+
+  - op: ZC_PET_ACT
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x01AA.
+        size: 10
+        body:
+          - { name: pet_handle, type: u32 }
+          - { name: action_id,  type: u32 }
+          - { name: pad,        type: pad, length: 2 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:260"
+
+  - op: CZ_COMMAND_PET
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x01A1.
+        size: 3
+        body:
+          - { name: command, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2307"
+
+  - op: ZC_PROPERTY_HOMUN
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x022E
+        size: 71
+        body:
+          - { name: name,           type: string_fixed, length: 24 }
+          - { name: modified,       type: u8 }
+          - { name: level,          type: u16 }
+          - { name: hunger,         type: u16 }
+          - { name: intimacy,       type: u16 }
+          - { name: weapon_look,    type: u16 }
+          - { name: atk_max,        type: u16 }
+          - { name: matk,           type: u16 }
+          - { name: hit,            type: u16 }
+          - { name: critical,       type: u16 }
+          - { name: melee_defense,  type: u16 }
+          - { name: magic_defense,  type: u16 }
+          - { name: flee,           type: u16 }
+          - { name: attack_delay,   type: u16 }
+          - { name: hp,             type: u16 }
+          - { name: hp_max,         type: u16 }
+          - { name: sp,             type: u16 }
+          - { name: sp_max,         type: u16 }
+          - { name: exp,            type: u32 }
+          - { name: exp_to_next,    type: u32 }
+          - { name: skill_points,   type: u16 }
+          - { name: range_or_spare, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Homunculus.cs:15"
+
+  # ====================================================================
+  # 17. NPC DIALOGUE (legacy alpha-era)
+  # ====================================================================
+
+  - op: CZ_CONTACTNPC
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x0090.
+        size: 7
+        body:
+          - { name: target_handle, type: u32 }
+          - { name: pad,           type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:750"
+
+  - op: ZC_SAY_DIALOG
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00B4.
+        size: dynamic
+        body:
+          - { name: npc_handle, type: u32 }
+          - { name: message,    type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:956"
+
+  - op: ZC_WAIT_DIALOG
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00B5.
+        size: 6
+        body:
+          - { name: npc_handle, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:971"
+
+  - op: ZC_CLOSE_DIALOG
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00B6.
+        size: 6
+        body:
+          - { name: npc_handle, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:984"
+
+  - op: ZC_MENU_LIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00B7.
+        size: dynamic
+        body:
+          - { name: npc_handle,     type: u32 }
+          - { name: options_string, type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:998"
+
+  - op: CZ_CHOOSE_MENU
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00B8.
+        size: 7
+        body:
+          - { name: npc_handle, type: u32 }
+          - { name: choice,     type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:795"
+
+  - op: CZ_REQ_NEXT_SCRIPT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x00B9.
+        size: 6
+        body:
+          - { name: npc_handle, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:828"
+
+  # ====================================================================
+  # 18. STATUS EFFECTS / BUFFS
+  # ====================================================================
+
+  - op: ZC_MSG_STATE_CHANGE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0196
+        size: 9
+        body:
+          - { name: icon,       type: u16 }
+          - { name: account_id, type: u32 }
+          - { name: state,      type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.StatusEffects.cs:25"
+
+  # ====================================================================
+  # 19. CASH SHOP
+  # ====================================================================
+
+  - op: CZ_PC_BUY_CASH_POINT_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0288
+        size: 10
+        body:
+          - { name: item_id,           type: u16 }
+          - { name: amount,            type: u16 }
+          - { name: kafra_points_flag, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:269"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:38"
+
+  - op: ZC_PC_CASH_POINT_ITEMLIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0287
+        size: dynamic
+        body:
+          - { name: cash_points,  type: u32 }
+          - { name: kafra_points, type: u32 }
+          - { name: items,        type: array<CASHSHOP_ENTRY>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2175"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:37"
+
+  - op: ZC_PC_CASH_POINT_UPDATE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0289
+        size: 12
+        body:
+          - { name: cash_points,  type: u32 }
+          - { name: kafra_points, type: u32 }
+          - { name: error,        type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2206"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:39"
+
+  # ====================================================================
+  # 20. MAIL
+  # ====================================================================
+
+  - op: CZ_MAIL_GET_LIST
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x023F
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Mail.cs:12"
+
+  - op: ZC_MAIL_REQ_GET_LIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0240
+        size: dynamic
+        body:
+          - { name: count,   type: u32 }
+          - { name: entries, type: array<MAIL_INBOX_ENTRY>,
+              count_kind: elements, count_from: count }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:16"
+
+  - op: CZ_MAIL_OPEN
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0241
+        size: 6
+        body:
+          - { name: mail_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Mail.cs:24"
+
+  - op: ZC_MAIL_REQ_OPEN
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0242
+        size: dynamic
+        body:
+          - { name: mail_id,        type: u32 }
+          - { name: title,          type: string_fixed, length: 40 }
+          - { name: sender_name,    type: string_fixed, length: 24 }
+          - { name: sent_at,        type: u32 }
+          - { name: zeny,           type: u32 }
+          - { name: item_amount,    type: u32 }
+          - { name: item_class_id,  type: u16 }
+          - { name: item_type,      type: u16 }
+          - { name: item_identified, type: u8 }
+          - { name: item_damaged,   type: u8 }
+          - { name: item_refine,    type: u8 }
+          - { name: card1,          type: u16 }
+          - { name: card2,          type: u16 }
+          - { name: card3,          type: u16 }
+          - { name: card4,          type: u16 }
+          - { name: body_len,       type: u8 }
+          - { name: body,           type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:37"
+
+  - op: CZ_MAIL_DELETE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0243
+        size: 6
+        body:
+          - { name: mail_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Mail.cs:44"
+
+  - op: CZ_MAIL_GET_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0244
+        size: 6
+        body:
+          - { name: mail_id, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Mail.cs:61"
+
+  - op: ZC_MAIL_REQ_GET_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0245
+        size: 3
+        body:
+          - { name: flag, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:87"
+
+  - op: CZ_MAIL_RESET_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0246
+        size: 4
+        body:
+          - { name: type, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Mail.cs:78"
+
+  - op: CZ_MAIL_ADD_ITEM
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0247
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Mail.cs:95"
+
+  - op: ZC_ACK_MAIL_ADD_ITEM
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0255
+        size: 5
+        body:
+          - { name: index, type: u16 }
+          - { name: flag,  type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:73"
+
+  - op: CZ_MAIL_SEND
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x0248
+        size: dynamic
+        body:
+          - { name: recipient, type: string_fixed, length: 24 }
+          - { name: title,     type: string_fixed, length: 40 }
+          - { name: body_len,  type: u8 }
+          - { name: body,      type: string_fixed, count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Mail.cs:132"
+
+  - op: ZC_MAIL_REQ_SEND
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0249
+        size: 3
+        body:
+          - { name: flag, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:100"
+
+  - op: ZC_MAIL_RECEIVE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x024A
+        size: 70
+        body:
+          - { name: mail_id,     type: u32 }
+          - { name: title,       type: string_fixed, length: 40 }
+          - { name: sender_name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:127"
+
+  - op: ZC_ACK_MAIL_DELETE
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0257
+        size: 8
+        body:
+          - { name: mail_id, type: u32 }
+          - { name: flag,    type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:113"
+
+  - op: ZC_MAIL_WINDOWS
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x0260
+        size: 6
+        body:
+          - { name: flag, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:142"
+
+  # ====================================================================
+  # 20b. REPAIR
+  # ====================================================================
+
+  - op: ZC_REPAIRITEMLIST
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x01FC
+        size: dynamic
+        body:
+          - { name: items, type: array<REPAIR_ENTRY>,
+              count_kind: bytes_remaining }
+    refs:
+      - "src/ZoneServer/Network/Send.Repair.cs:25"
+
+  - op: CZ_REQ_ITEMREPAIR
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x01FD
+        size: 15
+        body:
+          - { name: inventory_index, type: u16 }
+          - { name: pad,             type: pad, length: 11 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Repair.cs:20"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:30"
+
+  - op: ZC_ACK_ITEMREPAIR
+    direction: S2C
+    versions:
+      s2500:
+        wire_id: 0x01FE
+        size: 5
+        body:
+          - { name: inventory_index, type: u16 }
+          - { name: flag,            type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Repair.cs:49"
+
+  # ====================================================================
+  # 21. ANTI-CHEAT / NO-OP STUBS
+  # ====================================================================
+
+  - op: CZ_KSY_EVENT
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02A5
+        size: 8
+        body:
+          - { name: flag, type: u32 }
+          - { name: pad,  type: pad, length: 2 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2350"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:51"
+
+  - op: CZ_BOT_CHECK
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02E6
+        size: 6
+        body:
+          - { name: flag, type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2358"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:123"
+
+  - op: CZ_PROGRESS
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x02F1
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2367"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:134"
+
+  - op: CZ_CLOSE_WINDOW
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: 0x035E
+        size: 2
+        body: []
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.cs:2376"
+      - "src/Shared/Network/PacketTable.2500_sakEP12.cs:248"
+
+  # ====================================================================
+  # 22. MISC / GM
+  # ====================================================================
+
+  - op: CZ_PKMODE_CHANGE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x019F.
+        size: 3
+        body:
+          - { name: mode, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:442"
+
+  - op: CZ_ITEM_CREATE
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x018C.
+        size: 26
+        body:
+          - { name: item_name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:455"
+
+  - op: CZ_MOVETO_MAP
+    direction: C2S
+    versions:
+      s2500:
+        wire_id: unknown   # TODO: alpha declared 0x018D.
+        size: 22
+        body:
+          - { name: map_name, type: string_fixed, length: 16 }
+          - { name: x,        type: u16 }
+          - { name: y,        type: u16 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:468"
+
+# --------------------------------------------------------------------
+# Local sub-records used by ops in this phase (not promoted to
+# records.yaml because they only appear here).
+# --------------------------------------------------------------------
+
+records:
+
+  - name: CHAR_SERVER_ENTRY
+    versions:
+      s2500:
+        size: 32
+        body:
+          - { name: server_ip,     type: u32 }
+          - { name: server_port,   type: u16 }
+          - { name: name,          type: string_fixed, length: 20 }
+          - { name: player_count,  type: u16 }
+          - { name: is_maintenance, type: u16 }
+          - { name: is_new,        type: u16 }
+    refs:
+      - "src/AuthServer/Network/Send.cs:64"
+
+  - name: HUNT_PROGRESS
+    versions:
+      s2500:
+        size: 12
+        body:
+          - { name: quest_id, type: u32 }
+          - { name: mob_id,   type: u32 }
+          - { name: total,    type: u16 }
+          - { name: cur,      type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2147"
+
+  - name: MAP_NAME_16
+    versions:
+      s2500:
+        size: 16
+        body:
+          - { name: map_name, type: string_fixed, length: 16 }
+
+  - name: MEMBER_INFO_ITEM
+    versions:
+      s2500:
+        size: 4
+        body:
+          - { name: inventory_id, type: u16 }
+          - { name: class_id,     type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:245"
+
+  - name: NORMAL_ITEM_V3
+    versions:
+      s2500:
+        size: 22
+        body:
+          - { name: index,        type: u16 }
+          - { name: class_id,     type: u16 }
+          - { name: type,         type: u8 }
+          - { name: identified,   type: u8 }
+          - { name: amount,       type: u16 }
+          - { name: wear_state,   type: u16 }
+          - { name: card1,        type: u16 }
+          - { name: card2,        type: u16 }
+          - { name: card3,        type: u16 }
+          - { name: card4,        type: u16 }
+          - { name: expire_time,  type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Item.cs (AddNormalItemV3)"
+    notes: |
+      # TODO: confirm AddNormalItemV3 field order against the C# helper;
+      # size 22 matches eA/rA packet_db row count for ZC_NORMAL_ITEMLIST3
+      # at PV>=20080102.
+
+  - name: EQUIP_ITEM_V3
+    versions:
+      s2500:
+        size: 28
+        body:
+          - { name: index,              type: u16 }
+          - { name: class_id,           type: u16 }
+          - { name: type,               type: u8 }
+          - { name: identified,         type: u8 }
+          - { name: location,           type: u16 }
+          - { name: wear_state,         type: u16 }
+          - { name: damaged,            type: u8 }
+          - { name: refine,             type: u8 }
+          - { name: card1,              type: u16 }
+          - { name: card2,              type: u16 }
+          - { name: card3,              type: u16 }
+          - { name: card4,              type: u16 }
+          - { name: expire_time,        type: u32 }
+          - { name: bind_on_equip_type, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Item.cs (AddEquipItemV3)"
+    notes: |
+      # TODO: confirm AddEquipItemV3 field order against the C# helper.
+
+  - name: NORMAL_ITEM_V1
+    versions:
+      s2500:
+        size: 10
+        body:
+          - { name: index,      type: u16 }
+          - { name: class_id,   type: u16 }
+          - { name: type,       type: u8 }
+          - { name: identified, type: u8 }
+          - { name: amount,     type: u16 }
+          - { name: wear_state, type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Item.cs (AddNormalItem)"
+
+  - name: EQUIP_ITEM_V1
+    versions:
+      s2500:
+        size: 20
+        body:
+          - { name: index,      type: u16 }
+          - { name: class_id,   type: u16 }
+          - { name: type,       type: u8 }
+          - { name: identified, type: u8 }
+          - { name: location,   type: u16 }
+          - { name: wear_state, type: u16 }
+          - { name: damaged,    type: u8 }
+          - { name: refine,     type: u8 }
+          - { name: card1,      type: u16 }
+          - { name: card2,      type: u16 }
+          - { name: card3,      type: u16 }
+          - { name: card4,      type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Item.cs (AddEquipItem)"
+
+  - name: NPC_BUY_ENTRY
+    versions:
+      s2500:
+        size: 11
+        body:
+          - { name: price,          type: u32 }
+          - { name: discount_price, type: u32 }
+          - { name: type,           type: u8 }
+          - { name: class_id,       type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1139"
+
+  - name: NPC_SELL_ENTRY
+    versions:
+      s2500:
+        size: 10
+        body:
+          - { name: index,      type: u16 }
+          - { name: sell_price, type: u32 }
+          - { name: buy_price,  type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1167"
+
+  - name: NPC_BUY_REQ
+    versions:
+      s2500:
+        size: 4
+        body:
+          - { name: amount,   type: u16 }
+          - { name: class_id, type: u16 }
+
+  - name: NPC_SELL_REQ
+    versions:
+      s2500:
+        size: 4
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u16 }
+
+  - name: PARTY_MEMBER
+    versions:
+      s2500:
+        size: 46
+        body:
+          - { name: account_id, type: u32 }
+          - { name: name,       type: string_fixed, length: 24 }
+          - { name: map_name,   type: string_fixed, length: 16 }
+          - { name: is_leader,  type: u8 }
+          - { name: is_offline, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Skills.cs:21"
+
+  - name: ROOM_MEMBER
+    versions:
+      s2500:
+        size: 28
+        body:
+          - { name: role, type: u32 }
+          - { name: name, type: string_fixed, length: 24 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:1850"
+
+  - name: VENDING_OPEN_ENTRY
+    versions:
+      s2500:
+        size: 8
+        body:
+          - { name: index,  type: u16 }
+          - { name: amount, type: u16 }
+          - { name: price,  type: u32 }
+    refs:
+      - "src/ZoneServer/Network/PacketHandler.Beta1.cs:185"
+
+  - name: VENDING_LIST_ENTRY
+    versions:
+      s2500:
+        size: 22
+        body:
+          - { name: price, type: u32 }
+          - { name: item,  type: NORMAL_ITEM_V1 }
+          - { name: pad,   type: pad, length: 8 }
+    refs:
+      - "src/ZoneServer/Network/Send.Beta1.cs:281"
+    notes: |
+      # TODO: precise body emitted by AddNormalItem in vending context.
+
+  - name: VENDING_BUY_REQ
+    versions:
+      s2500:
+        size: 4
+        body:
+          - { name: amount, type: u16 }
+          - { name: index,  type: u16 }
+
+  - name: CASHSHOP_ENTRY
+    versions:
+      s2500:
+        size: 11
+        body:
+          - { name: price,          type: u32 }
+          - { name: discount_price, type: u32 }
+          - { name: item_type,      type: u8 }
+          - { name: item_id,        type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2175"
+
+  - name: MAIL_INBOX_ENTRY
+    versions:
+      s2500:
+        size: 73
+        body:
+          - { name: mail_id,     type: u32 }
+          - { name: title,       type: string_fixed, length: 40 }
+          - { name: read,        type: u8 }
+          - { name: sender_name, type: string_fixed, length: 24 }
+          - { name: sent_at,     type: u32 }
+    refs:
+      - "src/ZoneServer/Network/Send.Mail.cs:16"
+
+  - name: REPAIR_ENTRY
+    versions:
+      s2500:
+        size: 13
+        body:
+          - { name: index,    type: u16 }
+          - { name: class_id, type: u16 }
+          - { name: refine,   type: u8 }
+          - { name: card1,    type: u16 }
+          - { name: card2,    type: u16 }
+          - { name: card3,    type: u16 }
+          - { name: card4,    type: u16 }
+    refs:
+      - "src/ZoneServer/Network/Send.Repair.cs:25"

@@ -33,7 +33,7 @@ namespace Sabine.Shared.Network
 			Register(new ProtocolProfile("s800-bro-ep8", Versions.S800, Era.Classic, ProtocolFeatures.None));
 			Register(new ProtocolProfile("s900-bro-ep9", Versions.S900, Era.Classic, ProtocolFeatures.None));
 			Register(new ProtocolProfile("s2000-euro-ep10", Versions.S2000, Era.Classic, ProtocolFeatures.None));
-			Register(new ProtocolProfile("s2500-kro-sak-ep12", Versions.S2500, Era.Classic, ProtocolFeatures.None));
+			Register(new ProtocolProfile("s2500-kro-sak-ep12", Versions.S2500, Era.Classic, ProtocolFeatures.CashShop));
 
 			// Modern anchors. The 2018-03-07 RagexeRE keys come from
 			// rAthena's clif_obfuscation.hpp and serve as the last
@@ -52,6 +52,11 @@ namespace Sabine.Shared.Network
 				Versions.Ragexe20211103,
 				Era.Renewal,
 				ProtocolFeatures.Rodex | ProtocolFeatures.CashShop | ProtocolFeatures.Achievements | ProtocolFeatures.Clan | ProtocolFeatures.BuyingStore | ProtocolFeatures.EquipmentSwitch | ProtocolFeatures.ItemOptions));
+
+			// Sabine-native profile for the open-midgard custom client.
+			// Inherits S2500 effective packet bodies but renumbers wire
+			// IDs into a clean grouped layout. No obfuscation.
+			Register(new ProtocolProfile("sabine", Versions.Sabine, Era.Classic, ProtocolFeatures.CashShop));
 		}
 
 		/// <summary>

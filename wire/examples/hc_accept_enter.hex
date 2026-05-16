@@ -1,0 +1,53 @@
+# HC_ACCEPT_ENTER, S2500, one character ("Alice", slot 0). Total 132 bytes.
+#
+# Framing:
+#   [ wire_id u16 LE ] [ total_size u16 LE ] [ body ]
+#   total_size = 132 = 0x0084
+#
+# body = 20 reserved bytes + one 108-byte CHARACTER_INFO.
+
+71 00 84 00                                          # wire_id 0x0071, total_size 0x0084 (132)
+
+# header_reserved (20 bytes)
+00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00
+00 00 00 00
+
+# CHARACTER_INFO: Alice, char_id=150000, base slot 0, Novice
+F0 49 02 00                                          # char_id = 150000 (0x000249F0)
+00 00 00 00                                          # base_exp = 0
+00 00 00 00                                          # zeny = 0
+00 00 00 00                                          # job_exp = 0
+00 00 00 00                                          # job_level = 0
+00 00 00 00                                          # pad0
+00 00 00 00                                          # status_bitmask = 0
+00 00 00 00                                          # pad1
+00 00 00 00                                          # karma = 0
+00 00 00 00                                          # manner = 0
+05 00                                                # stat_points = 5
+28 00                                                # hp = 40
+28 00                                                # hp_max = 40
+0A 00                                                # sp = 10
+0A 00                                                # sp_max = 10
+96 00                                                # speed = 150
+00 00                                                # class_id = 0 (Novice)
+01 00                                                # hair_id = 1
+00 00                                                # weapon_look = 0
+01 00                                                # base_level = 1
+00 00                                                # skill_points = 0
+00 00                                                # head_bottom_look = 0
+00 00                                                # shield_id = 0
+00 00                                                # head_top_look = 0
+00 00                                                # head_middle_look = 0
+00 00                                                # hair_color_id = 0
+00 00                                                # clothes_color_id = 0
+# name "Alice" padded to 24 bytes
+41 6C 69 63 65 00 00 00  00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+01                                                   # str
+01                                                   # agi
+01                                                   # vit
+01                                                   # int
+01                                                   # dex
+01                                                   # luk
+00 00                                                # slot = 0
+00 00                                                # rename_count = 0

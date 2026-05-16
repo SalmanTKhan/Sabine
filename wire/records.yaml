@@ -1,0 +1,194 @@
+# Shared sub-records, referenced from phases/*.yaml as `type: <RecordName>`
+# or `type: array<RecordName>`.
+#
+# Each record carries its own `versions:` map. The phase that references
+# the record decides which version to pull (default: the phase's own name).
+
+records:
+
+  # --------------------------------------------------------------------
+  # CHARACTER_INFO — one character row in HC_ACCEPT_ENTER /
+  # HC_ACCEPT_MAKECHAR. Sabine emits this from
+  # src/CharServer/Network/Helpers/Character.cs:20.
+  # --------------------------------------------------------------------
+  - name: CHARACTER_INFO
+    versions:
+      s2500:
+        size: 108
+        body:
+          - { name: char_id,            type: u32 }
+          - { name: base_exp,           type: u32 }
+          - { name: zeny,               type: u32 }
+          - { name: job_exp,            type: u32 }
+          - { name: job_level,          type: u32 }
+          - { name: pad0,               type: pad, length: 4 }   # reserved
+          - { name: status_bitmask,     type: u32 }              # sc->opt option mask
+          - { name: pad1,               type: pad, length: 4 }
+          - { name: karma,              type: u32 }
+          - { name: manner,             type: u32 }
+          - { name: stat_points,        type: u16 }
+          - { name: hp,                 type: i16 }   # NOT widened to i32 at PV23
+          - { name: hp_max,             type: i16 }
+          - { name: sp,                 type: i16 }
+          - { name: sp_max,             type: i16 }
+          - { name: speed,              type: u16 }
+          - { name: class_id,           type: u16 }
+          - { name: hair_id,            type: u16 }
+          - { name: weapon_look,        type: u16 }
+          - { name: base_level,         type: u16 }
+          - { name: skill_points,       type: u16 }
+          - { name: head_bottom_look,   type: u16 }
+          - { name: shield_id,          type: u16 }
+          - { name: head_top_look,      type: u16 }
+          - { name: head_middle_look,   type: u16 }
+          - { name: hair_color_id,      type: u16 }
+          - { name: clothes_color_id,   type: u16 }
+          - { name: name,               type: string_fixed, length: 24 }
+          - { name: str,                type: u8 }
+          - { name: agi,                type: u8 }
+          - { name: vit,                type: u8 }
+          - { name: int,                type: u8 }
+          - { name: dex,                type: u8 }
+          - { name: luk,                type: u8 }
+          - { name: slot,               type: u16 }   # widened from u8 pre-S2500
+          - { name: rename_count,       type: u16 }   # 0 = never renamed
+    refs:
+      - "src/CharServer/Network/Helpers/Character.cs:20"
+      - "open-midgard LoginMode.cpp character-info size table"
+
+  # --------------------------------------------------------------------
+  # SKILL_INFO — one skill row in ZC_SKILLINFO_LIST / ZC_ADD_SKILL /
+  # ZC_SKILLINFO_UPDATE. Body shape at S2500 is what AddSkillData emits.
+  # --------------------------------------------------------------------
+  - name: SKILL_INFO
+    versions:
+      s2500:
+        size: 37
+        body:
+          - { name: skill_id,    type: u16, enum: SkillId }
+          # Low 16 bits = TypeFlags (passive/targeted/etc.);
+          # high 16 bits = PropertyFlags (quest/wedding/spirit) packed
+          # so the client can flag the row as not-in-class-tree.
+          - { name: inf_packed,  type: u32 }
+          - { name: level,       type: u16 }
+          - { name: sp_cost,     type: u16 }
+          - { name: range,       type: u16 }
+          - { name: string_id,   type: string_fixed, length: 24 }
+          - { name: can_upgrade, type: u8 }
+    refs:
+      - "src/ZoneServer/Network/Helpers/Skill.cs:16"
+
+  # --------------------------------------------------------------------
+  # HOTKEY_SLOT — one of 27 in ZC_SHORTCUT_KEY_LIST.
+  # --------------------------------------------------------------------
+  - name: HOTKEY_SLOT
+    versions:
+      s2500:
+        size: 7
+        body:
+          - { name: is_skill, type: u8 }
+          - { name: id,       type: u32 }   # SkillId or item ClassId
+          - { name: count,    type: u16 }   # quantity (items) / level (skills)
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2018"
+
+  # --------------------------------------------------------------------
+  # QUEST_OBJECTIVE — one of the three mob-hunt slots inside a
+  # QUEST_MISSION block. Sabine currently zeros mob_id/name; the kRO
+  # client tolerates empty objective slots.
+  # --------------------------------------------------------------------
+  - name: QUEST_OBJECTIVE
+    versions:
+      s2500:
+        size: 30
+        body:
+          - { name: mob_id,   type: u32 }
+          - { name: cur,      type: u16 }
+          - { name: mob_name, type: string_fixed, length: 24 }
+
+  # --------------------------------------------------------------------
+  # QUEST_MISSION — one entry in ZC_ALL_QUEST_MISSION.
+  # --------------------------------------------------------------------
+  - name: QUEST_MISSION
+    versions:
+      s2500:
+        size: 104
+        body:
+          - { name: quest_id,         type: u32 }
+          - { name: accept_time,      type: u32 }   # Unix seconds or 0
+          - { name: expire_time,      type: u32 }   # 0 = never
+          - { name: objective_count,  type: u16 }   # number of populated objectives
+          - { name: objectives,       type: array<QUEST_OBJECTIVE>,
+              count_kind: elements, count_value: 3 }   # always 3 slots, even if empty
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2067"
+      - "rA src/map/clif.cpp clif_quest_send_mission"
+
+  # --------------------------------------------------------------------
+  # QUEST_INDEX — one entry in ZC_ALL_QUEST_LIST.
+  # --------------------------------------------------------------------
+  - name: QUEST_INDEX
+    versions:
+      s2500:
+        size: 5
+        body:
+          - { name: quest_id, type: u32 }
+          - { name: state,    type: u8, enum: QuestState }
+    refs:
+      - "src/ZoneServer/Network/Send.cs:2040"
+
+# --------------------------------------------------------------------
+# Enum tables — referenced from `enum: <name>` on field definitions.
+# Values are reproduced from Sabine.Shared.Const for traceability; the
+# C# enum remains the source of truth.
+# --------------------------------------------------------------------
+
+enums:
+
+  ParameterType:
+    underlying: u16
+    refs: ["src/Shared/Const/ParameterType.cs"]
+
+  EnterError:
+    underlying: u8
+    refs: ["src/Shared/Const/EnterError.cs"]
+
+  DisappearType:
+    underlying: u8
+    refs: ["src/Shared/Const/DisappearType.cs"]
+
+  ActionType:
+    underlying: u8
+    refs: ["src/Shared/Const/ActionType.cs"]
+
+  PickUpResult:
+    underlying: u8
+    refs: ["src/Shared/Const/PickUpResult.cs"]
+
+  QuestState:
+    underlying: u8
+    refs: ["src/Shared/Const/QuestState.cs"]
+
+  SkillId:
+    underlying: u16
+    refs: ["src/Shared/Const/SkillId.cs"]
+
+  SkillUseResult:
+    underlying: u8
+    refs: ["src/Shared/Const/SkillUseResult.cs"]
+
+  SkillFailType:
+    underlying: u8
+    refs: ["src/Shared/Const/SkillFailType.cs"]
+
+  SkillFailReason:
+    underlying: u32
+    refs: ["src/Shared/Const/SkillFailReason.cs"]
+
+  LoginConnectError:
+    underlying: u8
+    refs: ["src/Shared/Const/LoginConnectError.cs"]
+
+  CharConnectError:
+    underlying: u8
+    refs: ["src/Shared/Const/CharConnectError.cs"]

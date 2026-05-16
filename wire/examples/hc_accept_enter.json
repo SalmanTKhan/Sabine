@@ -1,0 +1,57 @@
+{
+  "op": "HC_ACCEPT_ENTER",
+  "phase": "s2500",
+  "wire_id": "0x0071",
+  "size_bytes": 132,
+  "framing": {
+    "kind": "dynamic",
+    "total_size": 132
+  },
+  "body": {
+    "header_reserved": "20 zero bytes",
+    "characters": [
+      {
+        "char_id":         150000,
+        "base_exp":        0,
+        "zeny":            0,
+        "job_exp":         0,
+        "job_level":       0,
+        "status_bitmask":  0,
+        "karma":           0,
+        "manner":          0,
+        "stat_points":     5,
+        "hp":              40,
+        "hp_max":          40,
+        "sp":              10,
+        "sp_max":          10,
+        "speed":           150,
+        "class_id":        0,
+        "hair_id":         1,
+        "weapon_look":     0,
+        "base_level":      1,
+        "skill_points":    0,
+        "head_bottom_look": 0,
+        "shield_id":       0,
+        "head_top_look":   0,
+        "head_middle_look": 0,
+        "hair_color_id":   0,
+        "clothes_color_id": 0,
+        "name":            "Alice",
+        "str":             1,
+        "agi":             1,
+        "vit":             1,
+        "int":             1,
+        "dex":             1,
+        "luk":             1,
+        "slot":            0,
+        "rename_count":    0
+      }
+    ]
+  },
+  "_derivation_notes": [
+    "Element count for `characters` follows the spec's count_kind:bytes_remaining rule:",
+    "(total_size - 2 op - 2 len_header - 20 reserved) / 108 per-row = (132 - 24) / 108 = 1.",
+    "Adding a second character would push total_size to 240; the client divides body length",
+    "by the CHARACTER_INFO size (108 bytes at PV23) to recover the element count."
+  ]
+}

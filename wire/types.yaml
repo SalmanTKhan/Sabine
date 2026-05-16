@@ -1,0 +1,97 @@
+# Type vocabulary for the Sabine wire spec.
+# See README.md for the reading guide.
+
+endianness: little
+
+# Plain scalars. All little-endian (per the global default above).
+scalars:
+  u8:    { size: 1, signed: false }
+  u16:   { size: 2, signed: false }
+  u32:   { size: 4, signed: false }
+  i8:    { size: 1, signed: true  }
+  i16:   { size: 2, signed: true  }
+  i32:   { size: 4, signed: true  }
+
+  # u32 server-tick ms; tracks Game.GetTick() in Sabine and
+  # gettick() in eA/rA. Distinct from u32 so future codegen can
+  # emit a Tick newtype rather than int.
+  tick:  { size: 4, signed: false, semantic: "Server tick in ms (Game.GetTick)" }
+
+# Strings.
+strings:
+  # Default: fixed-width NUL-padded CP949 (matches kRO-era clients).
+  # On read: stop at first NUL, trim trailing bytes.
+  # On write: writer MUST zero-fill from the end of the string to the
+  # buffer end.
+  string_fixed:
+    encoding: cp949
+    padding: nul
+
+  # New Sabine-native ops may set `encoding: utf8` per-field. Existing
+  # ops in s2500.yaml all use the default CP949.
+
+# Opaque blobs.
+blobs:
+  # Surfaced as byte[N] in generated code. Use when bytes have no
+  # documented structure or when the structure is intentionally
+  # private (e.g. crypto material).
+  blob:
+    kind: opaque
+
+  # Reserved-zero bytes. Distinct from blob so:
+  #   - readers MAY ignore the bytes entirely;
+  #   - writers MUST zero-fill;
+  #   - future codegen emits a skip rather than a field.
+  pad:
+    kind: reserved
+    zero_fill: true
+
+# RO's packed 3-byte position. The same encoding is symmetric for
+# senders and receivers; Sabine ships it via Packet.AddPackedPosition
+# (src/Shared/Network/Helpers/Position.cs).
+packed_pos:
+  size: 3
+  fields:
+    - { name: x,   bits: 10 }
+    - { name: y,   bits: 10 }
+    - { name: dir, bits: 4  }
+  refs:
+    - "src/Shared/Network/Helpers/Position.cs"
+    - "eA src/map/clif.c WBUFPOS"
+
+# RO's packed 6-byte move record (from -> to, plus 4-bit sx/sy
+# sub-tile offsets historically used for stair walking).
+packed_move:
+  size: 6
+  fields:
+    - { name: from_x, bits: 10 }
+    - { name: from_y, bits: 10 }
+    - { name: to_x,   bits: 10 }
+    - { name: to_y,   bits: 10 }
+    - { name: sx,     bits: 4  }
+    - { name: sy,     bits: 4  }
+  refs:
+    - "src/Shared/Network/Helpers/Position.cs"
+    - "eA src/map/clif.c WBUFPOS2"
+
+# Length-controlled arrays.
+arrays:
+  # count_kind ∈ { elements, bytes_remaining, bytes_total }
+  #   elements         — the element count is in a sibling field named by
+  #                      `count_from: <field_name>`.
+  #   bytes_remaining  — packet body bytes after the field are divided by
+  #                      the element fixed size. Used by historical RO
+  #                      dynamic packets that don't carry an explicit
+  #                      element count (HC_ACCEPT_ENTER, ZC_SKILLINFO_LIST).
+  #   bytes_total      — total_size header minus an `offset` constant.
+  #                      Rare; specify `offset:` when used.
+  shapes:
+    - elements
+    - bytes_remaining
+    - bytes_total
+
+# Typed enums (referenced from records.yaml).
+enums:
+  # An `enum<T>` field reads/writes as `T` on the wire but documents the
+  # set of valid named values. See records.yaml for the enum tables.
+  encoding: scalar_T

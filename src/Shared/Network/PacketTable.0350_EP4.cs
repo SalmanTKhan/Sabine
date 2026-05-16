@@ -35,7 +35,11 @@
 			Register(Op.ZC_NPCSPRITE_CHANGE, 0x01B0, 11);
 			Register(Op.ZC_SHOWDIGIT, 0x01B1, 7);
 			Register(Op.CZ_REQ_OPENSTORE2, 0x01B2, -1);
-			Register(Op.ZC_SHOW_IMAGE2, 0x01B3, 67);
+			// EP4 collapses ZC_SHOW_IMAGE2 back into ZC_SHOW_IMAGE — the
+			// only difference is the image-name field width (16 → 64) and
+			// wire ID (0x0145 → 0x01B3). Sender picks the field width
+			// from Game.Version.
+			Redefine(Op.ZC_SHOW_IMAGE, 0x01B3, 67);
 			Register(Op.ZC_CHANGE_GUILD, 0x01B4, 12);
 			Register(Op.SC_BILLING_INFO, 0x01B5, 18);
 			Register(Op.ZC_GUILD_INFO2, 0x01B6, 114);

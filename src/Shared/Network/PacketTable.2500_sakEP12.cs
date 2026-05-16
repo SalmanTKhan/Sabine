@@ -28,7 +28,8 @@
 			ChangeSize(Op.CZ_USE_SKILL_TOGROUND_WITHTALKBOX, 19);
 			ChangeSize(Op.CZ_REQNAME_BYGID, 2);
 			ChangeSize(Op.CZ_REQ_ITEMREPAIR, 15);
-			ChangeSize(Op.ZC_NOTIFY_MOVEENTRY3, 65);
+			// (Was: ChangeSize(Op.ZC_NOTIFY_MOVEENTRY3, 65) — superseded by
+			// the consolidated base ZC_NOTIFY_MOVEENTRY Redefine to 0x02EC/67 below.)
 			ChangeSize(Op.ZC_MER_INIT, 80);
 
 			Register(Op.CZ_REQ_PVPPOINT, 0x020F, 10, false);
@@ -67,9 +68,23 @@
 			Register(Op.ZC_UPDATE_MISSION_HUNT, 0x02B5, -1);
 			Register(Op.CZ_ACTIVE_QUEST, 0x02B6, 7);
 			Register(Op.ZC_ACTIVE_QUEST, 0x02B7, 7);
+			// ZC_QUEST_NOTIFY_EFFECT 0x0446 introduced at rA
+			// PACKETVER >= 20090218 (post-EP12 by date but the EP12
+			// client family is the earliest in Sabine's stack that
+			// commonly recognises it). 14 bytes: type + npcId(4) +
+			// x(2) + y(2) + effect(2) + color(2).
+			// Ref: rathena map/clif.cpp clif_quest_show_event.
+			Register(Op.ZC_QUEST_NOTIFY_EFFECT, 0x0446, 14);
 			Register(Op.ZC_ITEM_PICKUP_PARTY, 0x02B8, 22);
 			Register(Op.ZC_SHORTCUT_KEY_LIST, 0x02B9, 191);
 			Register(Op.CZ_SHORTCUT_KEY_CHANGE, 0x02BA, 11);
+			// ZC_SKILL_POSTDELAY: cooldown sweep for the hotbar slot.
+			// Body: W skill_id + L tick_ms = 6, plus 2 op header.
+			// Ref: eA src/map/clif.c clif_skill_postdelay.
+			// Note: eA's packet_db lists 0x043D under the 2008-11-13aSakexe
+			// block (post-PV23), but the 2008-09-10 EP12 client EXE already
+			// knows the op, so emitting it is safe.
+			Register(Op.ZC_SKILL_POSTDELAY, 0x043D, 8, false);
 			Register(Op.ZC_EQUIPITEM_DAMAGED, 0x02BB, 8);
 			Register(Op.ZC_NOTIFY_PCBANG_PLAYING_TIME, 0x02BC, 6);
 			// ---, 0x02BD
@@ -91,11 +106,13 @@
 			Register(Op.ZC_MEMORIALDUNGEON_INFO, 0x02CD, 71);
 			Register(Op.ZC_MEMORIALDUNGEON_NOTIFY, 0x02CE, 10);
 			Register(Op.CZ_MEMORIALDUNGEON_COMMAND, 0x02CF, 6);
-			Register(Op.ZC_EQUIPMENT_ITEMLIST3, 0x02D0, -1);
-			Register(Op.ZC_STORE_EQUIPMENT_ITEMLIST3, 0x02D1, -1);
-			Register(Op.ZC_CART_EQUIPMENT_ITEMLIST3, 0x02D2, -1);
+			// Variant consolidation: *_EQUIPMENT_ITEMLIST3 = base op moved wire slot.
+			Redefine(Op.ZC_EQUIPMENT_ITEMLIST, 0x02D0, -1);
+			Redefine(Op.ZC_STORE_EQUIPMENT_ITEMLIST, 0x02D1, -1);
+			Redefine(Op.ZC_CART_EQUIPMENT_ITEMLIST, 0x02D2, -1);
 			Register(Op.ZC_NOTIFY_BIND_ON_EQUIP, 0x02D3, 4);
-			Register(Op.ZC_ITEM_PICKUP_ACK3, 0x02D4, 29);
+			// Variant consolidation: ZC_ITEM_PICKUP_ACK3 = base op moved wire slot.
+			Redefine(Op.ZC_ITEM_PICKUP_ACK, 0x02D4, 29);
 			Register(Op.ZC_ISVR_DISCONNECT, 0x02D5, 2);
 			Register(Op.CZ_EQUIPWIN_MICROSCOPE, 0x02D6, 6);
 			Register(Op.ZC_EQUIPWIN_MICROSCOPE, 0x02D7, -1);
@@ -115,13 +132,15 @@
 			Register(Op.CZ_REQUEST_MOVE_NEW_JAPEN, 0x02E5, 8);
 			Register(Op.CZ_BOT_CHECK, 0x02E6, 6);
 			Register(Op.ZC_MAPPROPERTY, 0x02E7, -1);
-			Register(Op.ZC_NORMAL_ITEMLIST3, 0x02E8, -1);
-			Register(Op.ZC_CART_NORMAL_ITEMLIST3, 0x02E9, -1);
-			Register(Op.ZC_STORE_NORMAL_ITEMLIST3, 0x02EA, -1);
+			// Variant consolidation: *_NORMAL_ITEMLIST3 = base op moved wire slot.
+			Redefine(Op.ZC_NORMAL_ITEMLIST, 0x02E8, -1);
+			Redefine(Op.ZC_CART_NORMAL_ITEMLIST, 0x02E9, -1);
+			Redefine(Op.ZC_STORE_NORMAL_ITEMLIST, 0x02EA, -1);
 			// ZC_ACCEPT_ENTER, 0x02EB, 13
-			Register(Op.ZC_NOTIFY_MOVEENTRY4, 0x02EC, 67);
-			Register(Op.ZC_NOTIFY_NEWENTRY4, 0x02ED, 59);
-			Register(Op.ZC_NOTIFY_STANDENTRY4, 0x02EE, 60);
+			// Variant consolidation: ZC_NOTIFY_*ENTRY4 = base op moved wire slot.
+			Redefine(Op.ZC_NOTIFY_MOVEENTRY, 0x02EC, 67);
+			Redefine(Op.ZC_NOTIFY_NEWENTRY, 0x02ED, 59);
+			Redefine(Op.ZC_NOTIFY_STANDENTRY, 0x02EE, 60);
 			Register(Op.ZC_NOTIFY_FONT, 0x02EF, 8);
 			Register(Op.ZC_PROGRESS, 0x02F0, 10);
 			Register(Op.CZ_PROGRESS, 0x02F1, 2);
@@ -230,10 +249,15 @@
 			Register(Op.UNK_0358, 0x0358, -1);
 			Register(Op.UNK_0359, 0x0359, -1);
 			Register(Op.UNK_035A, 0x035A, -1);
-			Register(Op.UNK_035B, 0x035B, 2);
-			Register(Op.CZ_OPEN_SIMPLE_CASHSHOP_ITEMLIST, 0x035C, -1);
-			Register(Op.ZC_SIMPLE_CASHSHOP_POINT_ITEMLIST, 0x035D, 2);
-			Register(Op.CZ_CLOSE_WINDOW, 0x035E, -1);
+			// eA PV23 sizes (db/packet_db.txt lines 1224-1228):
+			// 0x035b=-1, 0x035c=2, 0x035d=-1, 0x035e=2, 0x035f=-1.
+			// 0x035c is a header-only client request to open the simple
+			// cashshop ("show me the list"); 0x035d is the variable-size
+			// list reply; 0x035e is a header-only "close window" notice.
+			Register(Op.UNK_035B, 0x035B, -1);
+			Register(Op.CZ_OPEN_SIMPLE_CASHSHOP_ITEMLIST, 0x035C, 2);
+			Register(Op.ZC_SIMPLE_CASHSHOP_POINT_ITEMLIST, 0x035D, -1);
+			Register(Op.CZ_CLOSE_WINDOW, 0x035E, 2);
 			Register(Op.CZ_REQUEST_MOVE2, 0x035F, -1);
 			Register(Op.UNK_0360, 0x0360, -1);
 			Register(Op.UNK_0361, 0x0361, -1);
@@ -358,8 +382,12 @@
 			Register(Op.UNK_03D8, 0x03D8, -1);
 			Register(Op.UNK_03D9, 0x03D9, -1);
 			Register(Op.UNK_03DA, 0x03DA, -1);
-			Register(Op.UNK_03DB, 0x03DB, 18);
-			Register(Op.UNK_03DC, 0x03DC, 18);
+			// 0x03DB/0x03DC: eA's packet_db doesn't define these until
+			// post-PV23 blocks (the size-18 reading was copied from a
+			// renewal-era reference). Leave as -1 placeholders at S2500
+			// so they match the rest of the UNK_ row style.
+			Register(Op.UNK_03DB, 0x03DB, -1);
+			Register(Op.UNK_03DC, 0x03DC, -1);
 			// ---, 0x03DD
 			// ---, 0x03DE
 			// ---, 0x03DF
@@ -450,6 +478,61 @@
 			Register(Op.UNK_0434, 0x0434, -1);
 			Register(Op.UNK_0435, 0x0435, -1);
 
+			ApplyRAlignments2500();
+		}
+
+		/// <summary>
+		/// Sabine's alpha-era op IDs differ from rA/eA's PV-aligned IDs
+		/// for a handful of high-traffic packets (stat updates, movement
+		/// broadcasts, name lookup, floor item drops, ground-skill
+		/// effects, storage / pickup). EP12 clients only understand the
+		/// rA-aligned IDs, so without these redefines the wire-encoder
+		/// emits ops the client silently drops. Body sizes are unchanged
+		/// — only the wire IDs move. Refs inline per block.
+		/// </summary>
+		private static void ApplyRAlignments2500()
+		{
+			// Stat updates: eA/rA at every PV use 0x00B0/8 (short par)
+			// and 0x00B1/8 (long par). Sabine's alpha-era 0x004B/0x004C
+			// aren't in eA's packet_db at any PV, so EP12 clients drop
+			// them silently — HP/MP/EXP/Zeny/level changes don't render.
+			// Ref: eA src/map/clif.c clif_updateparam (0xB0) and
+			// clif_updatelongparam (0xB1).
+			Redefine(Op.ZC_PAR_CHANGE, 0x00B0, 8);
+			Redefine(Op.ZC_LONGPAR_CHANGE, 0x00B1, 8);
+
+			// State / movement / lookup ops: Sabine carries alpha-era
+			// 0x001C / 0x0022 / 0x0023 / 0x0030 through all eras, but
+			// eA from PV5 onwards (and the EP12 client) expect the
+			// post-alpha numbers. Without this, vanishes don't clear,
+			// remote-player walks freeze, self-walks lose their ACK,
+			// and clicking a name returns nothing.
+			// Refs: eA src/map/clif.c clif_clearchar_id (0x0080),
+			// clif_walkok (0x0087), clif_move (0x0086), and
+			// clif_charnameack (0x0095, eA clif.c:8151).
+			Redefine(Op.ZC_NOTIFY_VANISH, 0x0080, 7);
+			Redefine(Op.ZC_NOTIFY_MOVE, 0x0086, 16);
+			Redefine(Op.ZC_NOTIFY_PLAYERMOVE, 0x0087, 12);
+			Redefine(Op.ZC_ACK_REQNAME, 0x0095, 30);
+
+			// Item drops on the floor: Sabine's alpha ops aren't in
+			// eA's PV-23 table. eA clif_dropflooritem uses 0x009E
+			// (size 17) and clif_clearflooritem uses 0x00A1 (size 6).
+			// Same body shape — just route the wire op through.
+			Redefine(Op.ZC_ITEM_ENTRY, 0x009E, 17);
+			Redefine(Op.ZC_ITEM_DISAPPEAR, 0x00A1, 6);
+
+			// Ground-skill effect family: Sabine's alpha-era 0x00AF /
+			// 0x00B1 don't exist in eA's PV23 table — and 0x00B1
+			// collides with the ZC_LONGPAR_CHANGE redefine above
+			// (host-to-network table would last-write-win). eA uses
+			// 0x0115 for the targeted-position skill broadcast
+			// (clif_skill_damage2, size 35) and 0x0117 for the
+			// ground-effect broadcast (clif_skill_poseffect, size 18).
+			// Same bodies — just route through.
+			Redefine(Op.ZC_NOTIFY_SKILL_POSITION, 0x0115, 35);
+			Redefine(Op.ZC_NOTIFY_GROUNDSKILL, 0x0117, 18);
+
 			Redefine(Op.CZ_USE_SKILL_TOGROUND_WITHTALKBOX, 0x007E, 102);
 			Redefine(Op.CZ_REQUEST_TIME, 0x0089, 8);
 			Redefine(Op.CZ_REQNAME, 0x008C, 11);
@@ -462,6 +545,19 @@
 			Redefine(Op.CZ_REQUEST_ACT, 0x0437, 7);
 			Redefine(Op.CZ_USE_SKILL, 0x0438, 10);
 			Redefine(Op.CZ_USE_ITEM, 0x0439, 8);
+
+			// Storage / pickup block: at PV22 eA repurposed the alpha-era
+			// 0x00F5 (CZ_MOVE_ITEM_FROM_STORE_TO_BODY) into CZ_ITEM_PICKUP
+			// (takeitem, size 8, AID @ offset 4) and moved movefromkafra
+			// to 0x00F7 size 22 (idx @ 14, count @ 18). closekafra had
+			// already moved to 0x0193 size 2 at PV15. Without this the
+			// EP12 client's takeitem (0x00F5/8) routes into the storage
+			// handler and items can't be picked up off the ground.
+			// Refs: eA db/packet_db.txt PV22 lines 1009-1010, PV15 line 676.
+			Unregister(Op.CZ_REQNAME_BYGID);
+			Redefine(Op.CZ_CLOSE_STORE, 0x0193, 2);
+			Redefine(Op.CZ_MOVE_ITEM_FROM_STORE_TO_BODY, 0x00F7, 22);
+			Redefine(Op.CZ_ITEM_PICKUP, 0x00F5, 8);
 		}
 	}
 }

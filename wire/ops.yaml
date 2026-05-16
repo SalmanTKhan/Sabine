@@ -1,0 +1,725 @@
+# Sabine wire-format spec: op catalog.
+#
+# This file lists every NAMED member of the Op enum in
+# src/Shared/Network/Op.cs. Placeholder members of the form UNK_03xx are
+# intentionally omitted - they exist in the C# enum only to reserve ordinal
+# slots between known eras and carry no semantic meaning.
+#
+# Direction is derived purely from the canonical Ragnarok prefix on the
+# enum member name:
+#   CA_, CH_, CZ_, CS_   -> C2S       (client to server)
+#   AC_, HC_, ZC_, SC_   -> S2C       (server to client; SC_ is a server
+#                                      broadcast/cash-shop channel that
+#                                      flows in the same direction as ZC_)
+#   SERVER_              -> INTERNAL  (inter-server / pseudo op)
+#   anything else        -> UNKNOWN   (e.g. COLLECTORDEAD, PING, ZH_*)
+#
+# IMPORTANT: presence in this file does NOT mean the op is wired up for
+# any particular client build. Per-phase body layouts, wire IDs and packet
+# sizes live in wire/phases/<phase>.yaml because they vary by protocol
+# version. This file is the name+direction catalog only.
+
+ops:
+
+  # ----- 0x00xx Login / Char select / Zone enter (alpha era) -----
+  - { name: CA_LOGIN,                            direction: C2S, summary: "Plaintext login request (alpha era)." }
+  - { name: CH_ENTER,                            direction: C2S, summary: "Resume authenticated session on char server." }
+  - { name: CH_SELECT_CHAR,                      direction: C2S, summary: "Pick a character slot to enter the world." }
+  - { name: CH_MAKE_CHAR,                        direction: C2S, summary: "Create a new character on the account." }
+  - { name: CH_DELETE_CHAR,                      direction: C2S, summary: "Delete a character from the account." }
+  - { name: AC_ACCEPT_LOGIN,                     direction: S2C, summary: "Accept login and return char-server list." }
+  - { name: AC_REFUSE_LOGIN,                     direction: S2C, summary: "Refuse login with reason code." }
+  - { name: HC_ACCEPT_ENTER,                     direction: S2C, summary: "Accept char-server enter; send character list." }
+  - { name: HC_REFUSE_ENTER,                     direction: S2C, summary: "Refuse char-server enter with reason." }
+  - { name: HC_ACCEPT_MAKECHAR,                  direction: S2C, summary: "Accept character creation and return new char data." }
+  - { name: HC_REFUSE_MAKECHAR,                  direction: S2C, summary: "Refuse character creation with reason." }
+  - { name: HC_ACCEPT_DELETECHAR,                direction: S2C, summary: "Accept character deletion." }
+  - { name: HC_REFUSE_DELETECHAR,                direction: S2C, summary: "Refuse character deletion with reason." }
+  - { name: HC_NOTIFY_ZONESVR,                   direction: S2C, summary: "Hand off client to zone server with address/auth." }
+  - { name: CZ_ENTER,                            direction: C2S, summary: "Enter the zone (final hop after char select)." }
+  - { name: ZC_ACCEPT_ENTER,                     direction: S2C, summary: "Accept zone enter; deliver spawn position." }
+  - { name: ZC_REFUSE_ENTER,                     direction: S2C, summary: "Refuse zone enter with reason." }
+  - { name: ZC_NOTIFY_INITCHAR,                  direction: S2C, summary: "Initial character bootstrap on zone enter." }
+  - { name: ZC_NOTIFY_UPDATECHAR,                direction: S2C, summary: "Notify clients of character state update." }
+  - { name: ZC_NOTIFY_UPDATEPLAYER,              direction: S2C, summary: "Notify clients of player state update." }
+  - { name: ZC_NOTIFY_STANDENTRY,                direction: S2C, summary: "Notify clients of a standing actor entry." }
+  - { name: ZC_NOTIFY_NEWENTRY,                  direction: S2C, summary: "Notify clients of a new actor entering view." }
+  - { name: ZC_NOTIFY_ACTENTRY,                  direction: S2C, summary: "Notify clients of an acting actor entry." }
+  - { name: ZC_NOTIFY_MOVEENTRY,                 direction: S2C, summary: "Notify clients of a moving actor entry." }
+  - { name: ZC_NOTIFY_STANDENTRY_NPC,            direction: S2C, summary: "Notify clients of an NPC standing entry." }
+  - { name: CZ_NOTIFY_ACTORINIT,                 direction: C2S, summary: "Client signal that actor init / map load is done." }
+  - { name: CZ_REQUEST_TIME,                     direction: C2S, summary: "Request server time / tick." }
+  - { name: ZC_NOTIFY_TIME,                      direction: S2C, summary: "Deliver server time / tick to client." }
+  - { name: ZC_NOTIFY_VANISH,                    direction: S2C, summary: "Notify clients of an actor vanishing from view." }
+  - { name: SC_NOTIFY_BAN,                       direction: S2C, summary: "Notify client of ban / forced disconnect." }
+  - { name: CZ_REQUEST_QUIT,                     direction: C2S, summary: "Request to quit / disconnect to char select." }
+  - { name: ZC_ACCEPT_QUIT,                      direction: S2C, summary: "Accept quit request." }
+  - { name: ZC_REFUSE_QUIT,                      direction: S2C, summary: "Refuse quit request." }
+
+  # ----- 0x008x Movement / chat / actions -----
+  - { name: CZ_REQUEST_MOVE,                     direction: C2S, summary: "Request to move to a target cell." }
+  - { name: ZC_NOTIFY_MOVE,                      direction: S2C, summary: "Notify clients of another actor's movement." }
+  - { name: ZC_NOTIFY_PLAYERMOVE,                direction: S2C, summary: "Notify own player of accepted movement." }
+  - { name: ZC_STOPMOVE,                         direction: S2C, summary: "Notify clients that an actor stopped moving." }
+  - { name: CZ_REQUEST_ACT,                      direction: C2S, summary: "Request an action (attack/sit/stand)." }
+  - { name: ZC_NOTIFY_ACT,                       direction: S2C, summary: "Notify clients of an action result (damage etc)." }
+  - { name: ZC_NOTIFY_ACT_POSITION,              direction: S2C, summary: "Notify clients of a positional action result." }
+  - { name: CZ_REQUEST_CHAT,                     direction: C2S, summary: "Request to broadcast a chat line." }
+  - { name: ZC_NOTIFY_CHAT,                      direction: S2C, summary: "Notify clients of another actor's chat." }
+  - { name: ZC_NOTIFY_PLAYERCHAT,                direction: S2C, summary: "Echo own player's chat back to self." }
+  - { name: SERVER_ENTRY_ACK,                    direction: INTERNAL, summary: "Inter-server ack for an entry handoff." }
+  - { name: CZ_CONTACTNPC,                       direction: C2S, summary: "Request to talk to / contact an NPC." }
+  - { name: ZC_NPCACK_MAPMOVE,                   direction: S2C, summary: "NPC-driven map move (warp)." }
+  - { name: ZC_NPCACK_SERVERMOVE,                direction: S2C, summary: "NPC-driven server move (cross-zone)." }
+  - { name: ZC_NPCACK_ENABLE,                    direction: S2C, summary: "NPC-driven re-enable of client input." }
+  - { name: CZ_REQNAME,                          direction: C2S, summary: "Request the display name of an actor." }
+  - { name: ZC_ACK_REQNAME,                      direction: S2C, summary: "Ack/response for actor name lookup." }
+  - { name: CZ_WHISPER,                          direction: C2S, summary: "Send a private whisper to another player." }
+  - { name: ZC_WHISPER,                          direction: S2C, summary: "Deliver an incoming whisper to client." }
+  - { name: ZC_ACK_WHISPER,                      direction: S2C, summary: "Ack/response for a sent whisper." }
+  - { name: CZ_BROADCAST,                        direction: C2S, summary: "Request a server-wide GM broadcast." }
+  - { name: ZC_BROADCAST,                        direction: S2C, summary: "Deliver server-wide broadcast to client." }
+  - { name: CZ_CHANGE_DIRECTION,                 direction: C2S, summary: "Request to change facing direction." }
+  - { name: ZC_CHANGE_DIRECTION,                 direction: S2C, summary: "Notify clients of an actor's new facing." }
+
+  # ----- 0x009x Items on map / inventory / equipment -----
+  - { name: ZC_ITEM_ENTRY,                       direction: S2C, summary: "Notify clients of an item already on the ground." }
+  - { name: ZC_ITEM_FALL_ENTRY,                  direction: S2C, summary: "Notify clients of an item falling to the ground." }
+  - { name: CZ_ITEM_PICKUP,                      direction: C2S, summary: "Request to pick up a ground item." }
+  - { name: ZC_ITEM_PICKUP_ACK,                  direction: S2C, summary: "Ack/response for a pickup attempt." }
+  - { name: ZC_ITEM_DISAPPEAR,                   direction: S2C, summary: "Notify clients that a ground item disappeared." }
+  - { name: CZ_ITEM_THROW,                       direction: C2S, summary: "Request to drop / throw an inventory item." }
+  - { name: ZC_NORMAL_ITEMLIST,                  direction: S2C, summary: "Deliver inventory list of normal items." }
+  - { name: ZC_EQUIPMENT_ITEMLIST,               direction: S2C, summary: "Deliver inventory list of equipment items." }
+  - { name: ZC_STORE_NORMAL_ITEMLIST,            direction: S2C, summary: "Deliver kafra storage normal item list." }
+  - { name: ZC_STORE_EQUIPMENT_ITEMLIST,         direction: S2C, summary: "Deliver kafra storage equipment item list." }
+  - { name: CZ_USE_ITEM,                         direction: C2S, summary: "Request to use an inventory item." }
+  - { name: ZC_USE_ITEM_ACK,                     direction: S2C, summary: "Ack/response for an item use attempt." }
+  - { name: CZ_REQ_WEAR_EQUIP,                   direction: C2S, summary: "Request to equip an item." }
+  - { name: ZC_REQ_WEAR_EQUIP_ACK,               direction: S2C, summary: "Ack/response for an equip attempt." }
+  - { name: CZ_REQ_TAKEOFF_EQUIP,                direction: C2S, summary: "Request to unequip an item." }
+  - { name: ZC_REQ_TAKEOFF_EQUIP_ACK,            direction: S2C, summary: "Ack/response for an unequip attempt." }
+  - { name: CZ_REQ_ITEM_EXPLANATION_BYNAME,      direction: C2S, summary: "Request item description text by name." }
+  - { name: ZC_REQ_ITEM_EXPLANATION_ACK,         direction: S2C, summary: "Deliver item description text." }
+  - { name: ZC_ITEM_THROW_ACK,                   direction: S2C, summary: "Ack/response for a drop attempt." }
+  - { name: ZC_PAR_CHANGE,                       direction: S2C, summary: "Notify clients of a short parameter change (stat)." }
+  - { name: ZC_LONGPAR_CHANGE,                   direction: S2C, summary: "Notify clients of a long parameter change (exp etc)." }
+  - { name: CZ_RESTART,                          direction: C2S, summary: "Request to respawn / return to save point." }
+  - { name: ZC_RESTART_ACK,                      direction: S2C, summary: "Ack/response for restart request." }
+
+  # ----- 0x00ax NPC dialogs / status / emotion -----
+  - { name: ZC_SAY_DIALOG,                       direction: S2C, summary: "Show NPC speech dialog box." }
+  - { name: ZC_WAIT_DIALOG,                      direction: S2C, summary: "Show NPC 'next' button dialog." }
+  - { name: ZC_CLOSE_DIALOG,                     direction: S2C, summary: "Show NPC 'close' button dialog." }
+  - { name: ZC_MENU_LIST,                        direction: S2C, summary: "Show NPC menu choice list." }
+  - { name: CZ_CHOOSE_MENU,                      direction: C2S, summary: "Submit an NPC menu choice." }
+  - { name: CZ_REQ_NEXT_SCRIPT,                  direction: C2S, summary: "Request next NPC script step." }
+  - { name: CZ_REQ_STATUS,                       direction: C2S, summary: "Request own status / stat panel data." }
+  - { name: CZ_STATUS_CHANGE,                    direction: C2S, summary: "Request to spend a stat point." }
+  - { name: ZC_STATUS_CHANGE_ACK,                direction: S2C, summary: "Ack/response for stat point spend." }
+  - { name: ZC_STATUS,                           direction: S2C, summary: "Deliver full status panel data." }
+  - { name: ZC_STATUS_CHANGE,                    direction: S2C, summary: "Notify clients of a status / buff change." }
+  - { name: CZ_REQ_EMOTION,                      direction: C2S, summary: "Request to play an emotion icon." }
+  - { name: ZC_EMOTION,                          direction: S2C, summary: "Notify clients of an actor's emotion." }
+  - { name: CZ_REQ_USER_COUNT,                   direction: C2S, summary: "Request online user count." }
+  - { name: ZC_USER_COUNT,                       direction: S2C, summary: "Deliver online user count." }
+  - { name: ZC_SPRITE_CHANGE,                    direction: S2C, summary: "Notify clients of an actor sprite/look change." }
+
+  # ----- 0x00bx NPC shops / GM disconnect -----
+  - { name: ZC_SELECT_DEALTYPE,                  direction: S2C, summary: "Open NPC buy/sell selection dialog." }
+  - { name: CZ_ACK_SELECT_DEALTYPE,              direction: C2S, summary: "Client choice of buy or sell." }
+  - { name: ZC_PC_PURCHASE_ITEMLIST,             direction: S2C, summary: "Deliver NPC shop item list for purchase." }
+  - { name: ZC_PC_SELL_ITEMLIST,                 direction: S2C, summary: "Deliver player's sellable item list." }
+  - { name: CZ_PC_PURCHASE_ITEMLIST,             direction: C2S, summary: "Submit purchase from NPC shop." }
+  - { name: CZ_PC_SELL_ITEMLIST,                 direction: C2S, summary: "Submit sell to NPC shop." }
+  - { name: ZC_PC_PURCHASE_RESULT,               direction: S2C, summary: "Ack/response for NPC purchase." }
+  - { name: ZC_PC_SELL_RESULT,                   direction: S2C, summary: "Ack/response for NPC sell." }
+  - { name: CZ_DISCONNECT_CHARACTER,             direction: C2S, summary: "GM: disconnect a single character by name." }
+  - { name: ZC_ACK_DISCONNECT_CHARACTER,         direction: S2C, summary: "Ack for GM disconnect command." }
+  - { name: CZ_DISCONNECT_ALL_CHARACTER,         direction: C2S, summary: "GM: disconnect all characters." }
+
+  # ----- 0x00cx Whisper settings / chat rooms -----
+  - { name: CZ_SETTING_WHISPER_PC,               direction: C2S, summary: "Set whisper accept state for a single player." }
+  - { name: CZ_SETTING_WHISPER_STATE,            direction: C2S, summary: "Set global whisper accept state." }
+  - { name: ZC_SETTING_WHISPER_PC,               direction: S2C, summary: "Ack/response for per-PC whisper setting." }
+  - { name: ZC_SETTING_WHISPER_STATE,            direction: S2C, summary: "Ack/response for global whisper setting." }
+  - { name: CZ_REQ_WHISPER_LIST,                 direction: C2S, summary: "Request list of blocked whisperers." }
+  - { name: ZC_WHISPER_LIST,                     direction: S2C, summary: "Deliver list of blocked whisperers." }
+  - { name: CZ_CREATE_CHATROOM,                  direction: C2S, summary: "Request to create a chat room." }
+  - { name: ZC_ACK_CREATE_CHATROOM,              direction: S2C, summary: "Ack/response for chat room creation." }
+  - { name: ZC_ROOM_NEWENTRY,                    direction: S2C, summary: "Notify clients of a new chat room appearing." }
+  - { name: ZC_DESTROY_ROOM,                     direction: S2C, summary: "Notify clients of a chat room being destroyed." }
+  - { name: CZ_REQ_ENTER_ROOM,                   direction: C2S, summary: "Request to enter a chat room." }
+  - { name: ZC_REFUSE_ENTER_ROOM,                direction: S2C, summary: "Refuse chat room entry with reason." }
+  - { name: ZC_ENTER_ROOM,                       direction: S2C, summary: "Confirm chat room entry and deliver state." }
+  - { name: ZC_MEMBER_NEWENTRY,                  direction: S2C, summary: "Notify chat room of a member joining." }
+  - { name: ZC_MEMBER_EXIT,                      direction: S2C, summary: "Notify chat room of a member leaving." }
+  - { name: CZ_CHANGE_CHATROOM,                  direction: C2S, summary: "Request to change chat room properties." }
+  - { name: ZC_CHANGE_CHATROOM,                  direction: S2C, summary: "Notify of chat room property change." }
+  - { name: CZ_REQ_ROLE_CHANGE,                  direction: C2S, summary: "Request to change a chat room member's role." }
+  - { name: ZC_ROLE_CHANGE,                      direction: S2C, summary: "Notify of chat room member role change." }
+  - { name: CZ_REQ_EXPEL_MEMBER,                 direction: C2S, summary: "Request to kick a chat room member." }
+  - { name: CZ_EXIT_ROOM,                        direction: C2S, summary: "Request to leave the current chat room." }
+
+  # ----- 0x00ex Item exchange / trade -----
+  - { name: CZ_REQ_EXCHANGE_ITEM,                direction: C2S, summary: "Request to start an item trade." }
+  - { name: ZC_REQ_EXCHANGE_ITEM,                direction: S2C, summary: "Notify target of incoming trade request." }
+  - { name: CZ_ACK_EXCHANGE_ITEM,                direction: C2S, summary: "Accept/refuse incoming trade request." }
+  - { name: ZC_ACK_EXCHANGE_ITEM,                direction: S2C, summary: "Ack/response for trade request." }
+  - { name: CZ_ADD_EXCHANGE_ITEM,                direction: C2S, summary: "Add item to current trade window." }
+  - { name: ZC_ADD_EXCHANGE_ITEM,                direction: S2C, summary: "Notify peer of added trade item." }
+  - { name: ZC_ACK_ADD_EXCHANGE_ITEM,            direction: S2C, summary: "Ack/response for adding a trade item." }
+  - { name: CZ_CONCLUDE_EXCHANGE_ITEM,           direction: C2S, summary: "Lock in the current trade offer." }
+  - { name: ZC_CONCLUDE_EXCHANGE_ITEM,           direction: S2C, summary: "Notify peer that trade was concluded." }
+  - { name: CZ_CANCEL_EXCHANGE_ITEM,             direction: C2S, summary: "Cancel the in-progress trade." }
+  - { name: ZC_CANCEL_EXCHANGE_ITEM,             direction: S2C, summary: "Notify of trade cancellation." }
+  - { name: CZ_EXEC_EXCHANGE_ITEM,               direction: C2S, summary: "Execute the locked-in trade." }
+  - { name: ZC_EXEC_EXCHANGE_ITEM,               direction: S2C, summary: "Notify of trade execution result." }
+  - { name: ZC_EXCHANGEITEM_UNDO,                direction: S2C, summary: "Roll back an in-progress trade." }
+
+  # ----- 0x00fx Kafra storage -----
+  - { name: ZC_NOTIFY_STOREITEM_COUNTINFO,       direction: S2C, summary: "Deliver kafra storage count info." }
+  - { name: CZ_MOVE_ITEM_FROM_BODY_TO_STORE,     direction: C2S, summary: "Move item from inventory to storage." }
+  - { name: ZC_ADD_ITEM_TO_STORE,                direction: S2C, summary: "Notify of item added to storage." }
+  - { name: CZ_MOVE_ITEM_FROM_STORE_TO_BODY,     direction: C2S, summary: "Move item from storage to inventory." }
+  - { name: ZC_DELETE_ITEM_FROM_STORE,           direction: S2C, summary: "Notify of item removed from storage." }
+  - { name: CZ_CLOSE_STORE,                      direction: C2S, summary: "Request to close storage window." }
+  - { name: ZC_CLOSE_STORE,                      direction: S2C, summary: "Notify of storage closing." }
+
+  # ----- 0x010x Party -----
+  - { name: CZ_MAKE_GROUP,                       direction: C2S, summary: "Request to create a party." }
+  - { name: ZC_ACK_MAKE_GROUP,                   direction: S2C, summary: "Ack/response for party creation." }
+  - { name: ZC_GROUP_LIST,                       direction: S2C, summary: "Deliver current party member list." }
+  - { name: CZ_REQ_JOIN_GROUP,                   direction: C2S, summary: "Request to invite a player to party." }
+  - { name: ZC_ACK_REQ_JOIN_GROUP,               direction: S2C, summary: "Ack/response for party invite send." }
+  - { name: ZC_REQ_JOIN_GROUP,                   direction: S2C, summary: "Notify target of incoming party invite." }
+  - { name: CZ_JOIN_GROUP,                       direction: C2S, summary: "Reply to incoming party invite." }
+  - { name: CZ_REQ_LEAVE_GROUP,                  direction: C2S, summary: "Request to leave the current party." }
+  - { name: ZC_GROUPINFO_CHANGE,                 direction: S2C, summary: "Notify of party setting change." }
+  - { name: CZ_CHANGE_GROUPEXPOPTION,            direction: C2S, summary: "Change party exp-share option." }
+  - { name: CZ_REQ_EXPEL_GROUP_MEMBER,           direction: C2S, summary: "Request to expel a party member." }
+  - { name: ZC_ADD_MEMBER_TO_GROUP,              direction: S2C, summary: "Notify of party member joining." }
+  - { name: ZC_DELETE_MEMBER_FROM_GROUP,         direction: S2C, summary: "Notify of party member leaving." }
+  - { name: ZC_NOTIFY_HP_TO_GROUPM,              direction: S2C, summary: "Notify party of a member's HP update." }
+  - { name: ZC_NOTIFY_POSITION_TO_GROUPM,        direction: S2C, summary: "Notify party of a member's position update." }
+  - { name: CZ_REQUEST_CHAT_PARTY,               direction: C2S, summary: "Send a party chat message." }
+  - { name: ZC_NOTIFY_CHAT_PARTY,                direction: S2C, summary: "Deliver an incoming party chat message." }
+  - { name: ZC_MVP_GETTING_ITEM,                 direction: S2C, summary: "Notify of MVP getting bonus item." }
+  - { name: ZC_MVP_GETTING_SPECIAL_EXP,          direction: S2C, summary: "Notify of MVP getting bonus exp." }
+  - { name: ZC_MVP,                              direction: S2C, summary: "Notify clients of MVP designation." }
+  - { name: ZC_THROW_MVPITEM,                    direction: S2C, summary: "Notify of MVP item drop." }
+
+  # ----- 0x011x Skills -----
+  - { name: ZC_SKILLINFO_UPDATE,                 direction: S2C, summary: "Update a single skill's info." }
+  - { name: ZC_SKILLINFO_LIST,                   direction: S2C, summary: "Deliver full skill tree list." }
+  - { name: ZC_ACK_TOUSESKILL,                   direction: S2C, summary: "Ack/response for attempted skill use." }
+  - { name: ZC_ADD_SKILL,                        direction: S2C, summary: "Notify of newly learned skill." }
+  - { name: CZ_UPGRADE_SKILLLEVEL,               direction: C2S, summary: "Request to spend a skill point." }
+  - { name: CZ_USE_SKILL,                        direction: C2S, summary: "Request to use a targeted skill." }
+  - { name: ZC_NOTIFY_SKILL,                     direction: S2C, summary: "Notify clients of skill being used." }
+  - { name: ZC_NOTIFY_SKILL_POSITION,            direction: S2C, summary: "Notify of positional skill use." }
+  - { name: CZ_USE_SKILL_TOGROUND,               direction: C2S, summary: "Request to use a ground-targeted skill." }
+  - { name: ZC_NOTIFY_GROUNDSKILL,               direction: S2C, summary: "Notify clients of a ground-targeted skill." }
+  - { name: CZ_CANCEL_LOCKON,                    direction: C2S, summary: "Cancel an active lock-on / channeling." }
+  - { name: ZC_STATE_CHANGE,                     direction: S2C, summary: "Notify of actor state / status flag change." }
+  - { name: ZC_USE_SKILL,                        direction: S2C, summary: "Notify clients of a skill use (single-target form)." }
+  - { name: CZ_SELECT_WARPPOINT,                 direction: C2S, summary: "Submit warp destination from warp portal list." }
+  - { name: ZC_WARPLIST,                         direction: S2C, summary: "Deliver warp portal destination list." }
+  - { name: CZ_REMEMBER_WARPPOINT,               direction: C2S, summary: "Request to memorize current position as warp." }
+  - { name: ZC_ACK_REMEMBER_WARPPOINT,           direction: S2C, summary: "Ack/response for warp memorize." }
+  - { name: ZC_SKILL_ENTRY,                      direction: S2C, summary: "Notify of ground skill effect entering view." }
+  - { name: ZC_SKILL_DISAPPEAR,                  direction: S2C, summary: "Notify of ground skill effect disappearing." }
+
+  # ----- 0x012x Cart / vending -----
+  - { name: ZC_NOTIFY_CARTITEM_COUNTINFO,        direction: S2C, summary: "Deliver cart inventory count info." }
+  - { name: ZC_CART_EQUIPMENT_ITEMLIST,          direction: S2C, summary: "Deliver cart equipment item list." }
+  - { name: ZC_CART_NORMAL_ITEMLIST,             direction: S2C, summary: "Deliver cart normal item list." }
+  - { name: ZC_ADD_ITEM_TO_CART,                 direction: S2C, summary: "Notify of item added to cart." }
+  - { name: ZC_DELETE_ITEM_FROM_CART,            direction: S2C, summary: "Notify of item removed from cart." }
+  - { name: CZ_MOVE_ITEM_FROM_BODY_TO_CART,      direction: C2S, summary: "Move item from inventory to cart." }
+  - { name: CZ_MOVE_ITEM_FROM_CART_TO_BODY,      direction: C2S, summary: "Move item from cart to inventory." }
+  - { name: CZ_MOVE_ITEM_FROM_STORE_TO_CART,     direction: C2S, summary: "Move item from storage to cart." }
+  - { name: CZ_MOVE_ITEM_FROM_CART_TO_STORE,     direction: C2S, summary: "Move item from cart to storage." }
+  - { name: CZ_REQ_CARTOFF,                      direction: C2S, summary: "Request to drop the cart." }
+  - { name: ZC_CARTOFF,                          direction: S2C, summary: "Notify of cart being dropped." }
+  - { name: ZC_ACK_ADDITEM_TO_CART,              direction: S2C, summary: "Ack/response for adding item to cart." }
+  - { name: ZC_OPENSTORE,                        direction: S2C, summary: "Notify clients of vending shop opening." }
+  - { name: CZ_REQ_CLOSESTORE,                   direction: C2S, summary: "Request to close own vending shop." }
+  - { name: CZ_REQ_OPENSTORE,                    direction: C2S, summary: "Request to open a vending shop." }
+  - { name: CZ_REQ_BUY_FROMMC,                   direction: C2S, summary: "Submit purchase from a vending shop." }
+  - { name: ZC_STORE_ENTRY,                      direction: S2C, summary: "Notify of vending shop sign entering view." }
+  - { name: ZC_DISAPPEAR_ENTRY,                  direction: S2C, summary: "Notify of vending shop sign disappearing." }
+  - { name: ZC_PC_PURCHASE_ITEMLIST_FROMMC,      direction: S2C, summary: "Deliver vending shop's item list." }
+  - { name: CZ_PC_PURCHASE_ITEMLIST_FROMMC,      direction: C2S, summary: "Submit purchase list from vending shop." }
+  - { name: ZC_PC_PURCHASE_RESULT_FROMMC,        direction: S2C, summary: "Ack/response for vending purchase." }
+  - { name: ZC_PC_PURCHASE_MYITEMLIST,           direction: S2C, summary: "Deliver own vending shop item list to seller." }
+  - { name: ZC_DELETEITEM_FROM_MCSTORE,          direction: S2C, summary: "Notify seller of sold vending item." }
+
+  # ----- 0x013x PK / combat misc / GM / dialogs -----
+  - { name: CZ_PKMODE_CHANGE,                    direction: C2S, summary: "Toggle PK mode flag." }
+  - { name: ZC_ATTACK_FAILURE_FOR_DISTANCE,      direction: S2C, summary: "Notify that attack failed due to range." }
+  - { name: ZC_ATTACK_RANGE,                     direction: S2C, summary: "Deliver current attack range." }
+  - { name: ZC_ACTION_FAILURE,                   direction: S2C, summary: "Generic action failure notification." }
+  - { name: ZC_EQUIP_ARROW,                      direction: S2C, summary: "Notify clients of equipped arrow type." }
+  - { name: ZC_RECOVERY,                         direction: S2C, summary: "Notify of HP/SP recovery tick." }
+  - { name: ZC_USESKILL_ACK,                     direction: S2C, summary: "Ack/response for skill use (cast start)." }
+  - { name: CZ_ITEM_CREATE,                      direction: C2S, summary: "GM: create an item." }
+  - { name: CZ_MOVETO_MAP,                       direction: C2S, summary: "GM: move character to a map." }
+  - { name: ZC_COUPLESTATUS,                     direction: S2C, summary: "Deliver couple/marriage status info." }
+  - { name: ZC_OPEN_EDITDLG,                     direction: S2C, summary: "Open a numeric input dialog." }
+  - { name: CZ_INPUT_EDITDLG,                    direction: C2S, summary: "Submit numeric input dialog value." }
+  - { name: ZC_COMPASS,                          direction: S2C, summary: "Show / hide compass quest marker." }
+  - { name: ZC_SHOW_IMAGE,                       direction: S2C, summary: "Display a cutin / illustration on client." }
+  - { name: CZ_CLOSE_DIALOG,                     direction: C2S, summary: "Close current NPC dialog." }
+  - { name: ZC_AUTORUN_SKILL,                    direction: S2C, summary: "Trigger autorun of a skill on client." }
+  - { name: ZC_RESURRECTION,                     direction: S2C, summary: "Notify of resurrection / revive effect." }
+  - { name: CZ_REQ_GIVE_MANNER_POINT,            direction: C2S, summary: "Request to give a manner point." }
+  - { name: ZC_ACK_GIVE_MANNER_POINT,            direction: S2C, summary: "Ack/response for manner point give." }
+  - { name: ZC_NOTIFY_MANNER_POINT_GIVEN,        direction: S2C, summary: "Notify recipient of manner point received." }
+
+  # ----- 0x014x Guild -----
+  - { name: ZC_MYGUILD_BASIC_INFO,               direction: S2C, summary: "Deliver own guild basic info on enter." }
+  - { name: CZ_REQ_GUILD_MENUINTERFACE,          direction: C2S, summary: "Request guild interface availability mask." }
+  - { name: ZC_ACK_GUILD_MENUINTERFACE,          direction: S2C, summary: "Deliver guild interface availability mask." }
+  - { name: CZ_REQ_GUILD_MENU,                   direction: C2S, summary: "Request guild menu data by tab." }
+  - { name: ZC_GUILD_INFO,                       direction: S2C, summary: "Deliver guild info panel data." }
+  - { name: CZ_REQ_GUILD_EMBLEM_IMG,             direction: C2S, summary: "Request guild emblem image data." }
+  - { name: ZC_GUILD_EMBLEM_IMG,                 direction: S2C, summary: "Deliver guild emblem image data." }
+  - { name: CZ_REGISTER_GUILD_EMBLEM_IMG,        direction: C2S, summary: "Upload new guild emblem image." }
+  - { name: ZC_MEMBERMGR_INFO,                   direction: S2C, summary: "Deliver guild member manager info." }
+  - { name: CZ_REQ_CHANGE_MEMBERPOS,             direction: C2S, summary: "Request to change a guild member's position." }
+  - { name: ZC_ACK_REQ_CHANGE_MEMBERS,           direction: S2C, summary: "Ack/response for guild member position change." }
+  - { name: CZ_REQ_OPEN_MEMBER_INFO,             direction: C2S, summary: "Request to open guild member info." }
+  - { name: ZC_ACK_OPEN_MEMBER_INFO,             direction: S2C, summary: "Deliver guild member info." }
+  - { name: CZ_REQ_LEAVE_GUILD,                  direction: C2S, summary: "Request to leave own guild." }
+  - { name: ZC_ACK_LEAVE_GUILD,                  direction: S2C, summary: "Ack/response for leaving guild." }
+  - { name: CZ_REQ_BAN_GUILD,                    direction: C2S, summary: "Request to expel a guild member." }
+  - { name: ZC_ACK_BAN_GUILD,                    direction: S2C, summary: "Ack/response for guild expel." }
+  - { name: CZ_REQ_DISORGANIZE_GUILD,            direction: C2S, summary: "Request to disband the guild." }
+  - { name: ZC_ACK_DISORGANIZE_GUILD_RESULT,     direction: S2C, summary: "Ack/response for guild disband attempt." }
+  - { name: ZC_ACK_DISORGANIZE_GUILD,            direction: S2C, summary: "Notify of guild being disbanded." }
+  - { name: ZC_POSITION_INFO,                    direction: S2C, summary: "Deliver guild position settings list." }
+  - { name: CZ_REG_CHANGE_GUILD_POSITIONINFO,    direction: C2S, summary: "Update guild position settings." }
+  - { name: ZC_GUILD_SKILLINFO,                  direction: S2C, summary: "Deliver guild skill list." }
+  - { name: ZC_BAN_LIST,                         direction: S2C, summary: "Deliver guild ban list." }
+  - { name: ZC_OTHER_GUILD_LIST,                 direction: S2C, summary: "Deliver list of related/other guilds." }
+  - { name: CZ_REQ_MAKE_GUILD,                   direction: C2S, summary: "Request to create a guild." }
+  - { name: ZC_POSITION_ID_NAME_INFO,            direction: S2C, summary: "Deliver guild position id/name mapping." }
+  - { name: ZC_RESULT_MAKE_GUILD,                direction: S2C, summary: "Ack/response for guild creation." }
+  - { name: CZ_REQ_JOIN_GUILD,                   direction: C2S, summary: "Request to invite player to guild." }
+  - { name: ZC_ACK_REQ_JOIN_GUILD,               direction: S2C, summary: "Ack/response for guild invite send." }
+  - { name: ZC_REQ_JOIN_GUILD,                   direction: S2C, summary: "Notify target of guild invite." }
+  - { name: CZ_JOIN_GUILD,                       direction: C2S, summary: "Reply to incoming guild invite." }
+  - { name: ZC_UPDATE_GDID,                      direction: S2C, summary: "Update an actor's guild id reference." }
+  - { name: ZC_UPDATE_CHARSTAT,                  direction: S2C, summary: "Notify guild of member char-stat update." }
+  - { name: CZ_GUILD_NOTICE,                     direction: C2S, summary: "Set guild notice / message of the day." }
+  - { name: ZC_GUILD_NOTICE,                     direction: S2C, summary: "Deliver guild notice on login / change." }
+  - { name: CZ_REQ_ALLY_GUILD,                   direction: C2S, summary: "Request to propose guild alliance." }
+  - { name: ZC_REQ_ALLY_GUILD,                   direction: S2C, summary: "Notify target guild of alliance request." }
+  - { name: CZ_ALLY_GUILD,                       direction: C2S, summary: "Reply to alliance request." }
+  - { name: ZC_ACK_REQ_ALLY_GUILD,               direction: S2C, summary: "Ack/response for alliance request." }
+  - { name: ZC_ACK_CHANGE_GUILD_POSITIONINFO,    direction: S2C, summary: "Ack/response for guild position update." }
+  - { name: CZ_REQ_GUILD_MEMBER_INFO,            direction: C2S, summary: "Request detailed info on a guild member." }
+  - { name: ZC_ACK_GUILD_MEMBER_INFO,            direction: S2C, summary: "Deliver detailed guild member info." }
+
+  # ----- 0x017x Item identify / composition / guild chat -----
+  - { name: ZC_ITEMIDENTIFY_LIST,                direction: S2C, summary: "Deliver list of unidentified items." }
+  - { name: CZ_REQ_ITEMIDENTIFY,                 direction: C2S, summary: "Request to identify a specific item." }
+  - { name: ZC_ACK_ITEMIDENTIFY,                 direction: S2C, summary: "Ack/response for identification attempt." }
+  - { name: CZ_REQ_ITEMCOMPOSITION_LIST,         direction: C2S, summary: "Request card-compoundable item list." }
+  - { name: ZC_ITEMCOMPOSITION_LIST,             direction: S2C, summary: "Deliver card-compoundable item list." }
+  - { name: CZ_REQ_ITEMCOMPOSITION,              direction: C2S, summary: "Request to slot a card into an item." }
+  - { name: ZC_ACK_ITEMCOMPOSITION,              direction: S2C, summary: "Ack/response for card compound." }
+  - { name: CZ_GUILD_CHAT,                       direction: C2S, summary: "Send guild chat message." }
+  - { name: ZC_GUILD_CHAT,                       direction: S2C, summary: "Deliver incoming guild chat message." }
+  - { name: CZ_REQ_HOSTILE_GUILD,                direction: C2S, summary: "Request to declare hostility on guild." }
+  - { name: ZC_ACK_REQ_HOSTILE_GUILD,            direction: S2C, summary: "Ack/response for hostility declaration." }
+  - { name: ZC_MEMBER_ADD,                       direction: S2C, summary: "Notify of guild member addition." }
+  - { name: CZ_REQ_DELETE_RELATED_GUILD,         direction: C2S, summary: "Request to break alliance/hostility tie." }
+  - { name: ZC_DELETE_RELATED_GUILD,             direction: S2C, summary: "Notify of related guild tie removed." }
+  - { name: ZC_ADD_RELATED_GUILD,                direction: S2C, summary: "Notify of related guild tie added." }
+
+  # ----- 0x018x Misc / utility / unprefixed -----
+  - { name: COLLECTORDEAD,                       direction: UNKNOWN, summary: "Legacy unprefixed: collector dead notification." }
+  - { name: PING,                                direction: UNKNOWN, summary: "Legacy unprefixed: keepalive ping." }
+  - { name: ZC_ACK_ITEMREFINING,                 direction: S2C, summary: "Ack/response for item refining attempt." }
+  - { name: ZC_NOTIFY_MAPINFO,                   direction: S2C, summary: "Deliver map info / properties." }
+  - { name: CZ_REQ_DISCONNECT,                   direction: C2S, summary: "Request graceful disconnect." }
+  - { name: ZC_ACK_REQ_DISCONNECT,               direction: S2C, summary: "Ack/response for disconnect request." }
+  - { name: ZC_MONSTER_INFO,                     direction: S2C, summary: "Deliver detailed monster info (monster-book)." }
+  - { name: ZC_MAKABLEITEMLIST,                  direction: S2C, summary: "Deliver craftable item list." }
+  - { name: CZ_REQMAKINGITEM,                    direction: C2S, summary: "Request to craft an item." }
+  - { name: ZC_ACK_REQMAKINGITEM,                direction: S2C, summary: "Ack/response for craft attempt." }
+  - { name: CZ_USE_SKILL_TOGROUND_WITHTALKBOX,   direction: C2S, summary: "Use ground skill with attached text talkbox." }
+  - { name: ZC_TALKBOX_CHATCONTENTS,             direction: S2C, summary: "Notify clients of skill talkbox contents." }
+  - { name: ZC_UPDATE_MAPINFO,                   direction: S2C, summary: "Update a map info / property cell." }
+  - { name: CZ_REQNAME_BYGID,                    direction: C2S, summary: "Request actor name lookup by global id." }
+  - { name: ZC_ACK_REQNAME_BYGID,                direction: S2C, summary: "Ack/response for name lookup by gid." }
+  - { name: ZC_ACK_REQNAMEALL,                   direction: S2C, summary: "Ack/response for full name lookup." }
+  - { name: ZC_MSG_STATE_CHANGE,                 direction: S2C, summary: "Notify of state change with localized message." }
+  - { name: CZ_RESET,                            direction: C2S, summary: "GM: reset stats/skills." }
+  - { name: CZ_CHANGE_MAPTYPE,                   direction: C2S, summary: "GM: change map type / property." }
+
+  # ----- EP4: Maps / effects / pets / vending v2 / encryption -----
+  - { name: ZC_NOTIFY_MAPPROPERTY,               direction: S2C, summary: "Deliver map property bitfield (pvp/gvg/etc)." }
+  - { name: ZC_NOTIFY_RANKING,                   direction: S2C, summary: "Deliver ranking board data." }
+  - { name: ZC_NOTIFY_EFFECT,                    direction: S2C, summary: "Notify clients of a visual effect." }
+  - { name: CZ_LOCALBROADCAST,                   direction: C2S, summary: "Request a map-local broadcast." }
+  - { name: CZ_CHANGE_EFFECTSTATE,               direction: C2S, summary: "Toggle client effect state flags." }
+  - { name: ZC_START_CAPTURE,                    direction: S2C, summary: "Open pet capture dialog." }
+  - { name: CZ_TRYCAPTURE_MONSTER,               direction: C2S, summary: "Attempt to capture a monster as pet." }
+  - { name: ZC_TRYCAPTURE_MONSTER,               direction: S2C, summary: "Ack/response for pet capture attempt." }
+  - { name: CZ_COMMAND_PET,                      direction: C2S, summary: "Issue command to active pet." }
+  - { name: ZC_PROPERTY_PET,                     direction: S2C, summary: "Deliver pet property / status panel." }
+  - { name: ZC_FEED_PET,                         direction: S2C, summary: "Notify of pet feed result." }
+  - { name: ZC_CHANGESTATE_PET,                  direction: S2C, summary: "Notify of pet state change." }
+  - { name: CZ_RENAME_PET,                       direction: C2S, summary: "Request to rename active pet." }
+  - { name: ZC_PETEGG_LIST,                      direction: S2C, summary: "Deliver list of unhatched pet eggs." }
+  - { name: CZ_SELECT_PETEGG,                    direction: C2S, summary: "Choose a pet egg to hatch." }
+  - { name: CZ_PETEGG_INFO,                      direction: C2S, summary: "Request info on a pet egg." }
+  - { name: CZ_PET_ACT,                          direction: C2S, summary: "Request a pet performance action." }
+  - { name: ZC_PET_ACT,                          direction: S2C, summary: "Notify clients of a pet action." }
+  - { name: ZC_PAR_CHANGE_USER,                  direction: S2C, summary: "Parameter change targeted at a user actor." }
+  - { name: ZC_SKILL_UPDATE,                     direction: S2C, summary: "Update skill info entry." }
+  - { name: ZC_MAKINGARROW_LIST,                 direction: S2C, summary: "Deliver arrow-craft material list." }
+  - { name: CZ_REQ_MAKINGARROW,                  direction: C2S, summary: "Request to craft arrows." }
+  - { name: CZ_REQ_CHANGECART,                   direction: C2S, summary: "Request to change cart appearance/tier." }
+  - { name: ZC_NPCSPRITE_CHANGE,                 direction: S2C, summary: "Notify of NPC sprite change." }
+  - { name: ZC_SHOWDIGIT,                        direction: S2C, summary: "Display a digit value on screen." }
+  - { name: CZ_REQ_OPENSTORE2,                   direction: C2S, summary: "Open vending shop (v2 layout)." }
+  - { name: ZC_SHOW_IMAGE2,                      direction: S2C, summary: "Display cutin (v2 layout)." }
+  - { name: ZC_CHANGE_GUILD,                     direction: S2C, summary: "Notify of guild change on an actor." }
+  - { name: SC_BILLING_INFO,                     direction: S2C, summary: "Deliver billing / play-time info." }
+  - { name: ZC_GUILD_INFO2,                      direction: S2C, summary: "Deliver guild info panel (v2 layout)." }
+  - { name: CZ_GUILD_ZENY,                       direction: C2S, summary: "Deposit zeny to guild storage." }
+  - { name: ZC_GUILD_ZENY_ACK,                   direction: S2C, summary: "Ack/response for guild zeny deposit." }
+  - { name: ZC_DISPEL,                           direction: S2C, summary: "Notify of dispel effect on actor." }
+  - { name: CZ_REMOVE_AID,                       direction: C2S, summary: "GM: remove an account by AID." }
+  - { name: CZ_SHIFT,                            direction: C2S, summary: "GM: shift / teleport to player." }
+  - { name: CZ_RECALL,                           direction: C2S, summary: "GM: recall a player by name." }
+  - { name: CZ_RECALL_GID,                       direction: C2S, summary: "GM: recall a player by global id." }
+  - { name: AC_ASK_PNGAMEROOM,                   direction: S2C, summary: "PC-bang: ask for game room context." }
+  - { name: CA_REPLY_PNGAMEROOM,                 direction: C2S, summary: "PC-bang: reply game room context." }
+  - { name: CZ_REQ_REMAINTIME,                   direction: C2S, summary: "Request remaining play time." }
+  - { name: ZC_REPLY_REMAINTIME,                 direction: S2C, summary: "Reply with remaining play time." }
+  - { name: ZC_INFO_REMAINTIME,                  direction: S2C, summary: "Periodic remaining play time tick." }
+  - { name: ZC_BROADCAST2,                       direction: S2C, summary: "Server-wide broadcast (v2 with color)." }
+  - { name: ZC_ADD_ITEM_TO_STORE2,               direction: S2C, summary: "Notify of item added to storage (v2)." }
+  - { name: ZC_ADD_ITEM_TO_CART2,                direction: S2C, summary: "Notify of item added to cart (v2)." }
+  - { name: CS_REQ_ENCRYPTION,                   direction: C2S, summary: "Request to start packet encryption." }
+  - { name: SC_ACK_ENCRYPTION,                   direction: S2C, summary: "Ack/response for encryption start." }
+  - { name: ZC_USE_ITEM_ACK2,                    direction: S2C, summary: "Ack/response for item use (v2)." }
+  - { name: ZC_SKILL_ENTRY2,                     direction: S2C, summary: "Notify of ground skill effect (v2)." }
+  - { name: CZ_REQMAKINGHOMUN,                   direction: C2S, summary: "Request to create / mutate a homunculus." }
+  - { name: CZ_MONSTER_TALK,                     direction: C2S, summary: "Send chat input to talking monster." }
+  - { name: ZC_MONSTER_TALK,                     direction: S2C, summary: "Notify of talking monster line." }
+  - { name: ZC_AUTOSPELLLIST,                    direction: S2C, summary: "Deliver autospell selection list." }
+  - { name: CZ_SELECTAUTOSPELL,                  direction: C2S, summary: "Choose autospell from list." }
+  - { name: ZC_DEVOTIONLIST,                     direction: S2C, summary: "Deliver Crusader devotion target list." }
+  - { name: ZC_SPIRITS,                          direction: S2C, summary: "Notify of spirit sphere count on actor." }
+  - { name: ZC_BLADESTOP,                        direction: S2C, summary: "Notify of bladestop effect." }
+  - { name: ZC_COMBODELAY,                       direction: S2C, summary: "Notify of combo delay window opening." }
+  - { name: ZC_SOUND,                            direction: S2C, summary: "Play a named sound effect on client." }
+  - { name: ZC_OPEN_EDITDLGSTR,                  direction: S2C, summary: "Open a string input dialog." }
+  - { name: CZ_INPUT_EDITDLGSTR,                 direction: C2S, summary: "Submit string input dialog value." }
+  - { name: ZC_NOTIFY_MAPPROPERTY2,              direction: S2C, summary: "Deliver map property bitfield (v2)." }
+  - { name: ZC_SPRITE_CHANGE2,                   direction: S2C, summary: "Notify of actor sprite change (v2)." }
+  - { name: ZC_NOTIFY_STANDENTRY2,               direction: S2C, summary: "Standing entry notification (v2 layout)." }
+  - { name: ZC_NOTIFY_NEWENTRY2,                 direction: S2C, summary: "New entry notification (v2 layout)." }
+  - { name: ZC_NOTIFY_MOVEENTRY2,                direction: S2C, summary: "Moving entry notification (v2 layout)." }
+  - { name: CA_REQ_HASH,                         direction: C2S, summary: "Request client hash challenge." }
+  - { name: AC_ACK_HASH,                         direction: S2C, summary: "Deliver client hash challenge." }
+  - { name: CA_LOGIN2,                           direction: C2S, summary: "Login request (v2 with hash)." }
+  - { name: ZC_NOTIFY_SKILL2,                    direction: S2C, summary: "Skill use notification (v2 layout)." }
+  - { name: CZ_REQ_ACCOUNTNAME,                  direction: C2S, summary: "Request account name by AID (GM)." }
+  - { name: ZC_ACK_ACCOUNTNAME,                  direction: S2C, summary: "Deliver account name by AID." }
+  - { name: ZC_SPIRITS2,                         direction: S2C, summary: "Spirit sphere notification (v2)." }
+  - { name: ZC_REQ_COUPLE,                       direction: S2C, summary: "Propose couple/marriage to player." }
+  - { name: CZ_JOIN_COUPLE,                      direction: C2S, summary: "Reply to couple proposal." }
+  - { name: ZC_START_COUPLE,                     direction: S2C, summary: "Notify of couple ceremony start." }
+  - { name: CZ_REQ_JOIN_COUPLE,                  direction: C2S, summary: "Request to start couple proposal." }
+  - { name: ZC_COUPLENAME,                       direction: S2C, summary: "Deliver couple partner's name." }
+  - { name: CZ_DORIDORI,                         direction: C2S, summary: "Doridori head-shake action (TaeKwon)." }
+  - { name: CZ_MAKE_GROUP2,                      direction: C2S, summary: "Request to create a party (v2)." }
+  - { name: ZC_ADD_MEMBER_TO_GROUP2,             direction: S2C, summary: "Notify of party member add (v2)." }
+  - { name: ZC_CONGRATULATION,                   direction: S2C, summary: "Show congratulation effect (level up etc)." }
+  - { name: ZC_NOTIFY_POSITION_TO_GUILDM,        direction: S2C, summary: "Notify guild of member position." }
+  - { name: ZC_GUILD_MEMBER_MAP_CHANGE,          direction: S2C, summary: "Notify guild of member map change." }
+  - { name: CZ_CHOPOKGI,                         direction: C2S, summary: "TaeKwon Chopokgi action." }
+  - { name: ZC_NORMAL_ITEMLIST2,                 direction: S2C, summary: "Normal inventory list (v2)." }
+  - { name: ZC_CART_NORMAL_ITEMLIST2,            direction: S2C, summary: "Cart normal item list (v2)." }
+  - { name: ZC_STORE_NORMAL_ITEMLIST2,           direction: S2C, summary: "Storage normal item list (v2)." }
+  - { name: AC_NOTIFY_ERROR,                     direction: S2C, summary: "Notify client of generic error." }
+  - { name: ZC_UPDATE_CHARSTAT2,                 direction: S2C, summary: "Guild member char-stat update (v2)." }
+  - { name: ZC_NOTIFY_EFFECT2,                   direction: S2C, summary: "Visual effect notification (v2)." }
+  - { name: ZC_REQ_EXCHANGE_ITEM2,               direction: S2C, summary: "Incoming trade request (v2)." }
+  - { name: ZC_ACK_EXCHANGE_ITEM2,               direction: S2C, summary: "Ack/response for trade request (v2)." }
+  - { name: ZC_REQ_BABY,                         direction: S2C, summary: "Propose adoption to player." }
+  - { name: CZ_JOIN_BABY,                        direction: C2S, summary: "Reply to adoption proposal." }
+  - { name: ZC_START_BABY,                       direction: S2C, summary: "Notify of adoption start." }
+  - { name: CZ_REQ_JOIN_BABY,                    direction: C2S, summary: "Request to start adoption proposal." }
+  - { name: CA_LOGIN3,                           direction: C2S, summary: "Login request (v3)." }
+  - { name: CH_DELETE_CHAR2,                     direction: C2S, summary: "Delete character (v2 with email)." }
+  - { name: ZC_REPAIRITEMLIST,                   direction: S2C, summary: "Deliver list of damaged items for repair." }
+  - { name: CZ_REQ_ITEMREPAIR,                   direction: C2S, summary: "Request to repair a damaged item." }
+  - { name: ZC_ACK_ITEMREPAIR,                   direction: S2C, summary: "Ack/response for item repair." }
+  - { name: ZC_HIGHJUMP,                         direction: S2C, summary: "Notify of high jump effect (Star Gladiator)." }
+  - { name: CA_CONNECT_INFO_CHANGED,             direction: C2S, summary: "Notify login of changed connect info." }
+  - { name: ZC_FRIENDS_LIST,                     direction: S2C, summary: "Deliver friends list." }
+  - { name: CZ_ADD_FRIENDS,                      direction: C2S, summary: "Request to add a friend." }
+  - { name: CZ_DELETE_FRIENDS,                   direction: C2S, summary: "Request to delete a friend." }
+  - { name: CA_EXE_HASHCHECK,                    direction: C2S, summary: "Submit client exe hash for check." }
+  - { name: ZC_DIVORCE,                          direction: S2C, summary: "Notify of divorce / couple break." }
+  - { name: ZC_FRIENDS_STATE,                    direction: S2C, summary: "Notify of a friend's online state change." }
+  - { name: ZC_REQ_ADD_FRIENDS,                  direction: S2C, summary: "Notify target of friend-add request." }
+  - { name: CZ_ACK_REQ_ADD_FRIENDS,              direction: C2S, summary: "Reply to incoming friend-add request." }
+  - { name: ZC_ADD_FRIENDS_LIST,                 direction: S2C, summary: "Notify of friend added to list." }
+  - { name: ZC_DELETE_FRIENDS,                   direction: S2C, summary: "Notify of friend removed from list." }
+  - { name: CH_EXE_HASHCHECK,                    direction: C2S, summary: "Submit exe hash to char server." }
+  - { name: CZ_EXE_HASHCHECK,                    direction: C2S, summary: "Submit exe hash to zone server." }
+  - { name: HC_BLOCK_CHARACTER,                  direction: S2C, summary: "Notify char-select of blocked characters." }
+  - { name: ZC_STARSKILL,                        direction: S2C, summary: "Notify of Star Gladiator skill effect." }
+  - { name: CZ_REQ_PVPPOINT,                     direction: C2S, summary: "Request PVP point info." }
+  - { name: ZC_ACK_PVPPOINT,                     direction: S2C, summary: "Deliver PVP point info." }
+  - { name: ZH_MOVE_PVPWORLD,                    direction: UNKNOWN, summary: "Inter-server move into PVP world." }
+  - { name: CZ_REQ_GIVE_MANNER_BYNAME,           direction: C2S, summary: "Give manner point by player name." }
+  - { name: CZ_REQ_STATUS_GM,                    direction: C2S, summary: "GM: request status of another character." }
+  - { name: ZC_ACK_STATUS_GM,                    direction: S2C, summary: "GM: deliver other character status." }
+  - { name: ZC_SKILLMSG,                         direction: S2C, summary: "Display a skill-related localized message." }
+  - { name: ZC_BABYMSG,                          direction: S2C, summary: "Display a baby/adoption localized message." }
+  - { name: CZ_BLACKSMITH_RANK,                  direction: C2S, summary: "Request Blacksmith ranking board." }
+  - { name: CZ_ALCHEMIST_RANK,                   direction: C2S, summary: "Request Alchemist ranking board." }
+  - { name: ZC_BLACKSMITH_RANK,                  direction: S2C, summary: "Deliver Blacksmith ranking board." }
+  - { name: ZC_ALCHEMIST_RANK,                   direction: S2C, summary: "Deliver Alchemist ranking board." }
+  - { name: ZC_BLACKSMITH_POINT,                 direction: S2C, summary: "Notify of Blacksmith point change." }
+  - { name: ZC_ALCHEMIST_POINT,                  direction: S2C, summary: "Notify of Alchemist point change." }
+  - { name: CZ_LESSEFFECT,                       direction: C2S, summary: "Toggle reduced effect rendering on server." }
+  - { name: ZC_LESSEFFECT,                       direction: S2C, summary: "Ack/response for less-effect toggle." }
+  - { name: ZC_NOTIFY_PKINFO,                    direction: S2C, summary: "Notify of PK-related info / score." }
+  - { name: ZC_NOTIFY_CRAZYKILLER,               direction: S2C, summary: "Notify of crazy-killer flag." }
+  - { name: ZC_NOTIFY_WEAPONITEMLIST,            direction: S2C, summary: "Deliver list of refinable weapons." }
+  - { name: CZ_REQ_WEAPONREFINE,                 direction: C2S, summary: "Request to refine a weapon." }
+  - { name: ZC_ACK_WEAPONREFINE,                 direction: S2C, summary: "Ack/response for weapon refine." }
+  - { name: ZC_TAEKWON_POINT,                    direction: S2C, summary: "Notify of TaeKwon point change." }
+  - { name: CZ_TAEKWON_RANK,                     direction: C2S, summary: "Request TaeKwon ranking board." }
+  - { name: ZC_TAEKWON_RANK,                     direction: S2C, summary: "Deliver TaeKwon ranking board." }
+  - { name: ZC_GAME_GUARD,                       direction: S2C, summary: "GameGuard challenge to client." }
+  - { name: CZ_ACK_GAME_GUARD,                   direction: C2S, summary: "GameGuard challenge response." }
+  - { name: ZC_STATE_CHANGE3,                    direction: S2C, summary: "State change notification (v3)." }
+  - { name: ZC_NOTIFY_STANDENTRY3,               direction: S2C, summary: "Standing entry notification (v3)." }
+  - { name: ZC_NOTIFY_NEWENTRY3,                 direction: S2C, summary: "New entry notification (v3)." }
+  - { name: ZC_NOTIFY_MOVEENTRY3,                direction: S2C, summary: "Moving entry notification (v3)." }
+
+  # ----- Mercenary / homunculus / passwords / mail -----
+  - { name: CZ_COMMAND_MER,                      direction: C2S, summary: "Issue command to mercenary." }
+  - { name: ZC_PROPERTY_HOMUN,                   direction: S2C, summary: "Deliver homunculus property panel." }
+  - { name: ZC_FEED_MER,                         direction: S2C, summary: "Notify of mercenary/homun feed result." }
+  - { name: ZC_CHANGESTATE_MER,                  direction: S2C, summary: "Notify of mercenary state change." }
+  - { name: CZ_RENAME_MER,                       direction: C2S, summary: "Request to rename homunculus." }
+  - { name: CZ_REQUEST_MOVENPC,                  direction: C2S, summary: "Request NPC / pet to move." }
+  - { name: CZ_REQUEST_ACTNPC,                   direction: C2S, summary: "Request NPC / pet to act." }
+  - { name: CZ_REQUEST_MOVETOOWNER,              direction: C2S, summary: "Request pet/homun to follow owner." }
+  - { name: ZC_HOSKILLINFO_LIST,                 direction: S2C, summary: "Deliver homunculus skill list." }
+  - { name: ZC_KILLER_POINT,                     direction: S2C, summary: "Notify of killer point change." }
+  - { name: CZ_KILLER_RANK,                      direction: C2S, summary: "Request killer ranking board." }
+  - { name: ZC_KILLER_RANK,                      direction: S2C, summary: "Deliver killer ranking board." }
+  - { name: ZC_HOSKILLINFO_UPDATE,               direction: S2C, summary: "Update single homunculus skill entry." }
+  - { name: ZC_REQ_STORE_PASSWORD,               direction: S2C, summary: "Prompt for kafra storage password." }
+  - { name: CZ_ACK_STORE_PASSWORD,               direction: C2S, summary: "Submit kafra storage password." }
+  - { name: ZC_RESULT_STORE_PASSWORD,            direction: S2C, summary: "Ack/response for storage password." }
+  - { name: AC_EVENT_RESULT,                     direction: S2C, summary: "Deliver login event result info." }
+  - { name: HC_REQUEST_CHARACTER_PASSWORD,       direction: S2C, summary: "Prompt for character-slot password." }
+  - { name: CZ_MAIL_GET_LIST,                    direction: C2S, summary: "Request mailbox listing." }
+  - { name: ZC_MAIL_REQ_GET_LIST,                direction: S2C, summary: "Deliver mailbox listing." }
+  - { name: CZ_MAIL_OPEN,                        direction: C2S, summary: "Request to open a mail message." }
+  - { name: ZC_MAIL_REQ_OPEN,                    direction: S2C, summary: "Deliver opened mail message body." }
+  - { name: CZ_MAIL_DELETE,                      direction: C2S, summary: "Request to delete a mail message." }
+  - { name: CZ_MAIL_GET_ITEM,                    direction: C2S, summary: "Request to take attached mail item." }
+  - { name: ZC_MAIL_REQ_GET_ITEM,                direction: S2C, summary: "Ack/response for mail item retrieval." }
+  - { name: CZ_MAIL_RESET_ITEM,                  direction: C2S, summary: "Reset attached item on outgoing mail." }
+  - { name: CZ_MAIL_ADD_ITEM,                    direction: C2S, summary: "Attach item to outgoing mail." }
+  - { name: CZ_MAIL_SEND,                        direction: C2S, summary: "Send composed mail." }
+  - { name: ZC_MAIL_REQ_SEND,                    direction: S2C, summary: "Ack/response for sending mail." }
+  - { name: ZC_MAIL_RECEIVE,                     direction: S2C, summary: "Notify of incoming mail." }
+
+  # ----- Auction / star place / quest infra -----
+  - { name: CZ_AUCTION_CREATE,                   direction: C2S, summary: "Open / pay to start a new auction." }
+  - { name: CZ_AUCTION_ADD_ITEM,                 direction: C2S, summary: "Attach item to outgoing auction." }
+  - { name: CZ_AUCTION_ADD,                      direction: C2S, summary: "Submit auction listing." }
+  - { name: CZ_AUCTION_ADD_CANCEL,               direction: C2S, summary: "Cancel auction listing in progress." }
+  - { name: CZ_AUCTION_BUY,                      direction: C2S, summary: "Place bid on auction listing." }
+  - { name: ZC_AUCTION_RESULT,                   direction: S2C, summary: "Notify of auction result / outcome." }
+  - { name: CZ_AUCTION_ITEM_SEARCH,              direction: C2S, summary: "Search auction listings." }
+  - { name: ZC_AUCTION_ITEM_REQ_SEARCH,          direction: S2C, summary: "Deliver auction search results." }
+  - { name: ZC_STARPLACE,                        direction: S2C, summary: "Notify of Star Gladiator place designation." }
+  - { name: CZ_AGREE_STARPLACE,                  direction: C2S, summary: "Agree to Star Gladiator place designation." }
+  - { name: ZC_ACK_MAIL_ADD_ITEM,                direction: S2C, summary: "Ack/response for mail item attach." }
+  - { name: ZC_ACK_AUCTION_ADD_ITEM,             direction: S2C, summary: "Ack/response for auction item attach." }
+  - { name: ZC_ACK_MAIL_DELETE,                  direction: S2C, summary: "Ack/response for mail delete." }
+  - { name: CA_REQ_GAME_GUARD_CHECK,             direction: C2S, summary: "Login: request GameGuard check." }
+  - { name: AC_ACK_GAME_GUARD,                   direction: S2C, summary: "Login: GameGuard check response." }
+  - { name: ZC_MAKINGITEM_LIST,                  direction: S2C, summary: "Deliver makeable item list (v2)." }
+  - { name: CZ_REQ_MAKINGITEM,                   direction: C2S, summary: "Request to craft an item (v2)." }
+  - { name: CZ_AUCTION_REQ_MY_INFO,              direction: C2S, summary: "Request own auction listings." }
+  - { name: CZ_AUCTION_REQ_MY_SELL_STOP,         direction: C2S, summary: "Stop own auction listing." }
+  - { name: ZC_AUCTION_ACK_MY_SELL_STOP,         direction: S2C, summary: "Ack/response for stopping own auction." }
+  - { name: ZC_AUCTION_WINDOWS,                  direction: S2C, summary: "Open the auction windows on client." }
+  - { name: ZC_MAIL_WINDOWS,                     direction: S2C, summary: "Open the mail windows on client." }
+
+  # ----- eKey / Japan login flow / PC-bang -----
+  - { name: AC_REQ_LOGIN_OLDEKEY,                direction: S2C, summary: "Prompt for old e-key login token." }
+  - { name: AC_REQ_LOGIN_NEWEKEY,                direction: S2C, summary: "Prompt for new e-key login token." }
+  - { name: AC_REQ_LOGIN_CARDPASS,               direction: S2C, summary: "Prompt for card password." }
+  - { name: CA_ACK_LOGIN_OLDEKEY,                direction: C2S, summary: "Submit old e-key token." }
+  - { name: CA_ACK_LOGIN_NEWEKEY,                direction: C2S, summary: "Submit new e-key token." }
+  - { name: CA_ACK_LOGIN_CARDPASS,               direction: C2S, summary: "Submit card password." }
+  - { name: AC_ACK_EKEY_FAIL_NOTEXIST,           direction: S2C, summary: "Refuse login: e-key does not exist." }
+  - { name: AC_ACK_EKEY_FAIL_NOTUSESEKEY,        direction: S2C, summary: "Refuse login: not using static e-key." }
+  - { name: AC_ACK_EKEY_FAIL_NOTUSEDEKEY,        direction: S2C, summary: "Refuse login: not using dynamic e-key." }
+  - { name: AC_ACK_EKEY_FAIL_AUTHREFUSE,         direction: S2C, summary: "Refuse login: e-key auth refused." }
+  - { name: AC_ACK_EKEY_FAIL_INPUTEKEY,          direction: S2C, summary: "Refuse login: invalid e-key input." }
+  - { name: AC_ACK_EKEY_FAIL_NOTICE,             direction: S2C, summary: "Refuse login with e-key notice." }
+  - { name: AC_ACK_EKEY_FAIL_NEEDCARDPASS,       direction: S2C, summary: "Refuse login: card password required." }
+  - { name: AC_ACK_FIRST_LOGIN,                  direction: S2C, summary: "Notify client of first-login state." }
+  - { name: AC_REQ_LOGIN_ACCOUNT_INFO,           direction: S2C, summary: "Request additional account info on login." }
+  - { name: CA_ACK_LOGIN_ACCOUNT_INFO,           direction: C2S, summary: "Submit additional account info." }
+  - { name: AC_ACK_PT_ID_INFO,                   direction: S2C, summary: "Deliver point-id info for login." }
+  - { name: CZ_REQ_MAIL_RETURN,                  direction: C2S, summary: "Request to return / bounce a mail." }
+  - { name: ZC_ACK_MAIL_RETURN,                  direction: S2C, summary: "Ack/response for mail return." }
+  - { name: CA_LOGIN_PCBANG,                     direction: C2S, summary: "Login from PC-bang client." }
+  - { name: ZC_NOTIFY_PCBANG,                    direction: S2C, summary: "Notify client of PC-bang status." }
+  - { name: CZ_HUNTINGLIST,                      direction: C2S, summary: "Request hunting / quest list." }
+  - { name: ZC_HUNTINGLIST,                      direction: S2C, summary: "Deliver hunting / quest list." }
+  - { name: ZC_PCBANG_EFFECT,                    direction: S2C, summary: "Apply PC-bang bonus effect." }
+  - { name: CA_LOGIN4,                           direction: C2S, summary: "Login request (v4)." }
+  - { name: ZC_PROPERTY_MERCE,                   direction: S2C, summary: "Deliver mercenary property panel." }
+  - { name: ZC_SHANDA_PROTECT,                   direction: S2C, summary: "Shanda anti-bot challenge to client." }
+  - { name: CA_CLIENT_TYPE,                      direction: C2S, summary: "Report client type / region to login." }
+  - { name: ZC_GANGSI_POINT,                     direction: S2C, summary: "Notify of Gangsi / Soul Linker point change." }
+  - { name: CZ_GANGSI_RANK,                      direction: C2S, summary: "Request Gangsi ranking board." }
+  - { name: ZC_GANGSI_RANK,                      direction: S2C, summary: "Deliver Gangsi ranking board." }
+  - { name: ZC_AID,                              direction: S2C, summary: "Deliver own AID (account id)." }
+  - { name: ZC_NOTIFY_EFFECT3,                   direction: S2C, summary: "Visual effect notification (v3)." }
+  - { name: ZC_DEATH_QUESTION,                   direction: S2C, summary: "Prompt death revival question." }
+  - { name: CZ_DEATH_QUESTION,                   direction: C2S, summary: "Submit death revival answer." }
+  - { name: ZC_PC_CASH_POINT_ITEMLIST,           direction: S2C, summary: "Deliver cash shop item list." }
+  - { name: CZ_PC_BUY_CASH_POINT_ITEM,           direction: C2S, summary: "Buy cash shop item." }
+  - { name: ZC_PC_CASH_POINT_UPDATE,             direction: S2C, summary: "Notify of cash point balance update." }
+  - { name: ZC_NPC_SHOWEFST_UPDATE,              direction: S2C, summary: "Update NPC effect-status display." }
+
+  # ----- Char-select extras / quests v2 / shortcuts / mercenary v2 -----
+  - { name: HC_CHARNOTBEENSELECTED,              direction: S2C, summary: "Notify char-select that no slot was selected." }
+  - { name: CH_SELECT_CHAR_GOINGTOBEUSED,        direction: C2S, summary: "Mark a slot as in-use / pending login." }
+  - { name: CH_REQ_IS_VALID_CHARNAME,            direction: C2S, summary: "Validate a candidate character name." }
+  - { name: HC_ACK_IS_VALID_CHARNAME,            direction: S2C, summary: "Ack/response for name validity check." }
+  - { name: CH_REQ_CHANGE_CHARNAME,              direction: C2S, summary: "Request to rename a character." }
+  - { name: HC_ACK_CHANGE_CHARNAME,              direction: S2C, summary: "Ack/response for rename attempt." }
+  - { name: ZC_MSG,                              direction: S2C, summary: "Show a localized system message." }
+  - { name: CZ_STANDING_RESURRECTION,            direction: C2S, summary: "Request standing self-resurrection." }
+  - { name: ZC_BOSS_INFO,                        direction: S2C, summary: "Deliver boss monster info (map boss tracker)." }
+  - { name: ZC_READ_BOOK,                        direction: S2C, summary: "Open in-game book reader." }
+  - { name: ZC_EQUIPMENT_ITEMLIST2,              direction: S2C, summary: "Equipment inventory list (v2)." }
+  - { name: ZC_STORE_EQUIPMENT_ITEMLIST2,        direction: S2C, summary: "Storage equipment list (v2)." }
+  - { name: ZC_CART_EQUIPMENT_ITEMLIST2,         direction: S2C, summary: "Cart equipment list (v2)." }
+  - { name: ZC_CASH_TIME_COUNTER,                direction: S2C, summary: "Deliver cash item time counter." }
+  - { name: ZC_CASH_ITEM_DELETE,                 direction: S2C, summary: "Notify of cash item expiry / delete." }
+  - { name: ZC_ITEM_PICKUP_ACK2,                 direction: S2C, summary: "Ack/response for item pickup (v2)." }
+  - { name: ZC_MER_INIT,                         direction: S2C, summary: "Initialize mercenary on client." }
+  - { name: ZC_MER_PROPERTY,                     direction: S2C, summary: "Deliver mercenary property panel (v2)." }
+  - { name: ZC_MER_SKILLINFO_LIST,               direction: S2C, summary: "Deliver mercenary skill list." }
+  - { name: ZC_MER_SKILLINFO_UPDATE,             direction: S2C, summary: "Update mercenary skill entry." }
+  - { name: CZ_MER_COMMAND,                      direction: C2S, summary: "Issue command to mercenary (v2)." }
+  - { name: CZ_UNUSED_MER_USE_SKILL,             direction: C2S, summary: "Unused: mercenary skill use." }
+  - { name: CZ_UNUSED_MER_UPGRADE_SKILLLEVEL,    direction: C2S, summary: "Unused: mercenary skill upgrade." }
+  - { name: ZC_MER_PAR_CHANGE,                   direction: S2C, summary: "Mercenary parameter change notification." }
+  - { name: ZC_GAMEGUARD_LINGO_KEY,              direction: S2C, summary: "GameGuard lingo challenge to client." }
+  - { name: CZ_GAMEGUARD_LINGO_READY,            direction: C2S, summary: "GameGuard lingo challenge ready ack." }
+  - { name: CZ_KSY_EVENT,                        direction: C2S, summary: "Korea-specific event submission." }
+  - { name: ZC_HACKSH_CPX_MSG,                   direction: S2C, summary: "HackShield CPX challenge to client." }
+  - { name: CZ_HACKSH_CPX_MSG,                   direction: C2S, summary: "HackShield CPX challenge response." }
+  - { name: ZC_HACKSHIELD_CRC_MSG,               direction: S2C, summary: "HackShield CRC challenge to client." }
+  - { name: CZ_HACKSHIELD_CRC_MSG,               direction: C2S, summary: "HackShield CRC challenge response." }
+  - { name: ZC_REQ_CASH_PASSWORD,                direction: S2C, summary: "Prompt for cash shop password." }
+  - { name: CZ_ACK_CASH_PASSWORD,                direction: C2S, summary: "Submit cash shop password." }
+  - { name: ZC_RESULT_CASH_PASSWORD,             direction: S2C, summary: "Ack/response for cash shop password." }
+  - { name: AC_REQUEST_SECOND_PASSWORD,          direction: S2C, summary: "Prompt for second account password." }
+  - { name: CA_LOGIN_HAN,                        direction: C2S, summary: "Han / Korea region login variant." }
+
+  # ----- Quest log v2 / hotkeys / party reform / memorial dungeons -----
+  - { name: ZC_ALL_QUEST_LIST,                   direction: S2C, summary: "Deliver full quest log list." }
+  - { name: ZC_ALL_QUEST_MISSION,                direction: S2C, summary: "Deliver full quest mission progress." }
+  - { name: ZC_ADD_QUEST,                        direction: S2C, summary: "Notify of newly added quest." }
+  - { name: ZC_DEL_QUEST,                        direction: S2C, summary: "Notify of quest removal." }
+  - { name: ZC_UPDATE_MISSION_HUNT,              direction: S2C, summary: "Update quest hunt mission progress." }
+  - { name: CZ_ACTIVE_QUEST,                     direction: C2S, summary: "Toggle quest active / tracked state." }
+  - { name: ZC_ACTIVE_QUEST,                     direction: S2C, summary: "Notify of quest active state change." }
+  - { name: ZC_ITEM_PICKUP_PARTY,                direction: S2C, summary: "Notify party of member item pickup." }
+  - { name: ZC_SHORTCUT_KEY_LIST,                direction: S2C, summary: "Deliver hotkey shortcut list." }
+  - { name: CZ_SHORTCUT_KEY_CHANGE,              direction: C2S, summary: "Change a hotkey shortcut slot." }
+  - { name: ZC_SKILL_POSTDELAY,                  direction: S2C, summary: "Apply skill post-cast delay on client." }
+  - { name: ZC_EQUIPITEM_DAMAGED,                direction: S2C, summary: "Notify of equipped item damage." }
+  - { name: ZC_NOTIFY_PCBANG_PLAYING_TIME,       direction: S2C, summary: "Notify of PC-bang playing time tick." }
+  - { name: ZC_SRPACKETR2_INIT,                  direction: S2C, summary: "Initialize SR-packet R2 protocol layer." }
+  - { name: CZ_SRPACKETR2_START,                 direction: C2S, summary: "Start SR-packet R2 session." }
+  - { name: ZC_NPC_CHAT,                         direction: S2C, summary: "NPC-driven chat speech bubble." }
+  - { name: ZC_FORMATSTRING_MSG,                 direction: S2C, summary: "Formatted localized system message." }
+  - { name: CZ_PARTY_JOIN_REQ,                   direction: C2S, summary: "Send party join request to a player." }
+  - { name: ZC_PARTY_JOIN_REQ_ACK,               direction: S2C, summary: "Ack/response for party join request send." }
+  - { name: ZC_PARTY_JOIN_REQ,                   direction: S2C, summary: "Notify target of party join request." }
+  - { name: CZ_PARTY_JOIN_REQ_ACK,               direction: C2S, summary: "Reply to incoming party join request." }
+  - { name: CZ_PARTY_CONFIG,                     direction: C2S, summary: "Change party configuration flags." }
+  - { name: ZC_PARTY_CONFIG,                     direction: S2C, summary: "Deliver party configuration flags." }
+  - { name: HC_REFUSE_SELECTCHAR,                direction: S2C, summary: "Refuse char-slot select with reason." }
+  - { name: ZC_MEMORIALDUNGEON_SUBSCRIPTION_INFO,   direction: S2C, summary: "Memorial dungeon subscription info." }
+  - { name: ZC_MEMORIALDUNGEON_SUBSCRIPTION_NOTIFY, direction: S2C, summary: "Memorial dungeon subscription state change." }
+  - { name: ZC_MEMORIALDUNGEON_INFO,             direction: S2C, summary: "Memorial dungeon info bootstrap." }
+  - { name: ZC_MEMORIALDUNGEON_NOTIFY,           direction: S2C, summary: "Memorial dungeon event notify." }
+  - { name: CZ_MEMORIALDUNGEON_COMMAND,          direction: C2S, summary: "Issue memorial dungeon command." }
+  - { name: ZC_EQUIPMENT_ITEMLIST3,              direction: S2C, summary: "Equipment inventory list (v3)." }
+  - { name: ZC_STORE_EQUIPMENT_ITEMLIST3,        direction: S2C, summary: "Storage equipment list (v3)." }
+  - { name: ZC_CART_EQUIPMENT_ITEMLIST3,         direction: S2C, summary: "Cart equipment list (v3)." }
+  - { name: ZC_NOTIFY_BIND_ON_EQUIP,             direction: S2C, summary: "Prompt bind-on-equip confirmation." }
+  - { name: ZC_ITEM_PICKUP_ACK3,                 direction: S2C, summary: "Ack/response for item pickup (v3)." }
+  - { name: ZC_ISVR_DISCONNECT,                  direction: S2C, summary: "Inter-server disconnect notification to client." }
+  - { name: CZ_EQUIPWIN_MICROSCOPE,              direction: C2S, summary: "Open equip-inspect microscope on target." }
+  - { name: ZC_EQUIPWIN_MICROSCOPE,              direction: S2C, summary: "Deliver equip-inspect microscope data." }
+  - { name: CZ_CONFIG,                           direction: C2S, summary: "Submit a client config change." }
+  - { name: ZC_CONFIG,                           direction: S2C, summary: "Deliver client config state." }
+  - { name: ZC_CONFIG_NOTIFY,                    direction: S2C, summary: "Notify of client config change." }
+
+  # ----- Battlefield / new-japan layouts / item lists v3 / progress / IR mail / cash shop -----
+  - { name: CZ_BATTLEFIELD_CHAT,                 direction: C2S, summary: "Send battlefield chat." }
+  - { name: ZC_BATTLEFIELD_CHAT,                 direction: S2C, summary: "Deliver battlefield chat line." }
+  - { name: ZC_BATTLEFIELD_NOTIFY_CAMPINFO,      direction: S2C, summary: "Notify battlefield of camp info." }
+  - { name: ZC_BATTLEFIELD_NOTIFY_POINT,         direction: S2C, summary: "Notify battlefield of point change." }
+  - { name: ZC_BATTLEFIELD_NOTIFY_POSITION,      direction: S2C, summary: "Notify battlefield of member position." }
+  - { name: ZC_BATTLEFIELD_NOTIFY_HP,            direction: S2C, summary: "Notify battlefield of member HP." }
+  - { name: ZC_NOTIFY_ACT2,                      direction: S2C, summary: "Action result notification (v2)." }
+  - { name: CZ_USE_ITEM_NEW_JAPEN,               direction: C2S, summary: "Use item (Japan-region new layout)." }
+  - { name: CZ_USE_SKILL_NEW_JAPEN,              direction: C2S, summary: "Use skill (Japan-region new layout)." }
+  - { name: CZ_ITEM_PICKUP_NEW_JAPEN,            direction: C2S, summary: "Pick up item (Japan-region new layout)." }
+  - { name: CZ_REQUEST_MOVE_NEW_JAPEN,           direction: C2S, summary: "Movement request (Japan-region new layout)." }
+  - { name: CZ_BOT_CHECK,                        direction: C2S, summary: "Submit bot-check captcha answer." }
+  - { name: ZC_MAPPROPERTY,                      direction: S2C, summary: "Deliver map property (post-renewal form)." }
+  - { name: ZC_NORMAL_ITEMLIST3,                 direction: S2C, summary: "Normal inventory list (v3)." }
+  - { name: ZC_CART_NORMAL_ITEMLIST3,            direction: S2C, summary: "Cart normal item list (v3)." }
+  - { name: ZC_STORE_NORMAL_ITEMLIST3,           direction: S2C, summary: "Storage normal item list (v3)." }
+  - { name: ZC_NOTIFY_MOVEENTRY4,                direction: S2C, summary: "Moving entry notification (v4)." }
+  - { name: ZC_NOTIFY_NEWENTRY4,                 direction: S2C, summary: "New entry notification (v4)." }
+  - { name: ZC_NOTIFY_STANDENTRY4,               direction: S2C, summary: "Standing entry notification (v4)." }
+  - { name: ZC_NOTIFY_FONT,                      direction: S2C, summary: "Notify of chat font / style change." }
+  - { name: ZC_PROGRESS,                         direction: S2C, summary: "Show progress bar on client." }
+  - { name: CZ_PROGRESS,                         direction: C2S, summary: "Acknowledge progress bar completion." }
+  - { name: ZC_PROGRESS_CANCEL,                  direction: S2C, summary: "Cancel an active progress bar." }
+  - { name: CZ_IRMAIL_SEND,                      direction: C2S, summary: "Send IR (inter-realm) mail." }
+  - { name: ZC_IRMAIL_SEND_RES,                  direction: S2C, summary: "Ack/response for IR mail send." }
+  - { name: ZC_IRMAIL_NOTIFY,                    direction: S2C, summary: "Notify of incoming IR mail." }
+  - { name: CZ_IRMAIL_LIST,                      direction: C2S, summary: "Request IR mailbox listing." }
+  - { name: CZ_OPEN_SIMPLE_CASHSHOP_ITEMLIST,    direction: C2S, summary: "Open simple cash shop item list window." }
+  - { name: ZC_SIMPLE_CASHSHOP_POINT_ITEMLIST,   direction: S2C, summary: "Deliver simple cash shop point item list." }
+  - { name: CZ_CLOSE_WINDOW,                     direction: C2S, summary: "Generic request to close a UI window." }
+  - { name: CZ_REQUEST_MOVE2,                    direction: C2S, summary: "Movement request (alt layout)." }
+
+# Total: 655 named ops, 233 C2S / 418 S2C / 1 internal / 3 unknown
+#        (UNKNOWN entries: COLLECTORDEAD, PING, ZH_MOVE_PVPWORLD).
+

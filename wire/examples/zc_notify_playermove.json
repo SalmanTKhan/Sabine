@@ -1,0 +1,26 @@
+{
+  "op": "ZC_NOTIFY_PLAYERMOVE",
+  "phase": "s2500",
+  "wire_id": "0x0087",
+  "size_bytes": 12,
+  "body": {
+    "move_start_time": 305419896,
+    "move": {
+      "from_x": 100,
+      "from_y": 200,
+      "to_x":   110,
+      "to_y":   210,
+      "sx":     8,
+      "sy":     8
+    }
+  },
+  "_derivation_notes": [
+    "packed_move uses eA WBUFPOS2 layout:",
+    "  b0 = fx >> 2                                              = 25       (0x19)",
+    "  b1 = ((fx & 3) << 6) | ((fy >> 4) & 0x3F)                 = 12       (0x0C)",
+    "  b2 = ((fy & 15) << 4) | ((tx >> 6) & 15)                  = 0x81",
+    "  b3 = ((tx & 63) << 2) | ((ty >> 8) & 3)                   = 0xB8",
+    "  b4 = ty & 0xFF                                            = 0xD2",
+    "  b5 = (sx << 4) | (sy & 15)                                = 0x88"
+  ]
+}

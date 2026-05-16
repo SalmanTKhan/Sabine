@@ -15,9 +15,10 @@
 			Register(Op.ZC_GAME_GUARD, 0x0227, 18);
 			Register(Op.CZ_ACK_GAME_GUARD, 0x0228, 18);
 			Register(Op.ZC_STATE_CHANGE3, 0x0229, 15);
-			Register(Op.ZC_NOTIFY_STANDENTRY3, 0x022A, 58);
-			Register(Op.ZC_NOTIFY_NEWENTRY3, 0x022B, 57);
-			Register(Op.ZC_NOTIFY_MOVEENTRY3, 0x022C, 64);
+			// Variant consolidation: ZC_NOTIFY_*ENTRY3 = base op moved wire slot.
+			Redefine(Op.ZC_NOTIFY_STANDENTRY, 0x022A, 58);
+			Redefine(Op.ZC_NOTIFY_NEWENTRY, 0x022B, 57);
+			Redefine(Op.ZC_NOTIFY_MOVEENTRY, 0x022C, 64);
 			Register(Op.CZ_COMMAND_MER, 0x022D, 5);
 			Register(Op.ZC_PROPERTY_HOMUN, 0x022E, 71);
 			Register(Op.ZC_FEED_MER, 0x022F, 5);
