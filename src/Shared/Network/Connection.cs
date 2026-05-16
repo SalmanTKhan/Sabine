@@ -117,7 +117,11 @@ namespace Sabine.Shared.Network
 				packetSize = tableSize;
 			}
 
+#if DEBUG
 			//Log.Debug("> {0}", Hex.ToString(buffer, 0, packetSize));
+			Log.Debug("> Op: 0x{0:X4} ({1})\r\n{2}", PacketTable.ToNetwork(packet.Op), packet.Op, Hex.ToString(buffer, HexStringOptions.SpaceSeparated | HexStringOptions.SixteenNewLine));
+			Log.Debug("".PadRight(40, '-'));
+#endif
 
 			try
 			{

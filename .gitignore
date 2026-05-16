@@ -180,3 +180,9 @@ SyncToy*
 *.bak
 /.github
 /.claude
+
+# PacketTableDump outputs intended for the external OpenMidgard client.
+# Reference .md docs in this dir are intentionally tracked; regenerate
+# them via: dotnet run --project tools/PacketTableDump
+/docs/network/packet_tables/*.inc
+/docs/network/packet_tables/*.h
