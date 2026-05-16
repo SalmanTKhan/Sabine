@@ -27,9 +27,9 @@ namespace Sabine.Tools.MapCache
 	{
 		// Walkable-water destination — used when the GAT marks a cell
 		// walkable but its bottom-left corner is below the RSW water
-		// level. We map all eras to Unk2 because Sabine only models a
-		// single water flag (TileType.Unk2 / IsWater).
-		public const TileType WalkableWater = TileType.Unk2;
+		// level. We map all eras to Water because Sabine only models a
+		// single water flag (TileType.Water / IsWater).
+		public const TileType WalkableWater = TileType.Water;
 
 		/// <summary>
 		/// Returns a 256-entry lookup table mapping a raw GAT type byte
@@ -50,9 +50,9 @@ namespace Sabine.Tools.MapCache
 					// distinction: 0 is field ground, 5 is town /
 					// constructed-floor. The hand-authored map_cache_*
 					// files keep this split.
-					table[0] = TileType.Unk0;
+					table[0] = TileType.Walkable;
 					table[1] = TileType.Unpassable;
-					table[2] = TileType.Unk2;
+					table[2] = TileType.Water;
 					table[3] = WalkableWater;
 					table[5] = TileType.Passable;
 					table[6] = TileType.Passable;
@@ -60,12 +60,12 @@ namespace Sabine.Tools.MapCache
 
 				case Era.Modern:
 					// Modern (RE) clients collapse type 5 onto type 0.
-					table[0] = TileType.Unk0;
+					table[0] = TileType.Walkable;
 					table[1] = TileType.Unpassable;
-					table[2] = TileType.Unk2;
+					table[2] = TileType.Water;
 					table[3] = WalkableWater;
-					table[5] = TileType.Unk0;
-					table[6] = TileType.Unk0;
+					table[5] = TileType.Walkable;
+					table[6] = TileType.Walkable;
 					break;
 
 				default:

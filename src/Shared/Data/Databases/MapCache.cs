@@ -218,16 +218,15 @@ namespace Sabine.Shared.Data.Databases
 		}
 
 		/// <summary>
-		/// Returns true if the given tile is a water tile (TileType.Unk2 —
-		/// the alpha-client's water type). Used by Aqua Benedicta and any
-		/// future water-cell-dependent skill.
+		/// Returns true if the given tile is a water tile (TileType.Water).
+		/// Used by Aqua Benedicta and any future water-cell-dependent skill.
 		/// </summary>
 		public bool IsWater(int x, int y)
 		{
 			if (!this.IsPositionOnMap(x, y))
 				return false;
 
-			return this.Tiles[x, y].Type == TileType.Unk2;
+			return this.Tiles[x, y].Type == TileType.Water;
 		}
 	}
 
@@ -251,37 +250,42 @@ namespace Sabine.Shared.Data.Databases
 	}
 
 	/// <summary>
-	/// Defines a tile's type.
+	/// Defines a tile's type, as stored in Sabine's map cache. Values
+	/// match the raw GAT cell-type bytes used by Gravity's client. See
+	/// docs/map-cache-tool.md and the openkore / rdw-archive field-file
+	/// references for the full table.
 	/// </summary>
 	/// <remarks>
-	/// The tile types in the alpha client appear to be slightly
-	/// different from later clients. For example, type 5 was
-	/// apparently not passable later on.
+	/// Alpha and beta clients interpret type 5 as a walkable
+	/// constructed floor (towns, buildings); modern (RE) clients
+	/// repurpose it as a non-walkable snipable cliff. Sabine targets
+	/// alpha/beta semantics, so <see cref="Passable"/> remains
+	/// walkable here.
 	/// </remarks>
 	public enum TileType
 	{
 		/// <summary>
-		/// Passable, but somehow different from type 5.
+		/// Walkable natural ground (fields, dungeons). Distinct from
+		/// <see cref="Passable"/>, which alpha/beta clients use for
+		/// man-made surfaces like town floors.
 		/// </summary>
-		/// <remarks>
-		/// Potentially natural surfaces vs man-made. For example,
-		/// towns are usually entirely type 5, while fields and
-		/// dungeons are mostly type 0.
-		/// </remarks>
-		Unk0 = 0,
+		Walkable = 0,
 
 		/// <summary>
-		/// Characters can't walk on this tile.
+		/// Characters can't walk on this tile (walls, cliffs).
 		/// </summary>
 		Unpassable = 1,
 
 		/// <summary>
-		/// Possibly passable water.
+		/// Water cell. Walkable but slow; used by water-dependent
+		/// skills like Aqua Benedicta.
 		/// </summary>
-		Unk2 = 2,
+		Water = 2,
 
 		/// <summary>
-		/// Characters can walk on this tile.
+		/// Walkable constructed floor (towns, buildings) in
+		/// alpha/beta clients. Modern clients collapse this onto
+		/// <see cref="Walkable"/>.
 		/// </summary>
 		Passable = 5,
 	}

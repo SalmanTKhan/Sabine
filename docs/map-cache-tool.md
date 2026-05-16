@@ -30,23 +30,46 @@ beta, otherwise modern). Override with `--era alpha|beta|modern`.
 
 ## Why eras matter
 
-Alpha and beta clients distinguish two walkable cell types:
+Gravity's `.gat` cell type byte has a well-documented meaning per the
+[openkore field file format wiki][okwiki] and the
+[rdw-archive RagnarokFileFormats GAT notes][rdwgat]. The canonical
+names are:
+
+| Raw GAT | Canonical name (openkore / rdw)        | Walkable |
+|---------|----------------------------------------|----------|
+| 0       | Walkable ground                        | yes      |
+| 1       | Non-walkable block (wall / cliff)      | no       |
+| 2       | Non-walkable water                     | no       |
+| 3       | Walkable water                         | yes      |
+| 4       | Walkable ground (snipable, rarely used)| yes      |
+| 5       | Walkable cliff / town floor (alpha/beta); collapsed onto 0 in modern | varies |
+| 6       | Walkable ground (snipable cliff edge)  | yes      |
+
+Sabine's own `TileType` enum is narrower — it only encodes four
+states (`Walkable`, `Unpassable`, `Water`, `Passable`) — so the tool
+collapses the GAT byte onto a `TileType` per era:
 
 | Raw GAT | Sabine `TileType` (alpha/beta) | Sabine `TileType` (modern) |
 |---------|--------------------------------|----------------------------|
-| 0       | `Unk0` (field ground)          | `Unk0`                     |
+| 0       | `Walkable` (field ground)      | `Walkable`                 |
 | 1       | `Unpassable`                   | `Unpassable`               |
-| 2       | `Unk2` (snipeable)             | `Unk2`                     |
-| 3       | `Unk2` (walkable water)        | `Unk2`                     |
-| 5       | `Passable` (town floor)        | `Unk0`                     |
-| 6       | `Passable`                     | `Unk0`                     |
+| 2       | `Water` (non-walkable water)   | `Water`                    |
+| 3       | `Water` (walkable water)       | `Water`                    |
+| 5       | `Passable` (town floor)        | `Walkable`                 |
+| 6       | `Passable` (snipable cliff)    | `Walkable`                 |
 
-Modern clients collapse type 5 onto type 0, which is why a modern-era
-build remaps both onto `Unk0`.
+Modern clients collapse type 5 onto type 0 (everything walkable is
+just "ground"), which is why a modern-era build remaps both onto
+`Walkable`. Alpha and beta clients preserved the `{0, 5}` split so
+towns look distinct from fields, and the hand-authored shipped caches
+keep that split.
 
-Walkable-ground cells whose corner height exceeds the `.rsw` water
-level are remapped to walkable water (`Unk2`), matching rAthena's
+Walkable-ground cells whose bottom-left corner sits below the `.rsw`
+water level are remapped to `Water`, matching rAthena's
 `mapcache.cpp` behavior.
+
+[okwiki]: https://openkore.com/wiki/Field_file_format
+[rdwgat]: https://github.com/rdw-archive/RagnarokFileFormats
 
 ## Flags
 
