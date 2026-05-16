@@ -13,6 +13,7 @@ using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.Scripting;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.Skills.Handlers;
+using Sabine.Zone.Skills.Handlers.BardDancer;
 using Sabine.Zone.Skills.Handlers.Novice;
 using Sabine.Zone.World;
 using Sabine.Zone.World.Actors;
@@ -1728,6 +1729,16 @@ namespace Sabine.Zone.Network
 		/// </summary>
 		internal static bool TryDeductSkillCost(PlayerCharacter character, Sabine.Zone.Skills.Skill skill, int castLevel)
 		{
+			// Cast preconditions that must run before SP is charged so a
+			// failed cast doesn't burn SP. eAthena performs these checks
+			// at skill_check_condition; we do the equivalent here at the
+			// single SP-charge site.
+			if (SongPlacement.IsBdEnsemble(skill.Id) && !SongPlacement.HasAdjacentPartner(character))
+			{
+				character.ServerMessage(Localization.Get("Need an opposite-gender performer adjacent."));
+				return false;
+			}
+
 			var cost = skill.Data.GetSpCost(castLevel);
 			Log.Debug("TryDeductSkillCost: {0} cast {1} lv{2} -> raw cost {3} SP (current {4}/{5}).",
 				character.Name, skill.Id, castLevel, cost, character.Parameters.Sp, character.Parameters.SpMax);

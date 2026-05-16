@@ -72,11 +72,14 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 
 		/// <summary>
 		/// Wrapper used by BD_* ensemble handlers — places the aura iff
-		/// a valid partner is adjacent. Otherwise emits a server-side
-		/// fail message (no client fail packet on alpha-era) and burns
-		/// no SP — the SP-deduction site already charged the cost,
-		/// so on a real failure this would refund. Today we just log;
-		/// the refund lands when a "post-handler refund" hook ships.
+		/// a valid partner is adjacent. The SP-charge gate
+		/// (<c>PacketHandler.TryDeductSkillCost</c>) already calls
+		/// <see cref="HasAdjacentPartner"/> via <see cref="IsBdEnsemble"/>
+		/// and aborts the cast before any SP is spent, so the adjacency
+		/// check here is defense-in-depth — it should only ever trip if
+		/// the partner moved between the gate and the handler firing,
+		/// in which case the SP has already been spent and the cast is
+		/// silently wasted (matches eAthena behaviour for the same race).
 		/// </summary>
 		public static bool PlaceEnsembleAura(UseSkillParams p, StatusId applied, bool affectsEnemies = false)
 		{
@@ -84,13 +87,36 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 				return false;
 
 			if (!HasAdjacentPartner(pc))
-			{
-				pc.ServerMessage(Localization.Get("Need an opposite-gender performer adjacent."));
 				return false;
-			}
 
 			PlaceAura(p, applied, affectsEnemies);
 			return true;
+		}
+
+		/// <summary>
+		/// Returns true when <paramref name="skillId"/> is a BD_* ensemble
+		/// skill — the skills that require a Bard ↔ Dancer (or trans
+		/// equivalent) adjacency before they may be cast. The SP-deduction
+		/// gate uses this to decide whether to call
+		/// <see cref="HasAdjacentPartner"/> as a precondition.
+		/// </summary>
+		public static bool IsBdEnsemble(SkillId skillId)
+		{
+			switch (skillId)
+			{
+				case SkillId.BD_LULLABY:
+				case SkillId.BD_RICHMANKIM:
+				case SkillId.BD_ETERNALCHAOS:
+				case SkillId.BD_DRUMBATTLEFIELD:
+				case SkillId.BD_RINGNIBELUNGEN:
+				case SkillId.BD_ROKISWEIL:
+				case SkillId.BD_INTOABYSS:
+				case SkillId.BD_SIEGFRIED:
+				case SkillId.BD_RAGNAROK:
+					return true;
+				default:
+					return false;
+			}
 		}
 	}
 
