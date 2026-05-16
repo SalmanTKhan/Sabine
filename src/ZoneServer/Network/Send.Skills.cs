@@ -3,6 +3,7 @@ using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
+using Sabine.Zone.Network.Helpers;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Groups;
 using Sabine.Zone.World.Maps;
@@ -54,7 +55,9 @@ namespace Sabine.Zone.Network
 
 		/// <summary>
 		/// Pops the invite dialog on the invitee's screen, telling
-		/// them which party invited them.
+		/// them which party invited them. At S2500+ also fires the
+		/// EP12 variant so the chat-command path lights up the
+		/// modern party UI.
 		/// </summary>
 		public static void ZC_REQ_JOIN_GROUP(PlayerCharacter character, int inviterAccountId, string partyName)
 		{
@@ -64,10 +67,21 @@ namespace Sabine.Zone.Network
 			packet.PutString(partyName, 24);
 
 			character.Connection.Send(packet);
+
+			// EP12 clients render the popup via 0x02C6 instead of
+			// 0x00FE. The pending-invite registry has the inviter's
+			// party id (RegisterInvite ran before this call); use
+			// that so /invite and the EP12 client UI behave alike.
+			if (Game.Version >= Versions.S2500
+				&& PartyManager.Instance.TryGetPendingInvite(character.Id, out var invite))
+			{
+				ZC_PARTY_JOIN_REQ(character, invite.PartyId, partyName);
+			}
 		}
 
 		/// <summary>
-		/// Reports the result of an invite back to the inviter.
+		/// Reports the result of an invite back to the inviter. At
+		/// S2500+ also fires the EP12 ack variant.
 		/// </summary>
 		/// <param name="result">
 		/// 0 = already in a party, 1 = rejected, 2 = accepted,
@@ -81,6 +95,9 @@ namespace Sabine.Zone.Network
 			packet.PutByte(result);
 
 			character.Connection.Send(packet);
+
+			if (Game.Version >= Versions.S2500)
+				ZC_PARTY_JOIN_REQ_ACK(character, targetName, result);
 		}
 
 		/// <summary>
@@ -178,7 +195,19 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_WARPLIST);
 
-			if (Game.Version >= Versions.Beta2)
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_WARPLIST at PACKETVER_MAIN_NUM >= 20170502
+				// uses dynamic length: packetLength + skillId +
+				// PACKET_ZC_WARPLIST_sub maps[]. Per-entry = MAP_NAME_LENGTH_EXT
+				// (16). Wire = 2 type + 2 length + 2 skillId + N×16.
+				// Ref: rathena packets_struct.hpp:3613.
+				packet.PutShort((short)(2 + 2 + 2 + mapNames.Count * 16)); // packetLength
+				packet.PutShort((short)skillId);
+				foreach (var mapName in mapNames)
+					packet.PutString(mapName, 16);
+			}
+			else if (Game.Version >= Versions.Beta2)
 			{
 				// Newer versions use dynamic packet
 				packet.PutShort((short)skillId);
@@ -276,6 +305,19 @@ namespace Sabine.Zone.Network
 				packet.PutByte(1); // disposable
 			}
 
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_USESKILL_ACK 0x0b1a at PACKETVER_MAIN_NUM
+				// >= 20181212 appends uint32 attackMT (attack motion
+				// timer) — used by the modern client to keep cast bar
+				// scaling in sync with the actor animation.
+				// Body = 4 srcId + 4 dstId + 2 x + 2 y + 2 skillId + 4
+				// element + 4 delayTime + 1 disposable + 4 attackMT = 27,
+				// wire = 29.
+				// Ref: rathena packets_struct.hpp:3952.
+				packet.PutInt(delay);
+			}
+
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);
 		}
 
@@ -304,6 +346,22 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Renders the cooldown sweep on a hotbar slot (S2500+).
+		/// </summary>
+		/// <remarks>
+		/// Reference: eA <c>src/map/clif.c</c> + <c>db/packet_db.txt:1283</c>.
+		/// Fixed 8 bytes: W skill_id + L delay_ms.
+		/// </remarks>
+		public static void ZC_SKILL_POSTDELAY(PlayerCharacter character, SkillId skillId, int delayMs)
+		{
+			using var packet = Packet.Rent(Op.ZC_SKILL_POSTDELAY);
+			packet.PutShort((short)skillId);
+			packet.PutInt(delayMs);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Sends storage item count information.
 		/// </summary>
 		/// <param name="character"></param>
@@ -327,6 +385,16 @@ namespace Sabine.Zone.Network
 		public static void ZC_ADD_ITEM_TO_STORE(PlayerCharacter character, Item item)
 		{
 			using var packet = Packet.Rent(Op.ZC_ADD_ITEM_TO_STORE);
+
+			if (Game.Version >= Versions.Sabine)
+			{
+				// rA PACKET_ZC_ADD_ITEM_TO_STORE 0x0a0a at PACKETVER_MAIN_NUM
+				// >= 20181121. Wire = 49.
+				// Ref: rathena packets_struct.hpp:2386.
+				packet.AddCartStoreItemV6(item);
+				character.Connection.Send(packet);
+				return;
+			}
 
 			packet.PutShort((short)item.InventoryId);
 			packet.PutInt(item.Amount);

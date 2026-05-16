@@ -20,7 +20,7 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 
 			var skillRatio = 0.8f + 0.1f * level;
 
-			Send.ZC_NOTIFY_SKILL_POSITION(caster, target.Handle, skill.Id, level, target.Position, 0, 0, 0, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL_POSITION(caster, target.Handle, skill.Id, level, target.Position, 0, 0, 0, 1, ActionType.Skill);
 
 			var targets = caster.Map.GetCharactersInRange(target.Position, 3)
 				.Where(c => c.IsHostileTo(caster));
