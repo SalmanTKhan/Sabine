@@ -9,6 +9,7 @@ using Sabine.Shared.Network;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
+using Yggdrasil.Logging;
 using Sabine.Zone.World.Maps.PathFinding;
 using Yggdrasil.Collections;
 using Yggdrasil.Logging;
@@ -875,6 +876,8 @@ namespace Sabine.Zone.World.Maps
 				item.Map = this;
 			}
 
+			Log.Debug("[ItemLifecycle] AddItem handle={0} classId={1} pos={2} map={3}", item.Handle, item.ClassId, item.Position, this.StringId);
+
 			Send.ZC_ITEM_FALL_ENTRY(item);
 			this.AddVisibleActor(item);
 		}
@@ -886,6 +889,8 @@ namespace Sabine.Zone.World.Maps
 		/// <exception cref="ArgumentException"></exception>
 		public virtual void RemoveItem(Item item)
 		{
+			Log.Debug("[ItemLifecycle] RemoveItem ENTER handle={0} classId={1} pos={2} map={3} caller={4}", item.Handle, item.ClassId, item.Position, this.StringId, new System.Diagnostics.StackTrace(1, false).GetFrame(0)?.GetMethod()?.DeclaringType?.Name + "." + new System.Diagnostics.StackTrace(1, false).GetFrame(0)?.GetMethod()?.Name);
+
 			using (SlimLock.Write(_itemsLock))
 			{
 				if (!_items.ContainsKey(item.Handle))
@@ -894,10 +899,14 @@ namespace Sabine.Zone.World.Maps
 				_items.Remove(item.Handle);
 			}
 
+			Log.Debug("[ItemLifecycle] RemoveItem post-dict handle={0}; calling ZC_ITEM_DISAPPEAR", item.Handle);
+
 			Send.ZC_ITEM_DISAPPEAR(item);
 			this.RemoveVisibleActor(item);
 
 			item.Map = null;
+
+			Log.Debug("[ItemLifecycle] RemoveItem EXIT handle={0}", item.Handle);
 		}
 
 		/// <summary>

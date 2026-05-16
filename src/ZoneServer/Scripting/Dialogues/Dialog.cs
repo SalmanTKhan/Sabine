@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Sabine.Shared;
+using Sabine.Shared.Const;
 using Sabine.Zone.Network;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Shops;
@@ -424,10 +426,11 @@ namespace Sabine.Zone.Scripting.Dialogues
 		/// Shows a cutin image at the given screen position.
 		/// </summary>
 		/// <remarks>
-		/// Alpha-era clients have no cutin packet; this is a no-op stub
-		/// so that converted scripts can call it without crashing. The
-		/// state is cached on the dialog so a future client backend can
-		/// emit the packet when one becomes available.
+		/// Routes through <c>ZC_SHOW_IMAGE</c> — the single op covers
+		/// both the alpha-era 16-byte form (0x0145) and the EP4+
+		/// 64-byte form (0x01B3) via a Redefine in the EP4 packet table.
+		/// Alpha pre-Beta2 clients have no cutin op; the state is still
+		/// cached on the dialog so scripts behave consistently.
 		/// </remarks>
 		/// <param name="image">Cutin image name (without extension).</param>
 		/// <param name="pos">Screen position.</param>
@@ -435,11 +438,15 @@ namespace Sabine.Zone.Scripting.Dialogues
 		{
 			this.CurrentCutin = image;
 			this.CurrentCutinPos = pos;
-			Log.Debug("Dialog.ShowCutin: stubbed for alpha client (image='{0}', pos={1}).", image, pos);
+
+			if (Game.Version >= Versions.Beta2)
+				Send.ZC_SHOW_IMAGE(this.Player, image, (byte)pos);
 		}
 
 		/// <summary>
-		/// Removes any cutin currently shown.
+		/// Removes any cutin currently shown. Sends a clear sentinel
+		/// (<c>type = 255</c>) to the client per rAthena's
+		/// <c>clif_cutin</c> convention.
 		/// </summary>
 		public void HideCutin()
 		{
@@ -447,7 +454,9 @@ namespace Sabine.Zone.Scripting.Dialogues
 				return;
 			this.CurrentCutin = null;
 			this.CurrentCutinPos = CutinPos.None;
-			Log.Debug("Dialog.HideCutin: stubbed for alpha client.");
+
+			if (Game.Version >= Versions.Beta2)
+				Send.ZC_SHOW_IMAGE(this.Player, "", 255);
 		}
 
 		/// <summary>Last cutin image set via <see cref="ShowCutin"/>, or null.</summary>

@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Threading;
+using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Util;
 using Sabine.Shared.World;
 using Sabine.Zone.Network;
 using Sabine.Zone.Scripting.Dialogues;
 using Sabine.Zone.World.Actors.Components.Characters;
+using Sabine.Zone.World.Groups;
 using Yggdrasil.Logging;
 
 namespace Sabine.Zone.World.Actors
@@ -123,29 +125,55 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
-		/// Per-player cloak toggle. Stub: alpha-era clients do not have
-		/// a per-recipient cloak packet, so this is a no-op + debug log.
+		/// Per-player cloak toggle. Mirrors rAthena's <c>cloakonnpc</c>:
+		/// when cloaked the NPC vanishes from the given player's screen
+		/// only; uncloaking re-spawns it for that player. Done by
+		/// addressing <c>ZC_NOTIFY_VANISH</c> and
+		/// <c>ZC_NOTIFY_STANDENTRY_NPC</c> to a single connection.
 		/// </summary>
 		public void SetCloaked(PlayerCharacter player, bool cloaked)
 		{
-			Log.Debug("Npc.SetCloaked: stubbed for alpha client (npc='{0}', player='{1}', cloaked={2}).", this.Name, player?.Name, cloaked);
+			if (player == null)
+				return;
+
+			if (cloaked)
+				Network.Send.ZC_NOTIFY_VANISH(player, this.Handle, DisappearType.Vanish);
+			else if (this.Visible && this.Map != null && this.Map != Sabine.Zone.World.Maps.Map.Limbo)
+				Network.Send.ZC_NOTIFY_STANDENTRY_NPC(player, this);
 		}
 
 		/// <summary>
-		/// Sets the quest indicator displayed above this NPC. Stub:
-		/// pre-renewal clients do not support quest icon packets.
-		/// State is cached on the NPC for future use.
+		/// Currently displayed quest indicator effect (none /
+		/// exclamation / question) above this NPC. Updated by
+		/// <see cref="SetQuestIcon"/>.
 		/// </summary>
-		public QuestState QuestIcon { get; private set; }
+		public QuestIconEffect QuestIcon { get; private set; } = QuestIconEffect.None;
 
 		/// <summary>
-		/// Sets the quest indicator displayed above this NPC. See
-		/// <see cref="QuestIcon"/>. Stub for the alpha client.
+		/// Color of the current quest indicator. Updated by
+		/// <see cref="SetQuestIcon"/>; defaults to yellow.
 		/// </summary>
-		public void SetQuestIcon(QuestState state)
+		public QuestIconColor QuestIconColor { get; private set; } = QuestIconColor.Yellow;
+
+		/// <summary>
+		/// Sets the quest indicator displayed above this NPC. Mirrors
+		/// rAthena's <c>questinfo</c>. Broadcasts
+		/// <c>ZC_QUEST_NOTIFY_EFFECT</c> to nearby players at S2500+;
+		/// older clients fall back to a debug log since the op didn't
+		/// exist yet.
+		/// </summary>
+		public void SetQuestIcon(QuestIconEffect effect, QuestIconColor color = QuestIconColor.Yellow)
 		{
-			this.QuestIcon = state;
-			Log.Debug("Npc.SetQuestIcon: stubbed for alpha client (npc='{0}', state={1}).", this.Name, state);
+			this.QuestIcon = effect;
+			this.QuestIconColor = color;
+
+			if (Game.Version >= Versions.S2500)
+			{
+				Network.Send.ZC_QUEST_NOTIFY_EFFECT(this, effect, color);
+				return;
+			}
+
+			Log.Debug("Npc.SetQuestIcon: stubbed for alpha client (npc='{0}', effect={1}, color={2}).", this.Name, effect, color);
 		}
 
 		/// <summary>
@@ -156,13 +184,26 @@ namespace Sabine.Zone.World.Actors
 
 		/// <summary>
 		/// Associates the NPC with a guild's emblem. Mirrors rAthena's
-		/// <c>flagemblem &lt;gid&gt;</c>. Pre-renewal/alpha clients do not
-		/// render guild emblems on NPC sprites; the value is cached for
-		/// future use and the call is logged.
+		/// <c>flagemblem &lt;gid&gt;</c>. Broadcasts a <c>ZC_CHANGE_GUILD</c>
+		/// at EP4+ so the emblem renders on the NPC sprite for nearby
+		/// players. Older clients fall back to a debug log.
 		/// </summary>
 		public void SetGuildEmblem(int guildId)
 		{
 			this.GuildEmblemId = guildId;
+
+			if (Game.Version >= Versions.S350)
+			{
+				// Look up the guild to grab its current emblem version.
+				// If the guild isn't loaded, fall back to emblemId = 0
+				// which paints a generic flag.
+				var guild = GuildManager.Instance.Get(guildId);
+				var emblemVer = guild?.EmblemId ?? 0;
+
+				Network.Send.ZC_CHANGE_GUILD(this, guildId, emblemVer);
+				return;
+			}
+
 			Log.Debug("Npc.SetGuildEmblem: stubbed for alpha client (npc='{0}', guildId={1}).", this.Name, guildId);
 		}
 

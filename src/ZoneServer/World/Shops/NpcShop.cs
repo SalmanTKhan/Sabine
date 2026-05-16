@@ -126,6 +126,18 @@ namespace Sabine.Zone.World.Shops
 		}
 
 		/// <summary>
+		/// Returns the first item in the shop with the given class id,
+		/// or null if no matching items were found. Used by the Sabine
+		/// PV 50000 client which sends uint32 itemId rather than the
+		/// alpha-era 16-byte stringId.
+		/// </summary>
+		public ShopItem GetItem(int classId)
+		{
+			lock (_items)
+				return _items.FirstOrDefault(a => a.ClassId == classId);
+		}
+
+		/// <summary>
 		/// Returns the first item in the shop with the given string id
 		/// via out. Returns false if no matching items were found.
 		/// </summary>

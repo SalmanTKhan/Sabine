@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Sabine.Shared;
 using Sabine.Shared.Const;
+using Sabine.Zone.Network;
 
 namespace Sabine.Zone.World.Actors.Components.Characters
 {
@@ -110,6 +112,9 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			e.State = QuestState.Active;
 			e.AcceptedAtUtc = DateTime.UtcNow;
 			this.SaveAll();
+
+			if (Game.Version >= Versions.S2500 && this.Character.Connection != null)
+				Send.ZC_ADD_QUEST(this.Character, e);
 		}
 
 		public void Complete(int questId)
@@ -126,6 +131,9 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			this.EnsureLoaded();
 			_entries.Remove(questId);
 			this.SaveAll();
+
+			if (Game.Version >= Versions.S2500 && this.Character.Connection != null)
+				Send.ZC_DEL_QUEST(this.Character, questId);
 		}
 
 		/// <summary>Increments an objective slot. Caps at int.MaxValue / 2 to leave headroom.</summary>
@@ -137,6 +145,9 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 				_entries[questId] = e = new QuestEntry { Id = questId, State = QuestState.Active };
 			e.Counts[slot] = Math.Min(int.MaxValue / 2, e.Counts[slot] + delta);
 			this.SaveAll();
+
+			if (Game.Version >= Versions.S2500 && this.Character.Connection != null)
+				Send.ZC_UPDATE_MISSION_HUNT(this.Character, e);
 		}
 
 		// ---- Persistence (Vars-backed; swap to SQL when consumers warrant) -
