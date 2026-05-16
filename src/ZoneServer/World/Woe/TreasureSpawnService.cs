@@ -17,9 +17,9 @@ namespace Sabine.Zone.World.Woe
 	/// </summary>
 	/// <remarks>
 	/// Mirrors eAthena's per-castle <c>OnAgitInit</c> + treasure
-	/// spawn loop in <c>npc/guild/*.txt</c>. Real eA reads each
-	/// treasure box's drop pool from a per-castle table; we use a
-	/// minimal placeholder pool for now (TODO marker in the file).
+	/// spawn loop in <c>npc/guild/*.txt</c>. Each castle template
+	/// carries its own <c>TreasureBoxId</c>; castles without one
+	/// fall back to the shared TREASURE_BOX1..8 rotation.
 	/// </remarks>
 	public class TreasureSpawnService
 	{

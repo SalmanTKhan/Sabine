@@ -1,6 +1,13 @@
+using System;
 using Sabine.Shared.Const;
+using Sabine.Shared.Util;
+using Sabine.Shared.World;
+using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
+using Sabine.Zone.Skills.StatusEffects;
+using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Maps.SkillUnits;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Skills.Handlers.BardDancer
 {
@@ -16,7 +23,7 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 			{
 				for (var dy = -3; dy <= 3; dy++)
 				{
-					var pos = new Sabine.Shared.World.Position((short)(center.X + dx), (short)(center.Y + dy));
+					var pos = new Position((short)(center.X + dx), (short)(center.Y + dy));
 					caster.Map.AddSkillUnit(new SongUnit(caster, pos, skill.Id, level, applied, affectsEnemies));
 				}
 			}
@@ -32,30 +39,30 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 		/// specific gating (Bard ↔ Dancer only, no Bard ↔ Bard) is
 		/// preserved here.
 		/// </summary>
-		public static bool HasAdjacentPartner(Sabine.Zone.World.Actors.PlayerCharacter caster)
+		public static bool HasAdjacentPartner(PlayerCharacter caster)
 		{
 			if (caster?.Map == null) return false;
 
-			var isBardSide = caster.JobId == Sabine.Shared.Const.JobId.Bard
-				|| caster.JobId == Sabine.Shared.Const.JobId.Clown
-				|| caster.JobId == Sabine.Shared.Const.JobId.BabyBard;
-			var isDancerSide = caster.JobId == Sabine.Shared.Const.JobId.Dancer
-				|| caster.JobId == Sabine.Shared.Const.JobId.Gypsy
-				|| caster.JobId == Sabine.Shared.Const.JobId.BabyDancer;
+			var isBardSide = caster.JobId == JobId.Bard
+				|| caster.JobId == JobId.Clown
+				|| caster.JobId == JobId.BabyBard;
+			var isDancerSide = caster.JobId == JobId.Dancer
+				|| caster.JobId == JobId.Gypsy
+				|| caster.JobId == JobId.BabyDancer;
 
 			if (!isBardSide && !isDancerSide) return false;
 
 			foreach (var c in caster.Map.GetCharactersInRange(caster.Position, 1))
 			{
 				if (c == caster) continue;
-				if (c is not Sabine.Zone.World.Actors.PlayerCharacter other) continue;
+				if (c is not PlayerCharacter other) continue;
 
-				var partnerIsBard = other.JobId == Sabine.Shared.Const.JobId.Bard
-					|| other.JobId == Sabine.Shared.Const.JobId.Clown
-					|| other.JobId == Sabine.Shared.Const.JobId.BabyBard;
-				var partnerIsDancer = other.JobId == Sabine.Shared.Const.JobId.Dancer
-					|| other.JobId == Sabine.Shared.Const.JobId.Gypsy
-					|| other.JobId == Sabine.Shared.Const.JobId.BabyDancer;
+				var partnerIsBard = other.JobId == JobId.Bard
+					|| other.JobId == JobId.Clown
+					|| other.JobId == JobId.BabyBard;
+				var partnerIsDancer = other.JobId == JobId.Dancer
+					|| other.JobId == JobId.Gypsy
+					|| other.JobId == JobId.BabyDancer;
 
 				if (isBardSide && partnerIsDancer) return true;
 				if (isDancerSide && partnerIsBard) return true;
@@ -73,12 +80,12 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 		/// </summary>
 		public static bool PlaceEnsembleAura(UseSkillParams p, StatusId applied, bool affectsEnemies = false)
 		{
-			if (p.Character is not Sabine.Zone.World.Actors.PlayerCharacter pc)
+			if (p.Character is not PlayerCharacter pc)
 				return false;
 
 			if (!HasAdjacentPartner(pc))
 			{
-				pc.ServerMessage(Sabine.Shared.Util.Localization.Get("Need an opposite-gender performer adjacent."));
+				pc.ServerMessage(Localization.Get("Need an opposite-gender performer adjacent."));
 				return false;
 			}
 
@@ -145,16 +152,16 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 
 			if (target == null) return;
 			var ratio = 1.0f + 0.40f * level;
-			var ctx = new Sabine.Zone.Battle.AttackContext(caster, target)
+			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
 				SkillLevel = level,
-				Kind = Sabine.Zone.Battle.AttackKind.Physical,
+				Kind = AttackKind.Physical,
 				SkillRatio = ratio,
 				IsLongRange = true,
 				WeaponRequired = true,
 			};
-			var result = Sabine.Zone.Battle.BattleCalculator.Calc(ctx);
+			var result = BattleCalculator.Calc(ctx);
 			if (!result.IsMiss) target.TakeDamage(result.Damage, caster);
 			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 1, result.ActionType);
 		}
@@ -179,8 +186,8 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 			foreach (var enemy in caster.Map.GetCharactersInRange(caster.Position, 7))
 			{
 				if (!enemy.IsHostileTo(caster)) continue;
-				if (Yggdrasil.Util.RandomProvider.Get().Next(100) < (50 + 5 * level))
-					enemy.StatusEffects.Start(StatusId.Freeze, level, System.TimeSpan.FromSeconds(3 + level), caster);
+				if (RandomProvider.Get().Next(100) < (50 + 5 * level))
+					enemy.StatusEffects.Start(StatusId.Freeze, level, TimeSpan.FromSeconds(3 + level), caster);
 			}
 		}
 	}
@@ -222,16 +229,16 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 
 			if (target == null) return;
 			var ratio = 2.0f + 1.0f * level;
-			var ctx = new Sabine.Zone.Battle.AttackContext(caster, target)
+			var ctx = new AttackContext(caster, target)
 			{
 				SkillId = skill.Id,
 				SkillLevel = level,
-				Kind = Sabine.Zone.Battle.AttackKind.Physical,
+				Kind = AttackKind.Physical,
 				SkillRatio = ratio,
 				IsLongRange = true,
 				WeaponRequired = true,
 			};
-			var result = Sabine.Zone.Battle.BattleCalculator.Calc(ctx);
+			var result = BattleCalculator.Calc(ctx);
 			if (!result.IsMiss) target.TakeDamage(result.Damage, caster);
 			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, result.Damage, 0, 1, result.ActionType);
 		}
@@ -256,8 +263,8 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 			foreach (var enemy in caster.Map.GetCharactersInRange(caster.Position, 7))
 			{
 				if (!enemy.IsHostileTo(caster)) continue;
-				if (Yggdrasil.Util.RandomProvider.Get().Next(100) < (25 + 5 * level))
-					enemy.StatusEffects.Start(StatusId.Stun, level, System.TimeSpan.FromSeconds(3 + level), caster);
+				if (RandomProvider.Get().Next(100) < (25 + 5 * level))
+					enemy.StatusEffects.Start(StatusId.Stun, level, TimeSpan.FromSeconds(3 + level), caster);
 			}
 		}
 	}
@@ -352,7 +359,7 @@ namespace Sabine.Zone.Skills.Handlers.BardDancer
 			foreach (var c in caster.Map.GetCharactersInRange(caster.Position, 3))
 			{
 				if (c == caster) continue;
-				c.StatusEffects?.DispelCategory(Sabine.Zone.Skills.StatusEffects.StatusCategory.Buff);
+				c.StatusEffects?.DispelCategory(StatusCategory.Buff);
 			}
 		}
 	}

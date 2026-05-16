@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Sabine.Shared.Const;
 using Sabine.Zone.Scripting;
+using Sabine.Zone.World.Actors;
 using Yggdrasil.Logging;
 
 namespace Sabine.Zone.World.Woe
@@ -148,7 +151,7 @@ namespace Sabine.Zone.World.Woe
 				_onRecvCastleHooks[mapStringId] = eventName;
 		}
 
-		private async System.Threading.Tasks.Task RaiseOnRecvCastle(string mapStringId)
+		private async Task RaiseOnRecvCastle(string mapStringId)
 		{
 			string hook;
 			lock (_syncLock)
@@ -189,7 +192,7 @@ namespace Sabine.Zone.World.Woe
 		/// player's zeny is deducted, economy bumps by 1, the trigger
 		/// flag is set, and the row is persisted in one operation.
 		/// </summary>
-		public InvestResult TryInvestEconomy(string mapStringId, Sabine.Zone.World.Actors.PlayerCharacter character, int zenyCost)
+		public InvestResult TryInvestEconomy(string mapStringId, PlayerCharacter character, int zenyCost)
 			=> TryInvest(mapStringId, character, zenyCost, isDefense: false);
 
 		/// <summary>
@@ -197,10 +200,10 @@ namespace Sabine.Zone.World.Woe
 		/// <see cref="TryInvestEconomy"/> but writes to Defense /
 		/// TriggerD instead of Economy / TriggerE.
 		/// </summary>
-		public InvestResult TryInvestDefense(string mapStringId, Sabine.Zone.World.Actors.PlayerCharacter character, int zenyCost)
+		public InvestResult TryInvestDefense(string mapStringId, PlayerCharacter character, int zenyCost)
 			=> TryInvest(mapStringId, character, zenyCost, isDefense: true);
 
-		private InvestResult TryInvest(string mapStringId, Sabine.Zone.World.Actors.PlayerCharacter character, int zenyCost, bool isDefense)
+		private InvestResult TryInvest(string mapStringId, PlayerCharacter character, int zenyCost, bool isDefense)
 		{
 			if (character == null) return InvestResult.UnknownCastle;
 
@@ -220,16 +223,16 @@ namespace Sabine.Zone.World.Woe
 			if (character.Parameters.Zeny < zenyCost) return InvestResult.NotEnoughZeny;
 
 			if (zenyCost > 0)
-				character.Parameters.Modify(Sabine.Shared.Const.ParameterType.Zeny, -zenyCost);
+				character.Parameters.Modify(ParameterType.Zeny, -zenyCost);
 
 			if (isDefense)
 			{
-				castle.Defense = System.Math.Min(current + 1, Castle.MaxInvestmentLevel);
+				castle.Defense = Math.Min(current + 1, Castle.MaxInvestmentLevel);
 				castle.TriggerD = 1;
 			}
 			else
 			{
-				castle.Economy = System.Math.Min(current + 1, Castle.MaxInvestmentLevel);
+				castle.Economy = Math.Min(current + 1, Castle.MaxInvestmentLevel);
 				castle.TriggerE = 1;
 			}
 

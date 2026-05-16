@@ -1,3 +1,4 @@
+using System;
 using Sabine.Shared.Data.Databases;
 
 namespace Sabine.Zone.World.Woe
@@ -102,8 +103,8 @@ namespace Sabine.Zone.World.Woe
 			switch (dataType)
 			{
 				case 1: this.OwnerGuildId = value; return true;
-				case 2: this.Economy = System.Math.Clamp(value, 0, MaxInvestmentLevel); return true;
-				case 3: this.Defense = System.Math.Clamp(value, 0, MaxInvestmentLevel); return true;
+				case 2: this.Economy = Math.Clamp(value, 0, MaxInvestmentLevel); return true;
+				case 3: this.Defense = Math.Clamp(value, 0, MaxInvestmentLevel); return true;
 				case 4: this.TriggerE = value != 0 ? 1 : 0; return true;
 				case 5: this.TriggerD = value != 0 ? 1 : 0; return true;
 				case int n when n >= 10 && n <= 17:
