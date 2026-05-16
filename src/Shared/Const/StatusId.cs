@@ -174,21 +174,22 @@ namespace Sabine.Shared.Const
 		// Per-song markers split out so each Bard/Dancer skill can hang
 		// its own stat-bonus handler. eAthena models each as a distinct
 		// SC_*; Sabine kept a shared BardSong/DancerDance marker until
-		// the per-tick aura pipeline grew. The numeric ids slot above
-		// the Reborn block so the existing Marionette/etc. stay stable.
-		Whistle = 227,
-		AssassinCross = 228,
-		PoemBragi = 229,
-		AppleIdun = 230,
-		Humming = 231,
-		DontForgetMe = 232,
-		Dissonance = 233,
-		UglyDance = 234,
+		// the per-tick aura pipeline grew. The original 227-235 slots
+		// collided with the existing CpWeapon..Gravity block, so the
+		// per-song split sits in the post-Marionette range instead.
+		Whistle = 268,
+		AssassinCross = 269,
+		PoemBragi = 270,
+		AppleIdun = 271,
+		Humming = 272,
+		DontForgetMe = 273,
+		Dissonance = 274,
+		UglyDance = 275,
 
 		// BD_RICHMANKIM (Mr. Kim a Rich Man): +EXP gain aura for party
 		// members standing in the song. eAthena status.c:5662 stores
 		// val2 = 25 + 25*level (percent bonus).
-		RichmanKim = 235,
+		RichmanKim = 276,
 
 		// BD_* ensemble payloads. eAthena status.c carries each as a
 		// distinct SC_*; Sabine kept them collapsed into BardSong until
