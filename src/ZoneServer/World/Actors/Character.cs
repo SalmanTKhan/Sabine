@@ -294,6 +294,53 @@ namespace Sabine.Zone.World.Actors
 		public CharacterComponents Components { get; } = new CharacterComponents();
 
 		/// <summary>
+		/// Server-side pacing gates (rA ud.attackabletime / canact_tick /
+		/// canmove_tick). Stamped when an action fires; consulted by the
+		/// matching packet handler to drop requests that arrive before the
+		/// previous action's motion delay has elapsed.
+		/// </summary>
+		public DateTime NextAttackTime { get; private set; } = DateTime.MinValue;
+		public DateTime NextActTime { get; private set; } = DateTime.MinValue;
+		public DateTime NextMoveTime { get; private set; } = DateTime.MinValue;
+
+		private static readonly TimeSpan PaceGraceAttack = TimeSpan.FromMilliseconds(50);
+		private static readonly TimeSpan PaceGraceMove = TimeSpan.FromMilliseconds(150);
+
+		public bool CanAttackNow(DateTime now)
+			=> now + PaceGraceAttack >= this.NextAttackTime
+			&& now + PaceGraceAttack >= this.NextActTime;
+
+		public bool CanActNow(DateTime now)
+			=> now + PaceGraceAttack >= this.NextActTime;
+
+		public bool CanMoveNow(DateTime now)
+			=> now + PaceGraceMove >= this.NextMoveTime;
+
+		internal void NoteAttacked(int attackMotionDelayMs)
+		{
+			var end = DateTime.UtcNow.AddMilliseconds(attackMotionDelayMs);
+			this.NextAttackTime = end;
+			if (end > this.NextActTime)
+				this.NextActTime = end;
+		}
+
+		internal void NoteActed(int actDelayMs)
+		{
+			if (actDelayMs <= 0) return;
+			var end = DateTime.UtcNow.AddMilliseconds(actDelayMs);
+			if (end > this.NextActTime)
+				this.NextActTime = end;
+		}
+
+		internal void NoteMoveStarted(int moveDelayMs)
+		{
+			if (moveDelayMs <= 0) return;
+			var end = DateTime.UtcNow.AddMilliseconds(moveDelayMs);
+			if (end > this.NextMoveTime)
+				this.NextMoveTime = end;
+		}
+
+		/// <summary>
 		/// Initializes character.
 		/// </summary>
 		public Character()
@@ -656,6 +703,8 @@ namespace Sabine.Zone.World.Actors
 			var damageMotionDelay = target.Parameters.DamageMotionDelay;
 
 			Send.ZC_NOTIFY_ACT.Attack(attacker, attacker.Handle, target.Handle, Game.GetTick(), result.ActionType, damage, attackMotionDelay, damageMotionDelay);
+
+			attacker.NoteAttacked(attackMotionDelay);
 
 			if (target.IsDead)
 				autoAttack = false;

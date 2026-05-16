@@ -187,6 +187,11 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 
 			_moving = true;
 
+			// Stamp the unified pacing gate so back-to-back move
+			// requests within this step are dropped at the packet
+			// handler. Mirrors rA canmove_tick updated per tile.
+			character.NoteMoveStarted((int)speed);
+
 			// I tried running the controller on the heartbeat, but I
 			// wasn't entirely happy with the results. Let's switch to a
 			// high-resolution timer for now and see how that goes.

@@ -392,6 +392,12 @@ namespace Sabine.Zone.Network
 			if (character.IsImmobilized || character.MovementBlocked)
 				return;
 
+			// Server-side move pacing: drop repath requests that arrive
+			// before the previous step's move delay has elapsed. Mirrors
+			// rA ud.canmove_tick.
+			if (!character.CanMoveNow(DateTime.UtcNow))
+				return;
+
 			// Confusion: ignore the requested destination and pick a
 			// random nearby cell. Mirrors eAthena pc_walktoxy override.
 			if (character.StatusEffects?.Has(StatusId.Confusion) == true)
@@ -927,6 +933,12 @@ namespace Sabine.Zone.Network
 					// packet CZ_CANCEL_LOCKON right after the ACT packet.
 
 					if (character.IsImmobilized)
+						return;
+
+					// Server-side attack pacing: drop request packets that
+					// arrive before the previous attack's motion delay has
+					// elapsed. Mirrors rA ud.attackabletime/canact_tick.
+					if (!character.CanAttackNow(DateTime.UtcNow))
 						return;
 
 					if (!character.Map.TryGetCharacter(targetHandle, out var target))
@@ -1717,6 +1729,8 @@ namespace Sabine.Zone.Network
 		internal static bool TryDeductSkillCost(PlayerCharacter character, Sabine.Zone.Skills.Skill skill, int castLevel)
 		{
 			var cost = skill.Data.GetSpCost(castLevel);
+			Log.Debug("TryDeductSkillCost: {0} cast {1} lv{2} -> raw cost {3} SP (current {4}/{5}).",
+				character.Name, skill.Id, castLevel, cost, character.Parameters.Sp, character.Parameters.SpMax);
 			if (cost <= 0)
 				return true;
 
@@ -1782,6 +1796,8 @@ namespace Sabine.Zone.Network
 			// lockout (AfterCastActDelay) is the classic Beta1-era gate
 			// every cast respects; the per-skill check is a no-op for
 			// data rows with cooldown=0 so older skill DBs are unaffected.
+			if (!character.CanActNow(DateTime.UtcNow))
+				return;
 			if (character.Skills.IsLockedOut())
 				return;
 			if (character.Skills.IsOnCooldown(skill.Id))
@@ -1846,6 +1862,8 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
+			if (!character.CanActNow(DateTime.UtcNow))
+				return;
 			if (character.Skills.IsLockedOut())
 				return;
 			if (character.Skills.IsOnCooldown(skill.Id))

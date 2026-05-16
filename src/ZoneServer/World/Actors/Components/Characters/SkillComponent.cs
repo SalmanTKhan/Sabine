@@ -311,6 +311,11 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 					var end = DateTime.UtcNow.AddMilliseconds(delayMs);
 					if (end > _lockoutEnd)
 						_lockoutEnd = end;
+
+					// Propagate to the unified pacing gate so attack
+					// requests are also rejected during the after-cast
+					// lockout (rA canact_tick semantics).
+					this.Character?.NoteActed(delayMs);
 				}
 			}
 
