@@ -98,6 +98,11 @@ namespace Sabine.Shared.Data
 		public RefineDb Refine { get; } = new();
 
 		/// <summary>
+		/// db/cash_shop.txt — EP12 (S2500+) cash shop catalog.
+		/// </summary>
+		public CashShopDb CashShop { get; } = new();
+
+		/// <summary>
 		/// db/skills.txt
 		/// </summary>
 		public SkillDb Skills { get; } = new();

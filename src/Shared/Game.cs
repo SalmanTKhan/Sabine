@@ -150,6 +150,20 @@ namespace Sabine.Shared
 		/// (post-2018 clients send opcodes in the clear).
 		/// </summary>
 		public const int Ragexe20211103 = 21103;
+
+		/// <summary>
+		/// Sabine-native protocol targeting the open-midgard custom
+		/// client. Not pinned to any historical Ragnarok client —
+		/// wire opcodes are renumbered into a clean grouped layout
+		/// (0x00xx auth, 0x01xx char, 0x02xx CZ, 0x04xx+ ZC) on top
+		/// of the S2500 effective packet bodies. Opt-in: set
+		/// <c>packet_version</c> in <c>user\conf\version.conf</c> to
+		/// switch a deployment onto this profile. The value sits far
+		/// above the historical timeline so existing
+		/// <c>Game.Version &gt;= Versions.X</c> checks (e.g. v4 actor
+		/// entry, v3 item lists) naturally pick the modern variant.
+		/// </summary>
+		public const int Sabine = 50000;
 	}
 
 	/// <summary>

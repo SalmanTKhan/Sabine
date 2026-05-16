@@ -1,0 +1,25 @@
+// Sabine
+// Database File
+//
+// EP12 (S2500+) cash shop catalog. Items here become available
+// through ZC_PC_CASH_POINT_ITEMLIST when a script opens the cash
+// shop window. Mirrors eAthena's db/cash_shop_db.txt shape.
+//
+// Fields: id (item class id), cashPrice, [kafraPrice]
+//
+// Currency comes from PlayerCharacter.Parameters.CashPoints /
+// KafraPoints. The buy handler debits whichever currency the price
+// is non-zero for, preferring kafraPrice when both are set.
+//
+// References:
+//   rAthena db/cash_shop_db.txt
+//   rAthena src/map/clif.cpp clif_cashshop_show
+//   eAthena db/cash_shop_db.txt
+
+[
+	// Sample entries — uncomment / edit to taste. Cash-shop NPCs
+	// invoke this catalog via the script helper OpenCashShop(player).
+	//
+	// { id: 12210, cashPrice: 100 },                          // Bubble Gum
+	// { id: 14545, cashPrice: 100, kafraPrice: 50 },          // Battle Manual
+]

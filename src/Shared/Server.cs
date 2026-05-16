@@ -211,6 +211,7 @@ namespace Sabine.Shared
 				? "refine_db_renewal.txt"
 				: "refine_db.txt";
 			this.LoadDataFile(this.Data.Refine, refineFile);
+			this.LoadDataFile(this.Data.CashShop, "cash_shop.txt");
 
 			// Get the latest cache file for the selected version
 			var cacheFileName = "map_cache.dat";
