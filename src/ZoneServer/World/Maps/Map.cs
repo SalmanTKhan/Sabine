@@ -53,6 +53,14 @@ namespace Sabine.Zone.World.Maps
 		public string StringId { get; }
 
 		/// <summary>
+		/// Owning memorial-dungeon instance, or zero for a normal map.
+		/// </summary>
+		public int InstanceId { get; private set; }
+
+		/// <summary>Base map cloned for this instance, or an empty string.</summary>
+		public string InstanceSourceMapStringId { get; private set; } = "";
+
+		/// <summary>
 		/// Returns a reference to the data for this map.
 		/// </summary>
 		public MapsData Data { get; }
@@ -128,7 +136,7 @@ namespace Sabine.Zone.World.Maps
 		/// Used by <see cref="Instances.InstanceManager"/> to back the
 		/// rAthena `instance_attachmap` semantics.
 		/// </summary>
-		public static Map CreateInstanceClone(Map source, int instanceId, string instanceStringId)
+		public static Map CreateInstanceClone(Map source, int instanceId, string instanceStringId, int ownerInstanceId)
 		{
 			var clone = new Map(source.Data, instanceId, instanceStringId)
 			{
@@ -136,6 +144,8 @@ namespace Sabine.Zone.World.Maps
 				PathFinder = source.PathFinder,
 				VisibleRange = source.VisibleRange,
 				Flags = source.Flags,
+				InstanceId = ownerInstanceId,
+				InstanceSourceMapStringId = source.StringId,
 			};
 			return clone;
 		}
@@ -206,6 +216,16 @@ namespace Sabine.Zone.World.Maps
 			unit.Map = this;
 			using (SlimLock.Write(_skillUnitsLock))
 				_skillUnits[unit.Handle] = unit;
+
+			if (unit.Owner != null && unit.UnitId != SkillUnitId.None)
+			{
+				Send.ZC_SKILL_ENTRY(
+					unit.Owner,
+					unit.Handle,
+					unit.UnitId,
+					unit.Position.X,
+					unit.Position.Y);
+			}
 		}
 
 		/// <summary>

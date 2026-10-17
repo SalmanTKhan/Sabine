@@ -109,5 +109,23 @@ namespace Tests.Sabine.Shared.Network
 			Assert.Equal(test1, testBuffer);
 			Assert.Equal(1, messagesReceived);
 		}
+
+		[Fact]
+		internal void ReservedSabineOpcodeIsRejected()
+		{
+			Game.Version = Versions.Sabine;
+			PacketTable.Load();
+
+			try
+			{
+				var framer = new RoFramer(1024);
+				Assert.Throws<System.ArgumentException>(() => framer.ReceiveData([0x00, 0x00], 2, _ => { }));
+			}
+			finally
+			{
+				Game.Version = Versions.Alpha;
+				PacketTable.Load();
+			}
+		}
 	}
 }

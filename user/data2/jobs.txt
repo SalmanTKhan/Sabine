@@ -1,0 +1,32 @@
+// Sabine
+// Database File - Auto-generated from job_stats.yml + job_aspd.yml
+//---------------------------------------------------------------------------
+
+[
+{ id: "Novice", name: "Novice", modifiers: { weight: 20000, hpFactor: 0, hpMultiplier: 5, spFactor: 1 }, weaponDelays: { bareHand: 50, dagger: 65, sword: 70, bow: 200, spear: 200, axe: 80, mace: 70, rod: 65 } },
+{ id: "Swordman", name: "Swordman", modifiers: { weight: 28000, hpFactor: 0.7, hpMultiplier: 5, spFactor: 2 }, weaponDelays: { bareHand: 40, dagger: 50, sword: 55, bow: 200, spear: 65, axe: 70, mace: 65, rod: 200 } },
+{ id: "Mage", name: "Mage", modifiers: { weight: 22000, hpFactor: 0.3, hpMultiplier: 5, spFactor: 6 }, weaponDelays: { bareHand: 50, dagger: 60, sword: 200, bow: 200, spear: 200, axe: 200, mace: 200, rod: 70 } },
+{ id: "Archer", name: "Archer", modifiers: { weight: 26000, hpFactor: 0.5, hpMultiplier: 5, spFactor: 2 }, weaponDelays: { bareHand: 40, dagger: 60, sword: 200, bow: 70, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "Acolyte", name: "Acolyte", modifiers: { weight: 24000, hpFactor: 0.4, hpMultiplier: 5, spFactor: 5 }, weaponDelays: { bareHand: 40, dagger: 200, sword: 200, bow: 200, spear: 200, axe: 200, mace: 60, rod: 60 } },
+{ id: "Merchant", name: "Merchant", modifiers: { weight: 28000, hpFactor: 0.4, hpMultiplier: 5, spFactor: 3 }, weaponDelays: { bareHand: 40, dagger: 60, sword: 70, bow: 200, spear: 200, axe: 70, mace: 70, rod: 200 } },
+{ id: "Thief", name: "Thief", modifiers: { weight: 24000, hpFactor: 0.5, hpMultiplier: 5, spFactor: 2 }, weaponDelays: { bareHand: 40, dagger: 50, sword: 65, bow: 80, spear: 200, axe: 80, mace: 200, rod: 200 } },
+{ id: "Knight", name: "Knight", modifiers: { weight: 28000, hpFactor: 1.5, hpMultiplier: 5, spFactor: 3 }, weaponDelays: { bareHand: 40, dagger: 50, sword: 50, bow: 200, spear: 60, axe: 70, mace: 65, rod: 200 } },
+{ id: "Priest", name: "Priest", modifiers: { weight: 26000, hpFactor: 0.75, hpMultiplier: 5, spFactor: 8 }, weaponDelays: { bareHand: 40, dagger: 200, sword: 200, bow: 200, spear: 200, axe: 200, mace: 60, rod: 60 } },
+{ id: "Wizard", name: "Wizard", modifiers: { weight: 24000, hpFactor: 0.55, hpMultiplier: 5, spFactor: 9 }, weaponDelays: { bareHand: 50, dagger: 57.5, sword: 200, bow: 200, spear: 200, axe: 200, mace: 200, rod: 62.5 } },
+{ id: "Blacksmith", name: "Blacksmith", modifiers: { weight: 30000, hpFactor: 0.9, hpMultiplier: 5, spFactor: 4 }, weaponDelays: { bareHand: 40, dagger: 60, sword: 65, bow: 200, spear: 200, axe: 65, mace: 67.5, rod: 200 } },
+{ id: "Hunter", name: "Hunter", modifiers: { weight: 27000, hpFactor: 0.85, hpMultiplier: 5, spFactor: 4 }, weaponDelays: { bareHand: 40, dagger: 60, sword: 200, bow: 60, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "Assassin", name: "Assassin", modifiers: { weight: 24000, hpFactor: 1.1, hpMultiplier: 5, spFactor: 4 }, weaponDelays: { bareHand: 40, dagger: 50, sword: 65, bow: 200, spear: 200, axe: 80, mace: 200, rod: 200 } },
+{ id: "Crusader", name: "Crusader", modifiers: { weight: 28000, hpFactor: 1.1, hpMultiplier: 7, spFactor: 4.7 }, weaponDelays: { bareHand: 40, dagger: 50, sword: 50, bow: 200, spear: 60, axe: 70, mace: 65, rod: 200 } },
+{ id: "Monk", name: "Monk", modifiers: { weight: 26000, hpFactor: 0.9, hpMultiplier: 6.5, spFactor: 4.7 }, weaponDelays: { bareHand: 40, dagger: 200, sword: 200, bow: 200, spear: 200, axe: 200, mace: 57.5, rod: 57.5 } },
+{ id: "Sage", name: "Sage", modifiers: { weight: 24000, hpFactor: 0.75, hpMultiplier: 5, spFactor: 7 }, weaponDelays: { bareHand: 45, dagger: 52.5, sword: 200, bow: 200, spear: 200, axe: 200, mace: 200, rod: 62.5 } },
+{ id: "Rogue", name: "Rogue", modifiers: { weight: 24000, hpFactor: 0.85, hpMultiplier: 5, spFactor: 5 }, weaponDelays: { bareHand: 40, dagger: 50, sword: 55, bow: 65, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "Alchemist", name: "Alchemist", modifiers: { weight: 30000, hpFactor: 0.9, hpMultiplier: 5, spFactor: 4 }, weaponDelays: { bareHand: 40, dagger: 55, sword: 57.5, bow: 200, spear: 200, axe: 67.5, mace: 65, rod: 200 } },
+{ id: "Bard", name: "Bard", modifiers: { weight: 27000, hpFactor: 0.75, hpMultiplier: 3, spFactor: 6 }, weaponDelays: { bareHand: 40, dagger: 55, sword: 200, bow: 65, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "Dancer", name: "Dancer", modifiers: { weight: 27000, hpFactor: 0.75, hpMultiplier: 3, spFactor: 6 }, weaponDelays: { bareHand: 40, dagger: 55, sword: 200, bow: 65, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "SuperNovice", name: "SuperNovice", modifiers: { weight: 20000, hpFactor: 0, hpMultiplier: 5, spFactor: 1 }, weaponDelays: { bareHand: 50, dagger: 65, sword: 70, bow: 200, spear: 200, axe: 80, mace: 70, rod: 65 } },
+{ id: "Gunslinger", name: "Gunslinger", modifiers: { weight: 28000, hpFactor: 0.89, hpMultiplier: 0, spFactor: 4.69 }, weaponDelays: { bareHand: 50, dagger: 200, sword: 200, bow: 200, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "Ninja", name: "Ninja", modifiers: { weight: 26000, hpFactor: 0.8, hpMultiplier: 0, spFactor: 5.4 }, weaponDelays: { bareHand: 40, dagger: 50, sword: 200, bow: 200, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "Taekwon", name: "Taekwon", modifiers: { weight: 28000, hpFactor: 0.7, hpMultiplier: 5, spFactor: 2 }, weaponDelays: { bareHand: 40, dagger: 200, sword: 200, bow: 200, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "StarGladiator", name: "StarGladiator", modifiers: { weight: 28000, hpFactor: 0.9, hpMultiplier: 6.5, spFactor: 4.7 }, weaponDelays: { bareHand: 40, dagger: 200, sword: 200, bow: 200, spear: 200, axe: 200, mace: 200, rod: 200 } },
+{ id: "SoulLinker", name: "SoulLinker", modifiers: { weight: 24000, hpFactor: 0.75, hpMultiplier: 5, spFactor: 9 }, weaponDelays: { bareHand: 50, dagger: 57.5, sword: 200, bow: 200, spear: 200, axe: 200, mace: 200, rod: 62.5 } }
+]

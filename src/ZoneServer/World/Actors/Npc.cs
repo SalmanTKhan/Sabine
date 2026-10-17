@@ -36,6 +36,15 @@ namespace Sabine.Zone.World.Actors
 		public DialogFunc DialogFunc { get; set; }
 
 		/// <summary>
+		/// Gets or sets the NPC's movement delay in milliseconds.
+		/// </summary>
+		public int WalkSpeed
+		{
+			get => this.Parameters.Speed;
+			set => this.Parameters.Speed = value;
+		}
+
+		/// <summary>
 		/// Gets or sets the NPC's trigger area.
 		/// </summary>
 		/// <remarks>
@@ -59,6 +68,46 @@ namespace Sabine.Zone.World.Actors
 
 			this.Direction = Direction.South;
 			this.Parameters.Speed = 400;
+		}
+
+		/// <summary>
+		/// Changes the visible body sprite without replacing the NPC's
+		/// script, position, or interaction state. This is rAthena's
+		/// <c>setnpcdisplay</c> body-sprite behavior.
+		/// </summary>
+		public void SetDisplaySprite(int classId)
+		{
+			this.IdentityId = (IdentityId)classId;
+			Send.ZC_NPCSPRITE_CHANGE(this, 0, classId);
+		}
+
+		/// <summary>
+		/// Creates an isolated map-instance copy of this static NPC. Script
+		/// delegates are immutable and can be shared; mutable NPC state and
+		/// variables belong to the newly allocated actor.
+		/// </summary>
+		public Npc CreateInstanceClone(string instanceName, int mapId)
+		{
+			var clone = new Npc(this.IdentityId)
+			{
+				Name = instanceName,
+				Direction = this.Direction,
+				DialogFunc = this.DialogFunc,
+				WalkSpeed = this.WalkSpeed,
+				Position = this.Position,
+				MapId = mapId,
+			};
+
+			if (this.TriggerArea != null)
+			{
+				clone.TriggerArea = new TriggerArea(clone, this.TriggerArea.RangeX, this.TriggerArea.RangeY)
+				{
+					Enter = this.TriggerArea.Enter,
+					Exit = this.TriggerArea.Exit,
+				};
+			}
+
+			return clone;
 		}
 
 		/// <summary>

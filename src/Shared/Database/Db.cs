@@ -152,6 +152,7 @@ namespace Sabine.Shared.Database
 			account.Id = reader.GetInt32("accountId");
 			account.Username = reader.GetStringSafe("username");
 			account.Password = reader.GetStringSafe("password");
+			account.Email = this.HasColumn(reader, "email") ? (reader.GetStringSafe("email") ?? "") : "";
 			account.Sex = (Sex)reader.GetByte("sex");
 			account.Authority = reader.GetByte("authority");
 			account.SessionId = reader.GetInt32("sessionId");
@@ -159,6 +160,17 @@ namespace Sabine.Shared.Database
 			account.Vars.Perm.Load(this.GetVars("vars_account", account.Id));
 
 			return account;
+		}
+
+		private bool HasColumn(MySqlDataReader reader, string name)
+		{
+			for (var i = 0; i < reader.FieldCount; ++i)
+			{
+				if (string.Equals(reader.GetName(i), name, StringComparison.OrdinalIgnoreCase))
+					return true;
+			}
+
+			return false;
 		}
 
 		/// <summary>

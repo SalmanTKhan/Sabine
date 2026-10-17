@@ -180,7 +180,7 @@ namespace Sabine.Zone.World.Actors
 			this.StopCasting();
 			this.StopAttacking();
 
-			if (this.Position.InRange(target.Position, this.GetAttackRange()))
+			if (this.InAttackRange(target, this.GetAttackRange()))
 			{
 				// Already in range: attack immediately via the base character loop.
 				_currentAction = ActionState.Attacking;
@@ -474,7 +474,7 @@ namespace Sabine.Zone.World.Actors
 
 			var attackRange = this.GetAttackRange();
 
-			if (!this.Position.InRange(_attackTarget.Position, attackRange))
+			if (!this.InAttackRange(_attackTarget, attackRange))
 			{
 				_currentAction = ActionState.Moving;
 				this.Controller.MoveTo(_attackTarget.Position);
@@ -489,6 +489,25 @@ namespace Sabine.Zone.World.Actors
 			// The attack request is now handled by the base class's attack loop. 
 			// Clear the target to prevent this method from re-triggering the attack.
 			_attackTarget = null;
+		}
+
+		/// <summary>
+		/// Resumes the chase after the base class's per-swing range recheck
+		/// rejected a swing because the target stepped out of range between
+		/// scheduler ticks. The base class already cleared
+		/// <c>_attackCallbackId</c>, so no further damaging swing will fire
+		/// until UpdateAttackAction next observes the target back inside
+		/// range and re-issues <c>base.StartAttacking</c>. We deliberately
+		/// keep <c>_isAutoAttacking = true</c>: the player wants the loop
+		/// to keep firing once range is re-acquired, not a single manual
+		/// swing only.
+		/// </summary>
+		protected override void OnAttackTargetOutOfRange(Character target, int attackRange)
+		{
+			this._attackTarget = target;
+			this._isAutoAttacking = true;
+			this._currentAction = ActionState.Moving;
+			this.Controller.MoveTo(target.Position);
 		}
 
 		/// <summary>

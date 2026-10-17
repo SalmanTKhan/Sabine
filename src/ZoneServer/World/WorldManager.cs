@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Sabine.Shared.Util;
 using Sabine.Zone.Network;
@@ -41,6 +42,20 @@ namespace Sabine.Zone.World
 		/// Returns a reference to a collection of NPC shops in the world.
 		/// </summary>
 		public Collection<string, NpcShop> NpcShops { get; } = new();
+
+		/// <summary>NPC state for rAthena scripts declared with a '-' map.</summary>
+		public Dictionary<string, Npc> ScriptNpcs { get; } = new(StringComparer.Ordinal);
+
+		public Npc RegisterScriptNpc(string name)
+		{
+			if (string.IsNullOrWhiteSpace(name))
+				return null;
+			if (this.ScriptNpcs.TryGetValue(name, out var existing))
+				return existing;
+			var npc = new Npc(Sabine.Shared.Const.IdentityId.JT_NOVICE) { Name = name };
+			this.ScriptNpcs[name] = npc;
+			return npc;
+		}
 
 		/// <summary>
 		/// Returns the trade manager, handling trades between players in
@@ -351,6 +366,8 @@ namespace Sabine.Zone.World
 		{
 			if (string.IsNullOrEmpty(name))
 				return null;
+			if (this.ScriptNpcs.TryGetValue(name, out var scriptNpc))
+				return scriptNpc;
 
 			foreach (var map in this.Maps.GetAll())
 			{
@@ -404,6 +421,7 @@ namespace Sabine.Zone.World
 		public void RemoveScriptedEntities()
 		{
 			this.NpcShops.Clear();
+			this.ScriptNpcs.Clear();
 			this.Spawners.Clear();
 			SpawnService.ClearAll();
 			ScriptEvents.ClearAll();

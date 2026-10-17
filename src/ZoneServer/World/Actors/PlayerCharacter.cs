@@ -63,6 +63,18 @@ namespace Sabine.Zone.World.Actors
 		public FriendsList Friends { get; }
 
 		/// <summary>
+		/// Gets or sets the whisper state for this character.
+		/// 0 = receive all, 1 = friends only, 2 = block all.
+		/// </summary>
+		public byte WhisperState { get; set; }
+
+		/// <summary>
+		/// Gets or sets the list of names blocked from whispering
+		/// this character.
+		/// </summary>
+		public System.Collections.Generic.HashSet<string> WhisperBlockList { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>
 		/// In-progress outgoing mail. Built up by CZ_MAIL_ADD_ITEM /
 		/// reset by CZ_MAIL_RESET_ITEM, drained on CZ_MAIL_SEND.
 		/// In-memory only; lost on disconnect.
@@ -635,6 +647,11 @@ namespace Sabine.Zone.World.Actors
 		{
 			switch (type)
 			{
+				// Class and Base are the same value (0). StopCasting reverts the
+				// character's sprite through this path, so leaving it unhandled
+				// meant any cast interruption — moving while casting, most
+				// commonly — threw and dropped the player's connection.
+				case SpriteType.Class: this.DisplayClassId = lookId; break;
 				case SpriteType.Hair: this.HairId = lookId; break;
 				case SpriteType.Weapon: this.WeaponLook = lookId; break;
 				case SpriteType.HeadTop: this.HeadTopLook = lookId; break;
@@ -1064,14 +1081,24 @@ namespace Sabine.Zone.World.Actors
 					}
 					finally
 					{
-						if (dialog.GetLastAction() == DialogActionType.Message /*&& isAlpha*/)
+						try
 						{
-							await dialog.Next();
-							dialog.Close();
+							if (!dialog.IsCancelled && dialog.State != DialogState.Ended)
+							{
+								if (dialog.GetLastAction() == DialogActionType.Message /*&& isAlpha*/)
+								{
+									await dialog.Next();
+									dialog.Close();
+								}
+								else if (dialog.GetLastAction() == DialogActionType.Input)
+								{
+									dialog.Close();
+								}
+							}
 						}
-						else if (dialog.GetLastAction() == DialogActionType.Input)
+						catch (OperationCanceledException)
 						{
-							dialog.Close();
+							// Client cancellation and script Close are both idempotent.
 						}
 						dialog.State = DialogState.Ended;
 					}

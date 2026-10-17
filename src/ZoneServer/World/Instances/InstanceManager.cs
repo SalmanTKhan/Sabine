@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using Sabine.Shared;
 using Sabine.Zone.Network;
+using Sabine.Zone.Scripting;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Maps;
 using Sabine.Zone.World;
@@ -46,10 +47,14 @@ namespace Sabine.Zone.World.Instances
 		/// helpers in <see cref="TryFindByOwner"/> consult them in
 		/// guild → party → char order, matching the rAthena precedence.
 		/// </summary>
-		public Instance Create(int ownerCharId = 0, int ownerPartyId = 0, int ownerGuildId = 0)
+		public Instance Create(string templateName, InstanceMode mode, int ownerId,
+			int ownerCharId = 0, int ownerPartyId = 0, int ownerGuildId = 0,
+			int ownerClanId = 0, string entryMap = "", int entryX = 0, int entryY = 0)
 		{
 			var id = Interlocked.Increment(ref _nextInstanceId);
-			var instance = new Instance(id, ownerCharId, ownerPartyId, ownerGuildId);
+			var instance = new Instance(id, templateName, mode, ownerId,
+				ownerCharId, ownerPartyId, ownerGuildId, ownerClanId,
+				entryMap, entryX, entryY);
 
 			lock (_syncLock)
 				_instances[id] = instance;
@@ -76,15 +81,15 @@ namespace Sabine.Zone.World.Instances
 		/// then party-scoped, then char-scoped. Returns false when
 		/// the player has no active instance.
 		/// </summary>
-		public bool TryFindByOwner(PlayerCharacter player, out Instance instance)
+		public bool TryFindByOwner(PlayerCharacter player, InstanceMode mode, out Instance instance)
 		{
 			instance = null;
 			if (player == null)
 				return false;
 
-			var guildId = player.Guild?.Id ?? 0;
-			var partyId = player.Party?.Id ?? 0;
-			var charId = player.Id;
+			var ownerId = GetOwnerId(player, mode);
+			if (mode != InstanceMode.None && ownerId == 0)
+				return false;
 
 			lock (_syncLock)
 			{
@@ -92,17 +97,7 @@ namespace Sabine.Zone.World.Instances
 				{
 					if (inst.IsDisposed)
 						continue;
-					if (guildId != 0 && inst.OwnerGuildId == guildId)
-					{
-						instance = inst;
-						return true;
-					}
-					if (partyId != 0 && inst.OwnerPartyId == partyId)
-					{
-						instance = inst;
-						return true;
-					}
-					if (charId != 0 && inst.OwnerCharId == charId)
+					if (inst.Mode == mode && inst.OwnerId == ownerId)
 					{
 						instance = inst;
 						return true;
@@ -111,6 +106,33 @@ namespace Sabine.Zone.World.Instances
 			}
 
 			return false;
+		}
+
+		public bool TryFindByOwner(PlayerCharacter player, out Instance instance)
+		{
+			foreach (var mode in new[] { InstanceMode.Guild, InstanceMode.Party, InstanceMode.Character, InstanceMode.Clan })
+			{
+				if (this.TryFindByOwner(player, mode, out instance))
+					return true;
+			}
+
+			instance = null;
+			return false;
+		}
+
+		public static int GetOwnerId(PlayerCharacter player, InstanceMode mode)
+		{
+			if (player == null)
+				return 0;
+
+			return mode switch
+			{
+				InstanceMode.Character => player.Id,
+				InstanceMode.Party => player.Party?.Id ?? 0,
+				InstanceMode.Guild => player.Guild?.Id ?? 0,
+				InstanceMode.Clan => Groups.ClanManager.Instance.GetByMember(player.Id)?.Id ?? 0,
+				_ => 0,
+			};
 		}
 
 		/// <summary>
@@ -135,13 +157,27 @@ namespace Sabine.Zone.World.Instances
 
 			var instanceStringId = instance.GetInstanceMapName(sourceMapStringId);
 			var newId = Interlocked.Increment(ref _nextMapId);
-			var clone = Map.CreateInstanceClone(source, newId, instanceStringId);
+			var clone = Map.CreateInstanceClone(source, newId, instanceStringId, instance.Id);
 
 			maps.Add(clone);
 			instance.AttachMap(sourceMapStringId, clone);
+			this.CloneStaticNpcs(source, clone, instance);
 
 			NotifyOwnerMapAttached(instance, sourceMapStringId);
 			return instanceStringId;
+		}
+
+		private void CloneStaticNpcs(Map source, Map clone, Instance instance)
+		{
+			foreach (var sourceNpc in source.GetAllNpcs())
+			{
+				if (sourceNpc is Monster)
+					continue;
+
+				var cloneNpc = sourceNpc.CreateInstanceClone($"{sourceNpc.Name}#{instance.Id}", clone.Id);
+				clone.AddNpc(cloneNpc);
+				_ = ScriptEvents.RaiseAsync($"{cloneNpc.Name}::OnInstanceInit", instance.Id);
+			}
 		}
 
 		/// <summary>
@@ -160,6 +196,11 @@ namespace Sabine.Zone.World.Instances
 			}
 
 			NotifyOwner(inst, state: 3); // 3 = subscription ended
+			foreach (var map in inst.GetMaps())
+			{
+				foreach (var npc in map.GetAllNpcs())
+					_ = ScriptEvents.RaiseAsync($"{npc.Name}::OnInstanceDestroy", inst.Id);
+			}
 
 			var maps = ZoneServer.Instance.World.Maps;
 			foreach (var map in inst.GetMaps())
@@ -244,9 +285,26 @@ namespace Sabine.Zone.World.Instances
 			{
 				foreach (var inst in _instances.Values)
 				{
-					if (inst.IsDisposed || inst.ExpiresAt > now)
+					if (inst.IsDisposed)
 						continue;
-					(expired ??= new List<int>()).Add(inst.Id);
+					if (inst.ExpiresAt <= now)
+					{
+						(expired ??= new List<int>()).Add(inst.Id);
+						continue;
+					}
+
+					if (inst.GetMaps().Any(map => map.PlayerCount > 0))
+					{
+						inst.MarkOccupied();
+						continue;
+					}
+
+					if (inst.IdleTimeout > TimeSpan.Zero
+						&& inst.LastOccupiedAt + inst.IdleTimeout <= now)
+					{
+						Log.Info("InstanceManager: instance {0} expired while idle.", inst.Id);
+						(expired ??= new List<int>()).Add(inst.Id);
+					}
 				}
 			}
 

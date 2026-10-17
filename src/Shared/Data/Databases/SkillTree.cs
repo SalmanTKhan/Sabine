@@ -28,12 +28,16 @@ namespace Sabine.Shared.Data.Databases
 	}
 
 	/// <summary>
-	/// A skill tree database.
+	/// A skill tree database. Job groups and individual skills may use
+	/// versionMin/versionMax; inactive entries are ignored before any
+	/// skill or prerequisite lookup is attempted.
 	/// </summary>
-	public class SkillTreeDb(JobDb jobDb, SkillDb skillDb) : DatabaseJsonIndexed<JobId, SkillTreeJobData>
+	public class SkillTreeDb(JobDb jobDb, SkillDb skillDb) : DatabaseJsonIndexed<JobId, SkillTreeJobData>, IVersionedDataDatabase
 	{
 		private readonly JobDb _jobDb = jobDb;
 		private readonly SkillDb _skillDb = skillDb;
+
+		public VersionedDataDiagnostics VersionDiagnostics { get; } = new();
 
 		/// <summary>
 		/// Called to read an entry from the data.
@@ -44,6 +48,11 @@ namespace Sabine.Shared.Data.Databases
 			entry.AssertNotMissing("job", "skills");
 
 			var jobStringId = entry.ReadString("job");
+			if (!VersionedData.IsActive(entry, out var jobVersionRange))
+			{
+				this.VersionDiagnostics.AddSkipped($"job {jobStringId} (requires {jobVersionRange})");
+				return;
+			}
 
 			var jobData = _jobDb.Entries.Values.FirstOrDefault(a => a.Name == jobStringId);
 			if (jobData == null)
@@ -58,6 +67,11 @@ namespace Sabine.Shared.Data.Databases
 				skill.AssertNotMissing("id", "maxLevel");
 
 				var skillStringId = skill.ReadString("id");
+				if (!VersionedData.IsActive(skill, out var skillVersionRange))
+				{
+					this.VersionDiagnostics.AddSkipped($"{jobStringId}/{skillStringId} (requires {skillVersionRange})");
+					continue;
+				}
 
 				var skillData = _skillDb.Entries.Values.FirstOrDefault(a => a.StringId == skillStringId);
 				if (skillData == null)

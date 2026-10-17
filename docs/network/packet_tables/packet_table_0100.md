@@ -155,13 +155,13 @@ CZ_MAKE_GROUP                              | 0x0094   | 18
 ZC_ACK_MAKE_GROUP                          | 0x0095   | 3
 ZC_GROUP_LIST                              | 0x0096   | -1
 CZ_REQ_JOIN_GROUP                          | 0x0097   | 6
-ZC_ACK_REQ_JOIN_GROUP                      | 0x0098   | 27
-ZC_REQ_JOIN_GROUP                          | 0x0099   | 30
+ZC_ACK_REQ_JOIN_GROUP                      | 0x0098   | 19
+ZC_REQ_JOIN_GROUP                          | 0x0099   | 22
 CZ_JOIN_GROUP                              | 0x009A   | 10
 CZ_REQ_LEAVE_GROUP                         | 0x009B   | 2
-CZ_REQ_EXPEL_GROUP_MEMBER                  | 0x009C   | 30
-ZC_ADD_MEMBER_TO_GROUP                     | 0x009D   | 79
-ZC_DELETE_MEMBER_FROM_GROUP                | 0x009E   | 31
+CZ_REQ_EXPEL_GROUP_MEMBER                  | 0x009C   | 22
+ZC_ADD_MEMBER_TO_GROUP                     | 0x009D   | 63
+ZC_DELETE_MEMBER_FROM_GROUP                | 0x009E   | 23
 ZC_NOTIFY_HP_TO_GROUPM                     | 0x009F   | 10
 ZC_NOTIFY_POSITION_TO_GROUPM               | 0x00A0   | 10
 CZ_REQUEST_CHAT_PARTY                      | 0x00A1   | -1
@@ -174,3 +174,4 @@ ZC_SKILLINFO_UPDATE                        | 0x00A7   | 9
 ZC_SKILLINFO_LIST                          | 0x00A8   | -1
 ZC_ACK_TOUSESKILL                          | 0x00A9   | 6
 ZC_ADD_SKILL                               | 0x00AA   | 33
+CZ_UPGRADE_SKILLLEVEL                      | 0x00AB   | 4

@@ -170,13 +170,13 @@
 			Register(Op.ZC_ACK_MAKE_GROUP, 0x0095, 3);
 			Register(Op.ZC_GROUP_LIST, 0x0096, -1);
 			Register(Op.CZ_REQ_JOIN_GROUP, 0x0097, 6);
-			Register(Op.ZC_ACK_REQ_JOIN_GROUP, 0x0098, 27);
-			Register(Op.ZC_REQ_JOIN_GROUP, 0x0099, 30);
+			Register(Op.ZC_ACK_REQ_JOIN_GROUP, 0x0098, 19);
+			Register(Op.ZC_REQ_JOIN_GROUP, 0x0099, 22);
 			Register(Op.CZ_JOIN_GROUP, 0x009A, 10);
 			Register(Op.CZ_REQ_LEAVE_GROUP, 0x009B, 2);
-			Register(Op.CZ_REQ_EXPEL_GROUP_MEMBER, 0x009C, 30);
-			Register(Op.ZC_ADD_MEMBER_TO_GROUP, 0x009D, 79);
-			Register(Op.ZC_DELETE_MEMBER_FROM_GROUP, 0x009E, 31);
+			Register(Op.CZ_REQ_EXPEL_GROUP_MEMBER, 0x009C, 22);
+			Register(Op.ZC_ADD_MEMBER_TO_GROUP, 0x009D, 63);
+			Register(Op.ZC_DELETE_MEMBER_FROM_GROUP, 0x009E, 23);
 			Register(Op.ZC_NOTIFY_HP_TO_GROUPM, 0x009F, 10);
 			Register(Op.ZC_NOTIFY_POSITION_TO_GROUPM, 0x00A0, 10);
 			Register(Op.CZ_REQUEST_CHAT_PARTY, 0x00A1, -1);
@@ -189,6 +189,7 @@
 			Register(Op.ZC_SKILLINFO_LIST, 0x00A8, -1);
 			Register(Op.ZC_ACK_TOUSESKILL, 0x00A9, 6);
 			Register(Op.ZC_ADD_SKILL, 0x00AA, 33);
+			Register(Op.CZ_UPGRADE_SKILLLEVEL, 0x00AB, 4);
 		}
 	}
 }

@@ -1,3 +1,4 @@
+using System.Linq;
 using Sabine.Shared.Network;
 using Sabine.Shared.Util;
 using Sabine.Zone.World;
@@ -694,6 +695,79 @@ namespace Sabine.Zone.Network
 					return pc;
 			}
 			return null;
+		}
+
+		/// <summary>
+		/// Request to open the guild info window for a specific guild.
+		/// Wire (0x014F, 6): guildId (4).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_GUILD_MENU)]
+		public void CZ_REQ_GUILD_MENU(ZoneConnection conn, Packet packet)
+		{
+			var guildId = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			var guild = GuildManager.Instance.Get(guildId);
+			if (guild == null)
+				return;
+
+			// Send guild info so the client can populate the window
+			Send.ZC_GUILD_INFO(character, guild);
+			Send.ZC_MEMBERMGR_INFO(character, guild.Members);
+			Send.ZC_POSITION_INFO(character, guild);
+			// Guild skills are shared/persisted state. The client needs this
+			// snapshot when opening the guild window; sending an empty list
+			// makes server-side getgdskilllv and the visible Skills tab diverge.
+			var guildSkills = guild.Skills
+				.OrderBy(entry => entry.Key)
+				.Select(entry => (
+					id: (short)entry.Key,
+					inf: 0,
+					level: (short)entry.Value,
+					sp: (short)0,
+					range: (short)0,
+					name: entry.Key.ToString(),
+					upgradable: false));
+			Send.ZC_GUILD_SKILLINFO(character, 0, guildSkills);
+		}
+
+		/// <summary>
+		/// Request for detailed info about a specific guild member.
+		/// Wire (0x0175, 6): charId (4).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_GUILD_MEMBER_INFO)]
+		public void CZ_REQ_GUILD_MEMBER_INFO(ZoneConnection conn, Packet packet)
+		{
+			var charId = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			var guild = character.Guild;
+			if (guild == null)
+				return;
+
+			var member = guild.GetMember(charId);
+			if (member == null)
+				return;
+
+			Send.ZC_ACK_GUILD_MEMBER_INFO(character,
+				member.CharacterId,
+				member.CharacterId,
+				0,  // head
+				0,  // hp
+				0,  // sex
+				0,  // job
+				0,  // level
+				0,  // contribution exp
+				0,  // state
+				member.PositionId,
+				"",
+				member.Name);
 		}
 	}
 }

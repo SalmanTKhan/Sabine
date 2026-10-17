@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using Sabine.Shared.Const;
 using Sabine.Zone.Battle;
 using Sabine.Zone.Network;
@@ -18,10 +17,6 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 		/// </summary>
 		protected virtual void OnHit(Character caster, Character target, Skill skill, int level, AttackResult result) { }
 
-		// Bolts fire ~100ms apart so each hit lands as its own visual
-		// event. Handle is sync void, so we fire-and-forget the
-		// timing loop on the thread pool. The first bolt fires
-		// synchronously to keep the cast feel responsive.
 		public void Handle(UseSkillParams parameters)
 		{
 			var caster = parameters.Character;
@@ -32,44 +27,79 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 			if (target == null)
 				return;
 
-			// Bolt skills fire one bolt per skill level (1..5 hits).
-			var hitCount = (level + 1) / 2;
+			// Classic bolts are one multi-hit magic attack with one hit per
+			// skill level. ZC_NOTIFY_SKILL carries the total damage and hit
+			// count; clients use count to stagger each bolt by 200 ms.
+			var ctx = CreateAttackContext(caster, target, skill.Id, level, this.Element);
+			var result = BattleCalculator.Calc(ctx);
+			var damage = result.IsMiss ? 0 : result.Damage;
+			var impactDelayMs = ResolveImpactDelayMs(caster);
 
-			Send.ZC_USE_SKILL(caster as PlayerCharacter, skill.Id, level, target.Handle, true);
+			// Match rAthena's battle_delay_damage ordering: broadcast the skill
+			// packet immediately so clients can animate toward the target, then
+			// mutate HP and run on-hit procs when attackMT actually lands.
+			Send.ZC_NOTIFY_SKILL(
+				caster,
+				target.Handle,
+				skill.Id,
+				level,
+				damage,
+				impactDelayMs,
+				target.Parameters.DamageMotionDelay,
+				result.ActionType,
+				result.HitCount);
 
-			// Fire the first bolt immediately, schedule the rest.
-			this.FireBolt(caster, target, skill, level);
-			if (hitCount > 1)
-				_ = this.FireRemainingAsync(caster, target, skill, level, hitCount - 1);
-		}
+			if (result.IsMiss)
+				return;
 
-		private async Task FireRemainingAsync(Character caster, Character target, Skill skill, int level, int remaining)
-		{
-			for (var i = 0; i < remaining; i++)
+			if (impactDelayMs <= 0)
 			{
-				await Task.Delay(100);
-				if (target == null || target.IsDead) return;
-				if (caster == null || caster.IsDead) return;
-				this.FireBolt(caster, target, skill, level);
+				this.ApplyImpact(caster, target, skill, level, result, damage);
+				return;
 			}
+
+			ZoneServer.Instance.World.Scheduler.Schedule(
+				TimeSpan.FromMilliseconds(impactDelayMs),
+				_ => this.ApplyImpact(caster, target, skill, level, result, damage),
+				null);
 		}
 
-		private void FireBolt(Character caster, Character target, Skill skill, int level)
+		internal static int ResolveImpactDelayMs(Character caster)
 		{
-			var ctx = new AttackContext(caster, target)
+			return Math.Max(0, caster?.Parameters?.AttackMotionDelay ?? 0);
+		}
+
+		private void ApplyImpact(Character caster, Character target, Skill skill, int level, AttackResult result, int damage)
+		{
+			// A delayed projectile does not follow a target through a warp. This
+			// mirrors rAthena's delayed-damage same-map validity check.
+			if (target == null || target.IsDead || caster?.Map == null || target.Map != caster.Map)
+				return;
+
+			target.TakeDamage(damage, caster);
+			for (var i = 0; i < result.HitCount; ++i)
+				this.OnHit(caster, target, skill, level, result);
+		}
+
+		internal static AttackContext CreateAttackContext(
+			Character caster,
+			Character target,
+			SkillId skillId,
+			int level,
+			ElementType element)
+		{
+			var hitCount = Math.Clamp(level, 1, 10);
+			return new AttackContext(caster, target)
 			{
-				SkillId = skill.Id,
+				SkillId = skillId,
 				SkillLevel = level,
 				Kind = AttackKind.Magic,
-				SkillRatio = 1.0f,
-				AttackElement = this.Element,
+				// BattleCalculator treats SkillRatio as total cast damage and
+				// divides that total over HitCount for the wire/display result.
+				SkillRatio = hitCount,
+				HitCount = hitCount,
+				AttackElement = element,
 			};
-			var result = BattleCalculator.Calc(ctx);
-			if (!result.IsMiss)
-			{
-				target.TakeDamage(result.Damage, caster);
-				this.OnHit(caster, target, skill, level, result);
-			}
 		}
 	}
 

@@ -226,6 +226,16 @@ change the `packet_version` to 200 like so:
 packet_version: 200
 ```
 
+For the Alpha client, use `packet_version: 100`. Alpha intentionally has no
+skill database or skill tree entries, while Beta1 enables the Job 1 skills.
+Only this setting is needed; restart the Auth, Char, and Zone servers after
+changing it. The startup log shows the selected version and any data filtered
+out for that client.
+
+For the goro client use `packet_version: 20080910`. For the canonical
+NostalRO 2012-03-07 protocol use `packet_version: 20120307`. These select
+exact packet layouts and must be used consistently by all three servers.
+
 On the client side, there are some differences in the setup process
 between the different clients, and HookCat might not yet be compatible
 with all of them. For more details on the different clients and how to use

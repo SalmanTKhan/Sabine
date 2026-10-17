@@ -347,6 +347,34 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		}
 
 		/// <summary>
+		/// Adds a rental item and removes it when its Unix expiry time is
+		/// reached. The absolute timestamp is persisted with the item.
+		/// </summary>
+		public void AddRentalItem(Item item, int expireTime)
+		{
+			item.HireExpireDate = expireTime;
+			this.AddItem(item);
+			this.ScheduleRentalExpiration(item);
+		}
+
+		public void ScheduleRentalExpiration(Item item)
+		{
+			if (item == null || item.HireExpireDate <= 0)
+				return;
+
+			var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+			var delay = TimeSpan.FromSeconds(Math.Max(0, item.HireExpireDate - now));
+			ZoneServer.Instance.World.Scheduler.Schedule(delay, state =>
+			{
+				if (!this.ContainsItem(item) || item.HireExpireDate > DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+					return;
+				if (item.IsEquipped)
+					this.UnequipItem(item);
+				this.RemoveItem(item);
+			});
+		}
+
+		/// <summary>
 		/// Returns an unused inventory id.
 		/// </summary>
 		private int GetNewInventoryId()

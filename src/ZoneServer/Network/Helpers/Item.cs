@@ -1,4 +1,4 @@
-﻿using Sabine.Shared;
+using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Network;
 using Sabine.Zone.World.Actors;
@@ -17,7 +17,7 @@ namespace Sabine.Zone.Network.Helpers
 		/// <param name="item"></param>
 		public static void AddNormalItem(this Packet packet, Item item)
 		{
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				AddNormalItemV6(packet, item);
 				return;
@@ -69,7 +69,7 @@ namespace Sabine.Zone.Network.Helpers
 		/// <param name="wearSlots"></param>
 		public static void AddEquipItem(this Packet packet, Item item, EquipSlots wearSlots)
 		{
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				AddEquipItemV6(packet, item, wearSlots);
 				return;
@@ -239,6 +239,21 @@ namespace Sabine.Zone.Network.Helpers
 		}
 
 		/// <summary>
+		/// Writes the classic ZC_ADD_EXCHANGE_ITEM body used by the Goro
+		/// 2008 profile. This is the rAthena pre-20100223 layout: amount,
+		/// 16-bit item id, identified/damaged/refine flags, and four cards.
+		/// </summary>
+		public static void AddExchangeItemGoro(this Packet packet, Item item, int amount)
+		{
+			packet.PutInt(amount);
+			packet.PutShort((short)item.ClassId);
+			packet.PutByte(item.IsIdentified);
+			packet.PutByte(item.IsDamaged);
+			packet.PutByte(item.RefineLevel);
+			AddSlotInfo(packet, item);
+		}
+
+		/// <summary>
 		/// Writes the 8-byte EQUIPSLOTINFO block (4 × uint16 card slots).
 		/// </summary>
 		public static void AddSlotInfoForPickupAck(this Packet packet, Item item)
@@ -325,6 +340,20 @@ namespace Sabine.Zone.Network.Helpers
 		public static void AddEntryItem(this Packet packet, Item item)
 		{
 			packet.PutInt(item.Handle);
+
+			if (Game.IsGoro)
+			{
+				// rAthena 0x009E/17: 16-bit item id and identify flag,
+				// followed by position, sub-tile position, and amount.
+				packet.PutShort((short)item.ClassId);
+				packet.PutByte(item.IsIdentified);
+				packet.PutShort((short)item.Position.X);
+				packet.PutShort((short)item.Position.Y);
+				packet.PutByte(8);
+				packet.PutByte(8);
+				packet.PutShort((short)item.Amount);
+				return;
+			}
 
 			if (Game.Version >= Versions.Beta2)
 			{

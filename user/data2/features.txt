@@ -1,0 +1,9 @@
+// Sabine - User Overrides
+// Enable Beta1 feature set (JobLevels, Mage, Skills, HigherMaxWeight) for
+// servers running with packet_version: 200. Without this, JobLevels is
+// forced off by its disabled parent.
+//---------------------------------------------------------------------------
+
+[
+{ name: "Beta1", enabled: true },
+]

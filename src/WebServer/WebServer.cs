@@ -10,6 +10,8 @@ using EmbedIO.Files;
 using EmbedIO.Net;
 using EmbedIO.WebApi;
 using Sabine.Shared;
+using Sabine.Web.Api;
+using Sabine.Web.Database;
 using Sabine.Web.Logging;
 using Yggdrasil.Logging;
 using Yggdrasil.Network.Communication;
@@ -25,6 +27,8 @@ namespace Sabine.Web
 
 		private EmbedIO.WebServer _webServer;
 
+		public WebDb Database { get; } = new WebDb();
+
 		/// <summary>
 		/// Runs the server.
 		/// </summary>
@@ -37,6 +41,7 @@ namespace Sabine.Web
 			this.NavigateToRoot();
 			this.LoadConf();
 			this.LoadLocalization(this.Conf);
+			this.InitDatabase(this.Database, this.Conf);
 
 			StartWebServer();
 
@@ -61,6 +66,7 @@ namespace Sabine.Web
 					EndPointManager.UseIpv6 = false;
 
 					_webServer = new EmbedIO.WebServer(url);
+					WebApiRoutes.Register(_webServer, this.Database, this.Conf.Web);
 
 					// The PHP module handles all requests to PHP scripts,
 					// including defaulting to index.php and prioritizing
@@ -85,6 +91,15 @@ namespace Sabine.Web
 						{
 							fm.DefaultDocument = "index.htm";
 						});
+					}
+
+					foreach (var patchFolder in this.Conf.Web.PatchFolders)
+					{
+						if (!Directory.Exists(patchFolder))
+							continue;
+
+						_webServer.WithStaticFolder("/files", patchFolder, false);
+						break;
 					}
 
 					_webServer.RunAsync();

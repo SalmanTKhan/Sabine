@@ -7,7 +7,7 @@ namespace Tests.Sabine.Shared.Network
 	/// <summary>
 	/// Smoke tests for the Sabine-native protocol profile. Pins the
 	/// grouped wire-ID layout (0x00xx auth / 0x01xx char / 0x02xx CZ /
-	/// 0x04xx ZC) so the open-midgard custom client has a stable
+	/// 0x04xx ZC / 0x4000+ misc) so the open-midgard custom client has a stable
 	/// contract to implement against.
 	/// </summary>
 	[Collection("PacketTable")]
@@ -55,6 +55,16 @@ namespace Tests.Sabine.Shared.Network
 			AssertInBlock(Op.ZC_NOTIFY_NEWENTRY, 0x0400, 0x0FFF);
 			AssertInBlock(Op.ZC_NOTIFY_MOVEENTRY, 0x0400, 0x0FFF);
 			AssertInBlock(Op.ZC_NORMAL_ITEMLIST, 0x0400, 0x0FFF);
+		}
+
+		[Fact]
+		public void Misc_ops_land_in_0x4000_plus_block()
+		{
+			using var _ = new PacketTableScope(Versions.Sabine);
+
+			AssertInBlock(Op.SERVER_ENTRY_ACK, 0x4000, 0xFFFF);
+			AssertInBlock(Op.PING, 0x4000, 0xFFFF);
+			AssertInBlock(Op.SC_NOTIFY_BAN, 0x4000, 0xFFFF);
 		}
 
 		[Fact]
@@ -192,7 +202,7 @@ namespace Tests.Sabine.Shared.Network
 			{
 				Assert.True(entry.Size == PacketTable.Dynamic || entry.Size >= 2,
 					$"{entry.Op} resolves to invalid size {entry.Size}");
-				Assert.True(entry.OpNetwork >= 0x0001 && entry.OpNetwork < 0x10000,
+				Assert.True(entry.OpNetwork >= 0x0000 && entry.OpNetwork < 0x10000,
 					$"{entry.Op} resolves to invalid wire id 0x{entry.OpNetwork:X4}");
 			}
 
@@ -213,6 +223,7 @@ namespace Tests.Sabine.Shared.Network
 			Assert.Equal(PacketTable.Dynamic, PacketTable.GetSize(PacketTable.ToNetwork(Op.ZC_SAY_DIALOG)));
 			Assert.Equal(6, PacketTable.GetSize(PacketTable.ToNetwork(Op.ZC_WAIT_DIALOG)));
 			Assert.Equal(6, PacketTable.GetSize(PacketTable.ToNetwork(Op.ZC_CLOSE_DIALOG)));
+			Assert.Equal(6, PacketTable.GetSize(PacketTable.ToNetwork(Op.ZC_CLOSE_SCRIPT)));
 			Assert.Equal(PacketTable.Dynamic, PacketTable.GetSize(PacketTable.ToNetwork(Op.ZC_MENU_LIST)));
 
 			// Name lookups — CZ_REQNAME widens to 11 at S2000 (kRO Sak)
@@ -318,7 +329,8 @@ namespace Tests.Sabine.Shared.Network
 			Assert.Equal(PacketTable.Dynamic, PacketTable.GetSize(PacketTable.ToNetwork(Op.ZC_STORE_NORMAL_ITEMLIST)));
 			Assert.Equal(PacketTable.Dynamic, PacketTable.GetSize(PacketTable.ToNetwork(Op.ZC_STORE_EQUIPMENT_ITEMLIST)));
 
-			// Fixed-size adjacent ops inherited from earlier tables.
+			// CZ_ITEM_PICKUP drops the PV23 two-byte filler on the Sabine-native
+			// profile (clean rA classic shape: opcode + AID); CZ_ITEM_THROW stays classic.
 			Assert.Equal(6, PacketTable.GetSize(PacketTable.ToNetwork(Op.CZ_ITEM_PICKUP)));
 			Assert.Equal(6, PacketTable.GetSize(PacketTable.ToNetwork(Op.CZ_ITEM_THROW)));
 			Assert.Equal(8, PacketTable.GetSize(PacketTable.ToNetwork(Op.CZ_USE_ITEM)));

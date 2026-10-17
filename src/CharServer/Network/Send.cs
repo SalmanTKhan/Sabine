@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Net;
@@ -51,7 +51,19 @@ namespace Sabine.Char.Network
 		{
 			using var packet = Packet.Rent(Op.HC_ACCEPT_ENTER);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsNostalRo)
+			{
+				// PACKET_HC_ACCEPT_ENTER / neo-union at 20111102.
+				packet.PutByte(9);
+				packet.PutByte(0);
+				packet.PutByte(0);
+				packet.PutByte(0);
+				packet.PutInt(0);
+				packet.PutInt(0);
+				packet.PutInt(0);
+				packet.PutEmpty(7);
+			}
+			else if (Game.IsSabine)
 			{
 				// rA PACKET_HC_ACCEPT_ENTER at PACKETVER >= 20100413
 				// (packets.hpp:240, char_clif.cpp chclif_mmo_send0819).
@@ -75,7 +87,7 @@ namespace Sabine.Char.Network
 				// extra bytes here, with unknown purpose.
 				packet.PutShort(0);
 			}
-			else if (Game.Version >= Versions.S2500)
+			else if (!Game.IsNostalRo && Game.Version >= Versions.S2500)
 			{
 				// Huge upgrade! Instead of 2 pointless bytes we have 20
 				// now =) Oh, and characters need 108 bytes instead of 106.
@@ -108,7 +120,7 @@ namespace Sabine.Char.Network
 			packet.PutInt(IPAddress.Parse(ip));
 			packet.PutShort((short)port);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_HC_NOTIFY_ZONESVR at PACKETVER >= 20170315
 				// (packets.hpp:291, char_clif.cpp chclif_send_map_data).

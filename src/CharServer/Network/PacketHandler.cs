@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Sabine.Char.Database;
 using Sabine.Shared;
@@ -155,7 +155,7 @@ namespace Sabine.Char.Network
 		{
 			var character = new Character();
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_CH_MAKE_CHAR at PACKETVER >= 20151001
 				// (packets.hpp:122, char_clif.cpp chclif_parse_CharMake).
@@ -176,6 +176,16 @@ namespace Sabine.Char.Network
 					return;
 				}
 
+				character.Str = character.Agi = character.Vit = character.Int = character.Dex = character.Luk = 1;
+			}
+			else if (Game.IsNostalRo20120307)
+			{
+				// PACKET_CH_MAKE_CHAR2 at 20120307: name[24], slot,
+				// hair colour and hair style. Stats are server defaults.
+				character.Name = packet.GetString(Sizes.CharacterNames);
+				character.Slot = packet.GetByte();
+				character.HairColorId = packet.GetShort();
+				character.HairId = packet.GetShort();
 				character.Str = character.Agi = character.Vit = character.Int = character.Dex = character.Luk = 1;
 			}
 			else
@@ -272,7 +282,7 @@ namespace Sabine.Char.Network
 			// carries a 50-byte key (email or birthdate). Sabine collapses
 			// the historical CH_DELETE_CHAR2 dual-op into this single
 			// modern body — see PacketTable.Sabine.cs Unregister call.
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 				emailAddress = packet.GetString(50);
 			else if (packet.Op == Op.CH_DELETE_CHAR2)
 				emailAddress = packet.GetString(50);

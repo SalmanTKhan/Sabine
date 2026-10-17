@@ -48,7 +48,7 @@ namespace Sabine.Zone.Ais.Impl
 
 				yield return Wait(attackDelay);
 
-				if (attacker.Position.InRange(target.Position, attackRange))
+				if (attacker.InAttackRange(target, attackRange))
 				{
 					attacker.StartAttacking(target, false);
 				}

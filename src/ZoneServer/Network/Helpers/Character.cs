@@ -1,4 +1,4 @@
-﻿using Sabine.Shared;
+using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Network;
 using Sabine.Shared.Network.Helpers;
@@ -34,7 +34,25 @@ namespace Sabine.Zone.Network.Helpers
 		/// <param name="character"></param>
 		public static void AddStandEntry(this Packet packet, IStandEntry character)
 		{
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsGoro)
+			{
+				AddStandEntryGoro(packet, character);
+				return;
+			}
+
+			if (Game.IsNostalRo20120307)
+			{
+				AddStandEntryNostalRo20120307(packet, character);
+				return;
+			}
+
+			if (Game.IsNostalRo20111102)
+			{
+				AddStandEntryNostalRo(packet, character);
+				return;
+			}
+
+			if (Game.IsSabine)
 			{
 				AddStandEntrySabine(packet, character);
 				return;
@@ -107,7 +125,25 @@ namespace Sabine.Zone.Network.Helpers
 		/// <param name="character"></param>
 		public static void AddStandEntryNpc(this Packet packet, IStandEntry character)
 		{
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsGoro)
+			{
+				AddStandEntryNpcGoro(packet, character);
+				return;
+			}
+
+			if (Game.IsNostalRo20120307)
+			{
+				AddStandEntryNostalRo20120307(packet, character);
+				return;
+			}
+
+			if (Game.IsNostalRo20111102)
+			{
+				AddStandEntryNostalRo(packet, character);
+				return;
+			}
+
+			if (Game.IsSabine)
 			{
 				// Sabine collapses the PC/NPC entry split — rA serves
 				// both from the same packet_idle_unit shape with the
@@ -168,7 +204,25 @@ namespace Sabine.Zone.Network.Helpers
 		/// <param name="character"></param>
 		public static void AddNewEntry(this Packet packet, IStandEntry character)
 		{
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsGoro)
+			{
+				AddNewEntryGoro(packet, character);
+				return;
+			}
+
+			if (Game.IsNostalRo20120307)
+			{
+				AddNewEntryNostalRo20120307(packet, character);
+				return;
+			}
+
+			if (Game.IsNostalRo20111102)
+			{
+				AddNewEntryNostalRo(packet, character);
+				return;
+			}
+
+			if (Game.IsSabine)
 			{
 				AddNewEntrySabine(packet, character);
 				return;
@@ -241,7 +295,25 @@ namespace Sabine.Zone.Network.Helpers
 		/// <param name="to"></param>
 		public static void AddMoveEntry(this Packet packet, IStandEntry character, Position from, Position to)
 		{
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsGoro)
+			{
+				AddMoveEntryGoro(packet, character, from, to);
+				return;
+			}
+
+			if (Game.IsNostalRo20120307)
+			{
+				AddMoveEntryNostalRo20120307(packet, character, from, to);
+				return;
+			}
+
+			if (Game.IsNostalRo20111102)
+			{
+				AddMoveEntryNostalRo(packet, character, from, to);
+				return;
+			}
+
+			if (Game.IsSabine)
 			{
 				AddMoveEntrySabine(packet, character, from, to);
 				return;
@@ -305,6 +377,147 @@ namespace Sabine.Zone.Network.Helpers
 					packet.PutShort(0); // ?
 			}
 		}
+
+		// ---- NostalRO 20111102 actor entry helpers -----------------------
+		// Fixed wire layouts evidenced by the local NostalRO reference:
+		// idle=55, spawn=53, walking=60 bytes including the opcode.
+
+		// Goro uses the same legacy player records as this NostalRO-era
+		// serializer, but keeps an explicit profile branch above so a future
+		// numeric S2500 change cannot silently select the EP12 v4 records.
+		private static void AddStandEntryGoro(Packet packet, IStandEntry character)
+			=> AddStandEntryNostalRo(packet, character);
+
+		private static void AddNewEntryGoro(Packet packet, IStandEntry character)
+			=> AddNewEntryNostalRo(packet, character);
+
+		private static void AddMoveEntryGoro(Packet packet, IStandEntry character, Position from, Position to)
+			=> AddMoveEntryNostalRo(packet, character, from, to);
+
+		private static void AddStandEntryNpcGoro(Packet packet, IStandEntry character)
+		{
+			// rAthena packet_spawn_unit2 (0x007C) at PACKETVER 20080910:
+			// objecttype + GID + speed + states + appearance + PK/sex +
+			// packed position + x/y size. The header-inclusive size is 42.
+			packet.PutByte((byte)ClifBlType(character));
+			packet.PutInt(character.Handle);
+			packet.PutShort((short)character.Speed);
+			packet.PutShort(0); // body state
+			packet.PutShort(0); // health state
+			packet.PutShort((short)character.OptionState); // effect state
+			packet.PutShort((short)character.HairId);
+			packet.PutShort((short)character.WeaponLook);
+			packet.PutShort((short)character.HeadBottomLook);
+			packet.PutShort((short)GetDisplayNetworkId(character));
+			packet.PutShort(0); // shield
+			packet.PutShort((short)character.HeadTopLook);
+			packet.PutShort((short)character.HeadMiddleLook);
+			packet.PutShort(0); // hair palette
+			packet.PutShort(0); // body palette
+			packet.PutShort((short)character.HeadTurn);
+			packet.PutByte(0); // PK mode
+			packet.PutByte((byte)character.Sex);
+			packet.AddPackedPosition(character.Position, character.Direction);
+			packet.PutByte(0); // x size for NPC
+			packet.PutByte(0); // y size for NPC
+		}
+
+		private static void AddStandEntryNostalRo(Packet packet, IStandEntry character)
+		{
+			packet.PutByte((byte)ClifBlType(character));
+			PutNostalAppearance(packet, character);
+			packet.PutByte(5);
+			packet.PutByte(5);
+			packet.PutByte((byte)character.State);
+			packet.PutShort(GetCharacterLevel(character));
+		}
+
+		private static void AddNewEntryNostalRo(Packet packet, IStandEntry character)
+		{
+			PutNostalAppearance(packet, character);
+			packet.PutByte(5);
+			packet.PutByte(5);
+			packet.PutShort(GetCharacterLevel(character));
+		}
+
+		private static void AddMoveEntryNostalRo(Packet packet, IStandEntry character, Position from, Position to)
+		{
+			packet.PutInt(character.Handle);
+			packet.PutShort((short)character.Speed);
+			packet.PutShort(0); // body state
+			packet.PutShort(0); // health state
+			packet.PutShort((short)character.OptionState); // effect state
+			packet.PutShort((short)GetDisplayNetworkId(character));
+			packet.PutShort((short)character.HairId);
+			packet.PutShort((short)character.WeaponLook);
+			packet.PutShort((short)character.HeadBottomLook);
+			packet.PutInt(Game.GetTick());
+			packet.PutShort(0); // shield
+			packet.PutShort((short)character.HeadTopLook);
+			packet.PutShort((short)character.HeadMiddleLook);
+			packet.PutShort(0); // hair palette
+			packet.PutShort(0); // body palette
+			packet.PutShort((short)character.HeadTurn);
+			packet.PutInt(GetGuildId(character));
+			packet.PutShort(0); // guild emblem version
+			packet.PutShort(0); // honor / manner
+			packet.PutShort(0); // virtue / option 3
+			packet.PutByte(0); // PK mode
+			packet.PutByte((byte)character.Sex);
+			packet.AddPackedMove(from, to, 8, 8);
+			packet.PutByte(5);
+			packet.PutByte(5);
+			packet.PutShort(GetCharacterLevel(character));
+		}
+
+		// 20120307 adds the v5/v7 tail fields. Keep the common appearance
+		// encoding identical and append the versioned fields in one place.
+		private static void AddStandEntryNostalRo20120307(Packet packet, IStandEntry character)
+		{
+			AddStandEntryNostalRo(packet, character);
+			packet.PutEmpty(10);
+		}
+
+		private static void AddNewEntryNostalRo20120307(Packet packet, IStandEntry character)
+		{
+			AddNewEntryNostalRo(packet, character);
+			packet.PutEmpty(11);
+		}
+
+		private static void AddMoveEntryNostalRo20120307(Packet packet, IStandEntry character, Position from, Position to)
+		{
+			AddMoveEntryNostalRo(packet, character, from, to);
+			packet.PutEmpty(11);
+		}
+
+		private static void PutNostalAppearance(Packet packet, IStandEntry character)
+		{
+			packet.PutInt(character.Handle);
+			packet.PutShort((short)character.Speed);
+			packet.PutShort(0); // body state
+			packet.PutShort(0); // health state
+			packet.PutShort((short)character.OptionState); // effect state
+			packet.PutShort((short)GetDisplayNetworkId(character));
+			packet.PutShort((short)character.HairId);
+			packet.PutShort((short)character.WeaponLook);
+			packet.PutShort((short)character.HeadBottomLook);
+			packet.PutShort(0); // shield
+			packet.PutShort((short)character.HeadTopLook);
+			packet.PutShort((short)character.HeadMiddleLook);
+			packet.PutShort(0); // hair palette
+			packet.PutShort(0); // body palette
+			packet.PutShort((short)character.HeadTurn);
+			packet.PutInt(GetGuildId(character));
+			packet.PutShort(0); // guild emblem version
+			packet.PutShort(0); // honor / manner
+			packet.PutShort(0); // virtue / option 3
+			packet.PutByte(0); // PK mode
+			packet.PutByte((byte)character.Sex);
+			packet.AddPackedPosition(character.Position, character.Direction);
+		}
+
+		private static short GetCharacterLevel(IStandEntry character)
+			=> character is Character ch ? (short)System.Math.Clamp(ch.Parameters.BaseLevel, short.MinValue, short.MaxValue) : (short)0;
 
 		// ---- S2500 / PV23 (kRO Sak EP12) actor entry v4 helpers ----------
 		//

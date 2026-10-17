@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Database;
@@ -25,7 +25,7 @@ namespace Sabine.Auth.Network
 			// rA's PACKET_AC_REFUSE_LOGIN at PACKETVER >= 20120000 widens
 			// the error code from u8 to u32 (loginclif.cpp logclif_auth_failed,
 			// packets.hpp:225). Sabine profile follows that contract.
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				packet.PutInt((int)errorCode);
 				packet.PutString(errorMessage, 20);
@@ -51,7 +51,7 @@ namespace Sabine.Auth.Network
 		{
 			using var packet = Packet.Rent(Op.AC_ACCEPT_LOGIN);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA's PACKET_AC_ACCEPT_LOGIN at PACKETVER >= 20170315
 				// (packets.hpp:186, loginclif.cpp logclif_auth_ok).
@@ -118,7 +118,7 @@ namespace Sabine.Auth.Network
 				packet.PutShort(0); // IsNew / new_
 			}
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 				packet.PutEmpty(128); // PACKET_AC_ACCEPT_LOGIN_sub.unknown
 		}
 

@@ -57,6 +57,8 @@ namespace Sabine.Zone.Network
 			var account = this.Account;
 			var character = this.Character;
 
+			this.CurrentDialog?.CancelFromClient(this.CurrentDialog.Npc?.Handle ?? 0);
+
 			if (character != null)
 			{
 				if (character.Homunculus?.IsActive == true)
@@ -74,7 +76,7 @@ namespace Sabine.Zone.Network
 				ZoneServer.Instance.World.Guilds.OnPlayerLogout(character);
 				ZoneServer.Instance.World.Parties.OnPlayerLogout(character);
 
-				if (Sabine.Shared.Game.Version >= Sabine.Shared.Versions.Sabine)
+				if (Sabine.Shared.Game.IsSabine)
 					Sabine.Zone.World.FriendsService.BroadcastOnlineState(character, online: false);
 
 				character?.Map.RemovePlayer(character);

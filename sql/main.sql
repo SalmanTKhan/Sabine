@@ -5,6 +5,7 @@ CREATE TABLE `accounts` (
   `accountId` bigint(20) NOT NULL,
   `username` varchar(64) NOT NULL,
   `password` varchar(64) NOT NULL,
+  `email` varchar(255) NULL DEFAULT NULL,
   `sex` tinyint(4) NOT NULL,
   `authority` tinyint(4) NOT NULL,
   `sessionId` int(11) NOT NULL
@@ -43,12 +44,22 @@ CREATE TABLE `characters` (
   `weightMax` int(11) NOT NULL DEFAULT 20000
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE `password_reset_tokens` (
+  `tokenId` int(11) NOT NULL,
+  `accountId` bigint(20) NOT NULL,
+  `tokenHash` char(64) NOT NULL,
+  `expiresAt` datetime NOT NULL,
+  `usedAt` datetime NULL DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE `items` (
   `itemId` int(11) NOT NULL,
   `characterId` bigint(20) NOT NULL,
   `classId` int(11) NOT NULL,
   `amount` int(11) NOT NULL,
-  `equipped` int(11) NOT NULL
+  `equipped` int(11) NOT NULL,
+  `hireExpireDate` int(10) unsigned NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `vars_account` (
@@ -76,7 +87,8 @@ CREATE TABLE `vars_world` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci ROW_FORMAT=COMPACT;
 
 ALTER TABLE `accounts`
-  ADD PRIMARY KEY (`accountId`);
+  ADD PRIMARY KEY (`accountId`),
+  ADD UNIQUE KEY `uniq_accounts_email` (`email`);
 
 ALTER TABLE `characters`
   ADD PRIMARY KEY (`characterId`),
@@ -85,6 +97,11 @@ ALTER TABLE `characters`
 ALTER TABLE `items`
   ADD PRIMARY KEY (`itemId`),
   ADD KEY `characterId` (`characterId`);
+
+ALTER TABLE `password_reset_tokens`
+  ADD PRIMARY KEY (`tokenId`),
+  ADD UNIQUE KEY `uniq_tokenHash` (`tokenHash`),
+  ADD KEY `accountId` (`accountId`);
 
 ALTER TABLE `vars_account`
   ADD PRIMARY KEY (`varId`),
@@ -108,6 +125,9 @@ ALTER TABLE `characters`
 ALTER TABLE `items`
   MODIFY `itemId` int(11) NOT NULL AUTO_INCREMENT;
 
+ALTER TABLE `password_reset_tokens`
+  MODIFY `tokenId` int(11) NOT NULL AUTO_INCREMENT;
+
 ALTER TABLE `vars_account`
   MODIFY `varId` bigint(20) NOT NULL AUTO_INCREMENT;
 
@@ -123,6 +143,9 @@ ALTER TABLE `characters`
 
 ALTER TABLE `items`
   ADD CONSTRAINT `items_ibfk_1` FOREIGN KEY (`characterId`) REFERENCES `characters` (`characterId`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `password_reset_tokens`
+  ADD CONSTRAINT `password_reset_tokens_ibfk_1` FOREIGN KEY (`accountId`) REFERENCES `accounts` (`accountId`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE `vars_account`
   ADD CONSTRAINT `vars_account_ibfk_1` FOREIGN KEY (`ownerId`) REFERENCES `accounts` (`accountId`) ON DELETE CASCADE ON UPDATE CASCADE;

@@ -81,12 +81,13 @@ namespace Sabine.Auth.Database
 		/// <param name="sex"></param>
 		/// <param name="authority"></param>
 		/// <returns></returns>
-		public Account CreateAccount(string username, string password, Sex sex, int authority)
+		public Account CreateAccount(string username, string password, Sex sex, int authority, string email = "")
 		{
 			var account = new Account();
 
 			account.Username = username;
 			account.Password = password;
+			account.Email = email ?? "";
 			account.Sex = sex;
 			account.Authority = authority;
 
@@ -95,6 +96,8 @@ namespace Sabine.Auth.Database
 			{
 				cmd.Set("username", account.Username);
 				cmd.Set("password", account.Password);
+				if (!string.IsNullOrWhiteSpace(account.Email))
+					cmd.Set("email", account.Email);
 				cmd.Set("sex", account.Sex);
 				cmd.Set("authority", account.Authority);
 				cmd.Set("sessionId", 0);

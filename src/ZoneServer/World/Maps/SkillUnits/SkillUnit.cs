@@ -22,6 +22,7 @@ namespace Sabine.Zone.World.Maps.SkillUnits
 		public Map Map { get; internal set; }
 		public Position Position { get; }
 		public SkillId SkillId { get; }
+		public SkillUnitId UnitId { get; }
 		public int SkillLevel { get; }
 
 		/// <summary>
@@ -44,8 +45,61 @@ namespace Sabine.Zone.World.Maps.SkillUnits
 			this.Owner = owner;
 			this.Position = position;
 			this.SkillId = skillId;
+			this.UnitId = ResolveUnitId(skillId);
 			this.SkillLevel = skillLevel;
 			this.ExpireTime = DateTime.Now + duration;
+		}
+
+		internal static SkillUnitId ResolveUnitId(SkillId skillId)
+		{
+			return skillId switch
+			{
+				SkillId.MG_SAFETYWALL => SkillUnitId.SafetyWall,
+				SkillId.MG_FIREWALL => SkillUnitId.FireWall,
+				SkillId.AL_WARP => SkillUnitId.WarpPortal,
+				SkillId.PR_SANCTUARY => SkillUnitId.Sanctuary,
+				SkillId.PR_MAGNUS => SkillUnitId.Magnus,
+				SkillId.AL_PNEUMA => SkillUnitId.Pneuma,
+				SkillId.WZ_FIREPILLAR => SkillUnitId.FirePillarWaiting,
+				SkillId.WZ_ICEWALL => SkillUnitId.IceWall,
+				SkillId.WZ_QUAGMIRE => SkillUnitId.Quagmire,
+				SkillId.HT_BLASTMINE => SkillUnitId.BlastMine,
+				SkillId.HT_SKIDTRAP => SkillUnitId.SkidTrap,
+				SkillId.HT_ANKLESNARE => SkillUnitId.AnkleSnare,
+				SkillId.AS_VENOMDUST => SkillUnitId.VenomDust,
+				SkillId.HT_LANDMINE => SkillUnitId.LandMine,
+				SkillId.HT_SHOCKWAVE => SkillUnitId.ShockwaveTrap,
+				SkillId.HT_SANDMAN => SkillUnitId.Sandman,
+				SkillId.HT_FLASHER => SkillUnitId.Flasher,
+				SkillId.HT_FREEZINGTRAP => SkillUnitId.FreezingTrap,
+				SkillId.HT_CLAYMORETRAP => SkillUnitId.ClaymoreTrap,
+				SkillId.HT_TALKIEBOX => SkillUnitId.TalkieBox,
+				SkillId.SA_VOLCANO => SkillUnitId.Volcano,
+				SkillId.SA_DELUGE => SkillUnitId.Deluge,
+				SkillId.SA_VIOLENTGALE => SkillUnitId.ViolentGale,
+				SkillId.SA_LANDPROTECTOR => SkillUnitId.LandProtector,
+				SkillId.BD_LULLABY => SkillUnitId.Lullaby,
+				SkillId.BD_RICHMANKIM => SkillUnitId.RichManKim,
+				SkillId.BD_ETERNALCHAOS => SkillUnitId.EternalChaos,
+				SkillId.BD_DRUMBATTLEFIELD => SkillUnitId.DrumBattlefield,
+				SkillId.BD_RINGNIBELUNGEN => SkillUnitId.RingNibelungen,
+				SkillId.BD_ROKISWEIL => SkillUnitId.RokisWeil,
+				SkillId.BD_INTOABYSS => SkillUnitId.IntoAbyss,
+				SkillId.BD_SIEGFRIED => SkillUnitId.Siegfried,
+				SkillId.BA_DISSONANCE => SkillUnitId.Dissonance,
+				SkillId.BA_WHISTLE => SkillUnitId.Whistle,
+				SkillId.BA_ASSASSINCROSS => SkillUnitId.AssassinCross,
+				SkillId.BA_POEMBRAGI => SkillUnitId.PoemBragi,
+				SkillId.BA_APPLEIDUN => SkillUnitId.AppleIdun,
+				SkillId.DC_UGLYDANCE => SkillUnitId.UglyDance,
+				SkillId.DC_HUMMING => SkillUnitId.Humming,
+				SkillId.DC_DONTFORGETME => SkillUnitId.DontForgetMe,
+				SkillId.DC_FORTUNEKISS => SkillUnitId.FortuneKiss,
+				SkillId.DC_SERVICEFORYOU => SkillUnitId.ServiceForYou,
+				SkillId.HP_BASILICA => SkillUnitId.Basilica,
+				SkillId.HW_GRAVITATION => SkillUnitId.Gravitation,
+				_ => SkillUnitId.None,
+			};
 		}
 
 		/// <summary>

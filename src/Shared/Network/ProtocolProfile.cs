@@ -19,6 +19,8 @@ namespace Sabine.Shared.Network
 	/// </remarks>
 	public sealed class ProtocolProfile
 	{
+		public ProtocolWireLayout WireLayout { get; }
+		public int EffectiveDataVersion { get; }
 		/// <summary>
 		/// Stable identifier (e.g. "alpha", "beta1", "ragexe-20211103").
 		/// </summary>
@@ -74,7 +76,9 @@ namespace Sabine.Shared.Network
 			Era era,
 			ProtocolFeatures features,
 			ObfuscationKeys? obfuscationKeys = null,
-			IReadOnlyDictionary<int, int> shuffleMap = null)
+			IReadOnlyDictionary<int, int> shuffleMap = null,
+			ProtocolWireLayout wireLayout = ProtocolWireLayout.Historical,
+			int effectiveDataVersion = 0)
 		{
 			this.Id = id;
 			this.Version = version;
@@ -82,7 +86,20 @@ namespace Sabine.Shared.Network
 			this.Features = features;
 			this.ObfuscationKeys = obfuscationKeys;
 			this.ShuffleMap = shuffleMap;
+			this.WireLayout = wireLayout;
+			this.EffectiveDataVersion = effectiveDataVersion == 0 ? version : effectiveDataVersion;
 		}
+	}
+
+	public enum ProtocolWireLayout
+	{
+		Historical,
+		GoroSakexe20080910,
+		NostalRo20111102,
+		NostalRo20120307,
+		Ragexe20211103,
+		Sabine,
+		Rbl,
 	}
 
 	/// <summary>

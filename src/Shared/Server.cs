@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -33,6 +34,15 @@ namespace Sabine.Shared
 		/// Returns a reference to the server's script loader.
 		/// </summary>
 		protected ScriptLoader ScriptLoader { get; private set; }
+
+		// Roslyn has a 64 KiB user-string heap limit per assembly. Large
+		// imported script sets (notably rAthena) exceed it long before any
+		// individual script is too large. Keep every loader alive so its
+		// assembly remains registered, while compiling the source list in
+		// bounded independent assemblies.
+		private readonly List<ScriptLoader> _scriptLoaders = new();
+		private const int ScriptFilesPerAssembly = 64;
+		private int? _loadedPacketVersion;
 
 		/// <summary>
 		/// Returns a reference to the server's string localizer manager.
@@ -94,7 +104,17 @@ namespace Sabine.Shared
 
 			this.Conf.Load();
 
-			Game.Version = this.Conf.Version.PacketVersion;
+			var configuredVersion = this.Conf.Version.PacketVersion;
+			if (this._loadedPacketVersion.HasValue && this._loadedPacketVersion.Value != configuredVersion)
+			{
+				Log.Error("Packet version cannot be changed while the server is running ({0} -> {1}). Restart all server processes to switch versions.",
+					this._loadedPacketVersion.Value, configuredVersion);
+				this.Conf.Version.PacketVersion = this._loadedPacketVersion.Value;
+				return this.Conf;
+			}
+
+			Game.Version = configuredVersion;
+			this._loadedPacketVersion = configuredVersion;
 			Log.Info("Using packet version {0}.", Game.Version);
 
 			PacketTable.Load();
@@ -213,15 +233,23 @@ namespace Sabine.Shared
 			this.LoadDataFile(this.Data.Refine, refineFile);
 			this.LoadDataFile(this.Data.CashShop, "cash_shop.txt");
 
-			// Get the latest cache file for the selected version
-			var cacheFileName = "map_cache.dat";
-			for (var i = 0; i <= Game.Version; ++i)
+			// Date-style packet versions must not use the historical
+			// integer-by-integer scan: 20111102 would otherwise perform
+			// millions of filesystem probes during startup.
+			var cacheFileName = Game.IsNostalRo
+				? $"map_cache_{Versions.Beta1}.dat"
+				: "map_cache.dat";
+			if (!Game.IsNostalRo)
 			{
-				var fileName = $"map_cache_{i}.dat";
-				var filePath = Path.Combine("system", "data", fileName);
+				var effectiveVersion = ProtocolProfiles.Default?.EffectiveDataVersion ?? Game.Version;
+				for (var i = 0; i <= effectiveVersion; ++i)
+				{
+					var fileName = $"map_cache_{i}.dat";
+					var filePath = Path.Combine("system", "data", fileName);
 
-				if (File.Exists(filePath))
-					cacheFileName = fileName;
+					if (File.Exists(filePath))
+						cacheFileName = fileName;
+				}
 			}
 
 			this.LoadDataFile(this.Data.MapCache, cacheFileName);
@@ -248,6 +276,9 @@ namespace Sabine.Shared
 					return;
 				}
 
+				if (db is IVersionedDataDatabase versionedDb)
+					versionedDb.VersionDiagnostics.Reset();
+
 				db.Clear();
 				db.LoadFile(systemPath);
 				foreach (var ex in db.GetWarnings())
@@ -258,6 +289,17 @@ namespace Sabine.Shared
 					db.LoadFile(userPath);
 					foreach (var ex in db.GetWarnings())
 						Log.Warning(ex);
+				}
+
+				if (db is IVersionedDataDatabase loadedVersionedDb
+					&& loadedVersionedDb.VersionDiagnostics.SkippedCount > 0)
+				{
+					var entries = loadedVersionedDb.VersionDiagnostics.SkippedEntries;
+					var previewCount = Math.Min(entries.Count, 12);
+					var preview = string.Join(", ", entries.Take(previewCount));
+					var suffix = entries.Count > previewCount ? ", ..." : string.Empty;
+					Log.Info("  skipped {0} entries from {1} for packet version {2}: {3}{4}",
+						entries.Count, fileName, Game.Version, preview, suffix);
 				}
 
 				if (db.Count == 1)
@@ -324,18 +366,33 @@ namespace Sabine.Shared
 				var userPath = Path.Combine("user", "scripts");
 				var systemPath = Path.Combine("system", "scripts");
 
-				this.ScriptLoader = new ScriptLoader(cachePath);
-				this.ScriptLoader.LoadFromListFile(listFilePath, userPath, systemPath);
+				var listReader = new ScriptLoader(cachePath);
+				var scriptFiles = this.ReadScriptFiles(listFilePath, userPath, systemPath);
+				this._scriptLoaders.Clear();
 
-				foreach (var ex in this.ScriptLoader.ReferenceExceptions)
-					Log.Warning(ex);
-
-				foreach (var ex in this.ScriptLoader.LoadingExceptions)
+				foreach (var batch in scriptFiles.Chunk(ScriptFilesPerAssembly))
 				{
-					if (ex.InnerException is MissingMethodException)
-						Log.Error("It appears like a script tried to use a method that does (no longer) exist, which may be a caching issue. Try deleting the user/cache/ folder and run the server again.");
+					var loader = new ScriptLoader(cachePath);
+					loader.LoadFromList(batch);
+					this._scriptLoaders.Add(loader);
+				}
 
-					Log.Error(ex);
+				// Preserve the original protected member for downstream servers
+				// that only need a representative loader.
+				this.ScriptLoader = this._scriptLoaders.FirstOrDefault() ?? listReader;
+
+				foreach (var loader in this._scriptLoaders)
+				{
+					foreach (var ex in loader.ReferenceExceptions)
+						Log.Warning(ex);
+
+					foreach (var ex in loader.LoadingExceptions)
+					{
+						if (ex.InnerException is MissingMethodException)
+							Log.Error("It appears like a script tried to use a method that does (no longer) exist, which may be a caching issue. Try deleting the user/cache/ folder and run the server again.");
+
+						Log.Error(ex);
+					}
 				}
 			}
 			catch (CompilerErrorException ex)
@@ -347,7 +404,11 @@ namespace Sabine.Shared
 				Log.Error(ex);
 			}
 
-			Log.Info("  loaded {0} scripts from {3} files in {2:n2}s ({1} init fails).", this.ScriptLoader.LoadedCount, this.ScriptLoader.FailCount, timer.Elapsed.TotalSeconds, this.ScriptLoader.FileCount);
+			Log.Info("  loaded {0} scripts from {3} files in {2:n2}s ({1} init fails).",
+				this._scriptLoaders.Sum(a => a.LoadedCount),
+				this._scriptLoaders.Sum(a => a.FailCount),
+				timer.Elapsed.TotalSeconds,
+				this._scriptLoaders.Sum(a => a.FileCount));
 		}
 
 		/// <summary>
@@ -361,7 +422,8 @@ namespace Sabine.Shared
 
 			try
 			{
-				this.ScriptLoader.Reload();
+				foreach (var loader in this._scriptLoaders)
+					loader.Reload();
 			}
 			catch (CompilerErrorException ex)
 			{
@@ -372,7 +434,96 @@ namespace Sabine.Shared
 				Log.Error(ex);
 			}
 
-			Log.Info("  reloaded {0} scripts from {3} files in {2:n2}s ({1} init fails).", this.ScriptLoader.LoadedCount, this.ScriptLoader.FailCount, timer.Elapsed.TotalSeconds, this.ScriptLoader.FileCount);
+			Log.Info("  reloaded {0} scripts from {3} files in {2:n2}s ({1} init fails).",
+				this._scriptLoaders.Sum(a => a.LoadedCount),
+				this._scriptLoaders.Sum(a => a.FailCount),
+				timer.Elapsed.TotalSeconds,
+				this._scriptLoaders.Sum(a => a.FileCount));
+		}
+
+		/// <summary>
+		/// Expands Sabine's small script-list format without relying on the
+		/// loader's protected list reader. A list may include other lists via
+		/// <c>require "..."</c> and may select direct files or a non-recursive
+		/// directory glob. The first matching user/system root wins, matching
+		/// the existing priority-directory behavior.
+		/// </summary>
+		private List<string> ReadScriptFiles(string listFilePath, params string[] roots)
+		{
+			var files = new List<string>();
+			var seenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			var seenLists = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+			void Expand(string path)
+			{
+				path = Path.GetFullPath(path);
+				if (!seenLists.Add(path) || !File.Exists(path))
+					return;
+
+				var listDirectory = Path.GetDirectoryName(path) ?? Directory.GetCurrentDirectory();
+				foreach (var rawLine in File.ReadLines(path))
+				{
+					var line = rawLine.Trim();
+					if (line.Length == 0 || line.StartsWith("//"))
+						continue;
+
+					if (line.StartsWith("require ", StringComparison.OrdinalIgnoreCase))
+					{
+						var required = line.Substring("require ".Length).Trim().Trim('"');
+						var requiredPath = ResolveScriptListPath(required, listDirectory, roots);
+						if (requiredPath != null)
+							Expand(requiredPath);
+						else
+							Log.Warning("Script list '{0}' requires missing list '{1}'.", path, required);
+						continue;
+					}
+
+					var matches = ResolveScriptFiles(line, listDirectory, roots);
+					foreach (var file in matches)
+					{
+						var fullPath = Path.GetFullPath(file);
+						if (seenFiles.Add(fullPath))
+							files.Add(fullPath);
+					}
+				}
+			}
+
+			Expand(listFilePath);
+			return files;
+		}
+
+		private static string ResolveScriptListPath(string relativePath, string listDirectory, IEnumerable<string> roots)
+		{
+			// Priority roots are intentionally checked before the directory of
+			// the list file: user/scripts must override system/scripts even
+			// when the top-level list itself lives under system/scripts.
+			foreach (var candidate in roots.Select(root => Path.Combine(root, relativePath))
+				.Concat(new[] { Path.Combine(listDirectory, relativePath) }))
+			{
+				if (File.Exists(candidate))
+					return candidate;
+			}
+			return null;
+		}
+
+		private static IEnumerable<string> ResolveScriptFiles(string pattern, string listDirectory, IEnumerable<string> roots)
+		{
+			foreach (var baseDirectory in new[] { listDirectory }.Concat(roots))
+			{
+				var candidate = Path.Combine(baseDirectory, pattern);
+				var directory = Path.GetDirectoryName(candidate);
+				var searchPattern = Path.GetFileName(candidate);
+				if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+					continue;
+
+				var matches = Directory.GetFiles(directory, searchPattern)
+					.Where(file => string.Equals(Path.GetExtension(file), ".cs", StringComparison.OrdinalIgnoreCase))
+					.OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
+					.ToArray();
+				if (matches.Length > 0)
+					return matches;
+			}
+			return Array.Empty<string>();
 		}
 
 		/// <summary>

@@ -34,6 +34,12 @@ namespace Sabine.Zone.World.Groups
 		public Clan GetByName(string name)
 			=> _clans.Values.FirstOrDefault(c => string.Equals(c.Name, name, System.StringComparison.OrdinalIgnoreCase));
 
+		public Clan GetById(int id)
+			=> _clans.TryGetValue(id, out var clan) ? clan : null;
+
+		public Clan GetByMember(int characterId)
+			=> _clans.Values.FirstOrDefault(c => c.Members.Contains(characterId));
+
 		public IEnumerable<Clan> All => _clans.Values;
 	}
 

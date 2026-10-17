@@ -186,3 +186,4 @@ SyncToy*
 # them via: dotnet run --project tools/PacketTableDump
 /docs/network/packet_tables/*.inc
 /docs/network/packet_tables/*.h
+/.artifacts

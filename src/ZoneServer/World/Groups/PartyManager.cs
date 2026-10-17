@@ -56,7 +56,7 @@ namespace Sabine.Zone.World.Groups
 		// eAthena behavior.
 		private readonly Dictionary<int, PartyInvite> _pendingInvites = new();
 
-		public Party CreateParty(PlayerCharacter leader, string name)
+		public Party CreateParty(PlayerCharacter leader, string name, bool itemShare = false)
 		{
 			lock (_syncRoot)
 			{
@@ -66,6 +66,9 @@ namespace Sabine.Zone.World.Groups
 					return null;
 
 				var party = new Party(leader, name);
+				party.ItemShareOption = itemShare
+					? PartyItemShareOption.EvenShare
+					: PartyItemShareOption.Individual;
 				_parties.Add(party.Id, party);
 				_partiesByName.Add(name, party);
 				_partiesByMember[leader.Id] = party;

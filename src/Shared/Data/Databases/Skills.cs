@@ -223,19 +223,22 @@ namespace Sabine.Shared.Data.Databases
 	/// <summary>
 	/// A skill database.
 	/// </summary>
-	public class SkillDb : DatabaseJsonIndexed<SkillId, SkillData>
+	public class SkillDb : DatabaseJsonIndexed<SkillId, SkillData>, IVersionedDataDatabase
 	{
+		public VersionedDataDiagnostics VersionDiagnostics { get; } = new();
+
 		/// <summary>
 		/// Called to read an entry from the skill database file.
 		/// </summary>
 		/// <param name="entry"></param>
 		protected override void ReadEntry(JObject entry)
 		{
-			var versionMin = entry.ReadInt("versionMin", 0);
-			var versionMax = entry.ReadInt("versionMax", int.MaxValue);
-
-			if (Game.Version < versionMin || Game.Version > versionMax)
+			if (!VersionedData.IsActive(entry, out var versionRange))
+			{
+				var skillId = entry.ContainsKey("skillId") ? entry["skillId"]?.ToString() : "<missing skillId>";
+				this.VersionDiagnostics.AddSkipped($"{skillId} (requires {versionRange})");
 				return;
+			}
 
 			entry.AssertNotMissing("id", "skillId", "name", "maxLevel");
 

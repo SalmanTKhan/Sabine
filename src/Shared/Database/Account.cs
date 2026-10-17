@@ -29,6 +29,11 @@ namespace Sabine.Shared.Database
 		public string Password { get; set; } = "guest";
 
 		/// <summary>
+		/// Gets or sets the account's email address.
+		/// </summary>
+		public string Email { get; set; } = "";
+
+		/// <summary>
 		/// Gets or sets the account's sex.
 		/// </summary>
 		public Sex Sex { get; set; } = Sex.Male;

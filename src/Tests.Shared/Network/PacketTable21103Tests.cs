@@ -45,6 +45,8 @@ namespace Tests.Sabine.Shared.Network
 			Assert.Equal(Op.CZ_CHANGE_DIRECTION, PacketTable.ToHost(0x0361));
 			Assert.Equal(Op.CZ_ITEM_PICKUP, PacketTable.ToHost(0x0362));
 			Assert.Equal(Op.CZ_ITEM_THROW, PacketTable.ToHost(0x0363));
+			Assert.Equal(Op.CZ_REQNAME_BYGID, PacketTable.ToHost(0x0368));
+			Assert.Equal(6, PacketTable.GetSize(0x0368));
 		}
 
 		[Fact]

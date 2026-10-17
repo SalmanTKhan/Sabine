@@ -4291,9 +4291,9 @@ namespace Sabine.Shared.Const
 		/// <param name="id"></param>
 		public FlexIdentityId(int id)
 		{
-			if (!Enum.IsDefined(typeof(IdentityId), id))
-				throw new ArgumentOutOfRangeException(nameof(id), $"Value {id} is not defined in {typeof(IdentityId)}.");
-
+			// rAthena scripts may use a valid client NPC sprite id before
+			// it has been named in Sabine's enum. Preserve that wire value;
+			// enum membership is not a protocol validity check.
 			this.IdentityId = (IdentityId)id;
 		}
 

@@ -45,6 +45,19 @@ namespace Sabine.Shared.Network
 			Unregister(Op.UNK_0367);
 			Unregister(Op.UNK_0368);
 
+			// S2500's storage refactor Unregister()ed CZ_REQNAME_BYGID and
+		// reassigned wire ID 0x0193 to CZ_CLOSE_STORE. The subsequent
+		// Redefine below targets 0x0368 for the GID-keyed name
+		// lookup, so the entry only needs to exist in Entries so
+		// Redefine can find it. We seed with shift:false at a far
+		// wire ID so the Register logic does NOT trigger the cascade
+		// shift that would otherwise bump every Op >= 0x0193 by +1
+		// (and turn CZ_ENTER's 0x0436 into a duplicate UNK_0435
+		// mapping). The Redefine below updates the entry to its
+		// real wire/size; BuildLists iterates Entries in list-order
+		// and the appended entry's Redefine overwrites the dict.
+		Register(Op.CZ_REQNAME_BYGID, 0xFFFF, 0, shift: false);
+
 			// Movement / camera / time
 			Redefine(Op.CZ_REQUEST_MOVE, 0x035F, 5);
 			Redefine(Op.CZ_REQUEST_TIME, 0x0360, 6);

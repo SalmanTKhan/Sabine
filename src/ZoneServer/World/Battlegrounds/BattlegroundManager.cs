@@ -12,6 +12,24 @@ namespace Sabine.Zone.World.Battlegrounds
 	{
 		private readonly object _syncLock = new();
 		private readonly Dictionary<int, Battleground> _teams = new();
+		private readonly HashSet<string> _reservedMaps = new(System.StringComparer.OrdinalIgnoreCase);
+
+		public bool Reserve(string mapStringId)
+		{
+			if (string.IsNullOrWhiteSpace(mapStringId)) return false;
+			lock (_syncLock) return _reservedMaps.Add(mapStringId);
+		}
+
+		public bool Unbook(string mapStringId)
+		{
+			if (string.IsNullOrWhiteSpace(mapStringId)) return false;
+			lock (_syncLock) return _reservedMaps.Remove(mapStringId);
+		}
+
+		public bool IsReserved(string mapStringId)
+		{
+			lock (_syncLock) return _reservedMaps.Contains(mapStringId);
+		}
 
 		public Battleground Create(string map, int x, int y, string onQuit, string onDeath)
 		{

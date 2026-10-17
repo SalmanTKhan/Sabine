@@ -1,0 +1,55 @@
+namespace Sabine.Shared.Const
+{
+	/// <summary>
+	/// Client-side UNT_* identifiers carried by ZC_SKILL_ENTRY. These are
+	/// distinct from both SkillId and EF_* effect identifiers.
+	/// </summary>
+	public enum SkillUnitId : byte
+	{
+		None = 0,
+		SafetyWall = 126,
+		FireWall = 127,
+		WarpPortal = 128,
+		Sanctuary = 131,
+		Magnus = 132,
+		Pneuma = 133,
+		FirePillarWaiting = 135,
+		IceWall = 141,
+		Quagmire = 142,
+		BlastMine = 143,
+		SkidTrap = 144,
+		AnkleSnare = 145,
+		VenomDust = 146,
+		LandMine = 147,
+		ShockwaveTrap = 148,
+		Sandman = 149,
+		Flasher = 150,
+		FreezingTrap = 151,
+		ClaymoreTrap = 152,
+		TalkieBox = 153,
+		Volcano = 154,
+		Deluge = 155,
+		ViolentGale = 156,
+		LandProtector = 157,
+		Lullaby = 158,
+		RichManKim = 159,
+		EternalChaos = 160,
+		DrumBattlefield = 161,
+		RingNibelungen = 162,
+		RokisWeil = 163,
+		IntoAbyss = 164,
+		Siegfried = 165,
+		Dissonance = 166,
+		Whistle = 167,
+		AssassinCross = 168,
+		PoemBragi = 169,
+		AppleIdun = 170,
+		UglyDance = 171,
+		Humming = 172,
+		DontForgetMe = 173,
+		FortuneKiss = 174,
+		ServiceForYou = 175,
+		Basilica = 180,
+		Gravitation = 184,
+	}
+}

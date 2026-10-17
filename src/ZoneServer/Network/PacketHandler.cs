@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -43,7 +43,21 @@ namespace Sabine.Zone.Network
 		{
 			int accountId, sessionId, characterId, tick;
 
-			if (Game.Version < Versions.Beta1)
+			if (Game.IsGoro)
+			{
+				accountId = packet.GetInt();
+				characterId = packet.GetInt();
+				sessionId = packet.GetInt();
+				tick = packet.GetInt();
+			}
+			else if (Game.IsNostalRo)
+			{
+				accountId = packet.GetInt();
+				characterId = packet.GetInt();
+				sessionId = packet.GetInt();
+				tick = packet.GetInt();
+			}
+			else if (Game.Version < Versions.Beta1)
 			{
 				accountId = packet.GetInt();
 				characterId = packet.GetInt();
@@ -147,7 +161,7 @@ namespace Sabine.Zone.Network
 
 			ZoneServer.Instance.ServerEvents.PlayerLoggedIn.Raise(new PlayerEventArgs(character));
 
-			if (Game.Version >= Versions.Beta2)
+			if (!Game.IsGoro && Game.Version >= Versions.Beta2)
 				Send.ZC_AID(conn);
 
 			Send.ZC_ACCEPT_ENTER(conn, character);
@@ -215,7 +229,7 @@ namespace Sabine.Zone.Network
 			// EP12 bootstrap: empty hotbar + empty quest log so the
 			// client finishes its post-map-load handshake instead of
 			// blocking on missing UI data. Persistence lands later.
-			if (Game.Version >= Versions.S2500)
+			if (!Game.IsNostalRo && Game.Version >= Versions.S2500)
 			{
 				Send.ZC_SHORTCUT_KEY_LIST(character);
 				Send.ZC_ALL_QUEST_LIST(character);
@@ -224,7 +238,7 @@ namespace Sabine.Zone.Network
 
 			// Friends bootstrap: dump the player's saved friends list and
 			// announce their online state to every online friend.
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				var friends = character.Friends.GetAll();
 				Send.ZC_ADD_FRIENDS_LIST(character, friends);
@@ -256,7 +270,7 @@ namespace Sabine.Zone.Network
 			if (character == null)
 				return;
 
-			character.Hotkeys.Set(index, new Sabine.Zone.World.Actors.Components.Characters.HotkeyEntry
+			character.Hotkeys.Set(index, new HotkeyEntry
 			{
 				IsSkill = isSkill,
 				Id = id,
@@ -350,7 +364,12 @@ namespace Sabine.Zone.Network
 		{
 			var clientTime = -1;
 
-			if (Game.Version >= Versions.Beta1)
+			if (Game.IsGoro)
+			{
+				packet.Skip(2); // 0x0089 filler before client tick
+				clientTime = packet.GetInt();
+			}
+			else if (Game.Version >= Versions.Beta1)
 				clientTime = packet.GetInt();
 
 			Send.ZC_NOTIFY_TIME(conn, Game.GetTick());
@@ -382,7 +401,9 @@ namespace Sabine.Zone.Network
 			// information?
 			// Sabine drops PV23 obfuscation padding and reads the clean
 			// rA 3-byte PackedPosition directly.
-			if (Game.Version >= Versions.S2000 && Game.Version < Versions.Sabine)
+			if (Game.IsGoro)
+				packet.Skip(3);
+			else if (Game.Version >= Versions.S2000 && !Game.IsSabine && !Game.IsNostalRo)
 				packet.Skip(3);
 
 			var toPos = (Position)packet.GetPackedPosition();
@@ -508,7 +529,9 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_REQNAME)]
 		public void CZ_REQNAME(ZoneConnection conn, Packet packet)
 		{
-			if (Game.Version >= Versions.S2000)
+			if (Game.IsGoro)
+				packet.Skip(5);
+			else if (Game.Version >= Versions.S2000 && !Game.IsNostalRo)
 				packet.Skip(5);
 
 			var handle = packet.GetInt();
@@ -804,6 +827,17 @@ namespace Sabine.Zone.Network
 			if (npc.DialogFunc == null)
 				return;
 
+			// Contact packets can be repeated while the client is closing a
+			// dialog (or while the previous script is unwinding). Treat that as
+			// an idempotent no-op instead of constructing a second Dialog and
+			// surfacing an asynchronous exception to the zone loop.
+			if (conn.CurrentDialog != null)
+			{
+				Log.Debug("CZ_CONTACTNPC: User '{0}' tried to contact NPC '{1}' while a dialog was already active.",
+					conn.Account.Username, conn.CurrentDialog.Npc?.Name ?? "(unknown)");
+				return;
+			}
+
 			character.StartDialog(npc);
 		}
 
@@ -836,6 +870,14 @@ namespace Sabine.Zone.Network
 				Log.Debug("CZ_CHOOSE_MENU: User '{0}' tried to choose a menu item without being in a dialog.", conn.Account.Username);
 				return;
 			}
+			if (conn.CurrentDialog.Npc?.Handle != npcHandle)
+				return;
+
+			if (choice == 0xFF)
+			{
+				conn.CurrentDialog.CancelFromClient(npcHandle);
+				return;
+			}
 
 			conn.CurrentDialog.Resume(choice.ToString());
 		}
@@ -858,6 +900,8 @@ namespace Sabine.Zone.Network
 				Log.Debug("CZ_CHOOSE_MENU: User '{0}' tried to choose a menu item without being in a dialog.", conn.Account.Username);
 				return;
 			}
+			if (conn.CurrentDialog.Npc?.Handle != npcHandle)
+				return;
 
 			conn.CurrentDialog.Resume(null);
 		}
@@ -873,7 +917,25 @@ namespace Sabine.Zone.Network
 			int targetHandle;
 			ActionType action;
 
-			if (Game.Version < Versions.S2000 || packet.Length <= 8)
+			if (Game.IsGoro)
+			{
+				if (packet.Length == 7)
+				{
+					// Canonical rAthena 0x0437: target GID @2, action @6.
+					targetHandle = packet.GetInt();
+					action = (ActionType)packet.GetByte();
+				}
+				else
+				{
+					// Receive-only legacy alias 0x0190: target GID @5,
+					// action @18, with fixed filler on both sides.
+					packet.Skip(3);
+					targetHandle = packet.GetInt();
+					packet.Skip(9);
+					action = (ActionType)packet.GetByte();
+				}
+			}
+			else if (Game.Version < Versions.S2000 || packet.Length <= 8)
 			{
 				targetHandle = packet.GetInt();
 				action = (ActionType)packet.GetByte();
@@ -953,12 +1015,12 @@ namespace Sabine.Zone.Network
 					if (character.Vars.Temp.GetBool("Sabine.DebugMode", false))
 					{
 						var distance = character.Position.GetDistance(target.Position);
-						var inRange = character.Position.InRange(target.Position, attackRange);
+						var inRange = character.InAttackRange(target, attackRange);
 
 						character.DebugMessage("Attack Range: {0}, Distance: {1}, InRange: {2}", attackRange, distance, inRange);
 					}
 
-					if (!character.Position.InRange(target.Position, attackRange))
+					if (!character.InAttackRange(target, attackRange))
 					{
 						// The alpha client does its own range checks and
 						// the distance fail packet doesn't exist yet.
@@ -966,7 +1028,7 @@ namespace Sabine.Zone.Network
 						// stopping the attack is expected from us for
 						// the alpha here.
 						if (Game.Version >= Versions.Beta1)
-							Send.ZC_ATTACK_FAILURE_FOR_DISTANCE(character, target, attackRange - 1);
+							Send.ZC_ATTACK_FAILURE_FOR_DISTANCE(character, target, Math.Max(1, attackRange));
 						return;
 					}
 
@@ -1009,7 +1071,14 @@ namespace Sabine.Zone.Network
 			var headTurn = HeadTurn.Straight;
 			var bodyDir = Direction.South;
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsGoro)
+			{
+				packet.Skip(5);
+				headTurn = (HeadTurn)(byte)packet.GetShort();
+				packet.Skip(1);
+				bodyDir = (Direction)packet.GetByte();
+			}
+			else if (Game.IsSabine || Game.IsNostalRo)
 			{
 				// rA clean layout at 0x009B: uint16 headDir + uint8 dir.
 				headTurn = (HeadTurn)(byte)packet.GetShort();
@@ -1055,7 +1124,11 @@ namespace Sabine.Zone.Network
 		{
 			// PV22+ takeitem grew a 2-byte filler before the AID (eA
 			// db/packet_db.txt PV22 line 1009: 0x00f5,8,takeitem,4).
-			if (Game.Version >= Versions.S2500)
+			// The Sabine-native profile drops the obfuscation filler and
+			// uses the clean 6-byte shape (opcode + AID).
+			if (Game.IsGoro)
+				packet.Skip(2);
+			else if (Game.Version >= Versions.S2500 && Game.Version < Versions.Sabine)
 				packet.Skip(2);
 
 			var itemHandle = packet.GetInt();
@@ -1086,8 +1159,20 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_ITEM_THROW)]
 		public void CZ_ITEM_THROW(ZoneConnection conn, Packet packet)
 		{
-			var itemInvId = packet.GetShort();
-			var amount = packet.GetShort();
+			int itemInvId;
+			int amount;
+			if (Game.IsGoro)
+			{
+				packet.Skip(3); // 0x0116 filler before inventory id
+				itemInvId = packet.GetShort();
+				packet.Skip(1);
+				amount = packet.GetShort();
+			}
+			else
+			{
+				itemInvId = packet.GetShort();
+				amount = packet.GetShort();
+			}
 
 			var character = conn.GetCurrentCharacter();
 			var item = character.Inventory.GetItem(itemInvId);
@@ -1131,8 +1216,18 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_USE_ITEM)]
 		public void CZ_USE_ITEM(ZoneConnection conn, Packet packet)
 		{
-			var itemInvId = packet.GetShort();
-			var clientTick = packet.GetInt();
+			int itemInvId;
+			int clientTick;
+			if (Game.IsGoro)
+			{
+				itemInvId = packet.GetShort();
+				clientTick = packet.GetInt();
+			}
+			else
+			{
+				itemInvId = packet.GetShort();
+				clientTick = packet.GetInt();
+			}
 
 			var character = conn.GetCurrentCharacter();
 			var item = character.Inventory.GetItem(itemInvId);
@@ -1298,7 +1393,12 @@ namespace Sabine.Zone.Network
 			int itemInvId;
 			EquipSlots equipSlots;
 
-			if (Game.Version < Versions.Beta2)
+			if (Game.IsGoro)
+			{
+				itemInvId = packet.GetShort();
+				equipSlots = (EquipSlots)packet.GetShort();
+			}
+			else if (Game.Version < Versions.Beta2)
 			{
 				itemInvId = packet.GetShort();
 				equipSlots = (EquipSlots)packet.GetByte();
@@ -1451,7 +1551,7 @@ namespace Sabine.Zone.Network
 			var len = packet.GetShort();
 			var buyItems = new Dictionary<ShopItem, int>();
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_CZ_PC_PURCHASE_ITEMLIST_sub at PACKETVER_MAIN
 				// >= 20181121 widens itemId to uint32. Per-entry =
@@ -1777,9 +1877,21 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_USE_SKILL)]
 		public void CZ_USE_SKILL(ZoneConnection conn, Packet packet)
 		{
-			var level = packet.GetShort();
-			var skillId = (SkillId)packet.GetShort();
-			var targetHandle = packet.GetInt();
+			int level;
+			SkillId skillId;
+			int targetHandle;
+			if (Game.IsGoro)
+			{
+				level = packet.GetShort();
+				skillId = (SkillId)packet.GetShort();
+				targetHandle = packet.GetInt();
+			}
+			else
+			{
+				level = packet.GetShort();
+				skillId = (SkillId)packet.GetShort();
+				targetHandle = packet.GetInt();
+			}
 
 			var character = conn.GetCurrentCharacter();
 
@@ -1846,10 +1958,28 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_USE_SKILL_TOGROUND)]
 		public void CZ_USE_SKILL_TOGROUND(ZoneConnection conn, Packet packet)
 		{
-			var level = packet.GetShort();
-			var skillId = (SkillId)packet.GetShort();
-			var x = packet.GetShort();
-			var y = packet.GetShort();
+			int level;
+			SkillId skillId;
+			int x;
+			int y;
+			if (Game.IsGoro)
+			{
+				packet.Skip(3);
+				level = packet.GetShort();
+				packet.Skip(2);
+				skillId = (SkillId)packet.GetShort();
+				packet.Skip(1);
+				x = packet.GetShort();
+				packet.Skip(6);
+				y = packet.GetShort();
+			}
+			else
+			{
+				level = packet.GetShort();
+				skillId = (SkillId)packet.GetShort();
+				x = packet.GetShort();
+				y = packet.GetShort();
+			}
 
 			var character = conn.GetCurrentCharacter();
 
@@ -2302,10 +2432,22 @@ namespace Sabine.Zone.Network
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <param name="packet"></param>
-		[PacketHandler(Op.CZ_MAKE_GROUP)]
+		[PacketHandler(Op.CZ_MAKE_GROUP, Op.CZ_MAKE_GROUP2)]
 		public void CZ_MAKE_GROUP(ZoneConnection conn, Packet packet)
 		{
 			var partyName = packet.GetString(Sizes.PartyNames).TrimEnd('\0');
+			var itemShare = (byte)0;
+
+			// EP4+ clients append the pickup and item-share rules to
+			// CZ_MAKE_GROUP2. Sabine currently models individual pickup and
+			// even/individual item sharing; consume and preserve the latter
+			// so the v2 packet is fully framed without changing the classic
+			// packet contract.
+			if (packet.Op == Op.CZ_MAKE_GROUP2)
+			{
+				packet.GetByte(); // item pickup rule; loot rotation is not modeled yet
+				itemShare = packet.GetByte();
+			}
 			var character = conn.GetCurrentCharacter();
 
 			if (NV_BASIC.TryFail(character, BasicSkillAbility.CreateParty))
@@ -2323,7 +2465,7 @@ namespace Sabine.Zone.Network
 				return;
 			}
 
-			var party = PartyManager.Instance.CreateParty(character, partyName);
+			var party = PartyManager.Instance.CreateParty(character, partyName, itemShare != 0);
 			if (party == null)
 			{
 				Send.ZC_ACK_MAKE_GROUP(character, PartyCreationResult.NameAlreadyExists); // Party name already exists
@@ -2475,6 +2617,218 @@ namespace Sabine.Zone.Network
 		[PacketHandler(Op.CZ_CLOSE_WINDOW)]
 		public void CZ_CLOSE_WINDOW(ZoneConnection conn, Packet packet)
 		{
+		}
+
+		// --------------------------------------------------------
+		// Alpha-character-set disconnect packets
+		// --------------------------------------------------------
+
+		/// <summary>
+		/// Request to disconnect a specific character on the account.
+		/// Alpha wire (0x0067, 18): accountId (4) + characterId (4) +
+		/// 8 bytes of unknown purpose.
+		/// </summary>
+		[PacketHandler(Op.CZ_DISCONNECT_CHARACTER)]
+		public void CZ_DISCONNECT_CHARACTER(ZoneConnection conn, Packet packet)
+		{
+			var accountId = packet.GetInt();
+			var characterId = packet.GetInt();
+			packet.Skip(8); // Unknown padding
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			// Only allow disconnecting if the character's account matches
+			if (conn.Account == null || conn.Account.Id != accountId)
+				return;
+
+			Log.Debug("CZ_DISCONNECT_CHARACTER: User '{0}' requested disconnect of character '{1}'.",
+				conn.Account?.Username ?? "?", characterId);
+
+			Send.ZC_ACK_DISCONNECT_CHARACTER(character, 0);
+		}
+
+		/// <summary>
+		/// Request to disconnect all characters on the account.
+		/// Alpha wire (0x0069, 2): header only.
+		/// </summary>
+		[PacketHandler(Op.CZ_DISCONNECT_ALL_CHARACTER)]
+		public void CZ_DISCONNECT_ALL_CHARACTER(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			Log.Debug("CZ_DISCONNECT_ALL_CHARACTER: User '{0}' requested disconnect of all characters.",
+				conn.Account?.Username ?? "?");
+		}
+
+		/// <summary>
+		/// Request to block or unblock whispers from a specific player.
+		/// Alpha wire (0x006A, 19): type (1) + targetName (16).
+		/// </summary>
+		[PacketHandler(Op.CZ_SETTING_WHISPER_PC)]
+		public void CZ_SETTING_WHISPER_PC(ZoneConnection conn, Packet packet)
+		{
+			var type = packet.GetByte();
+			var targetName = packet.GetString(16).TrimEnd('\0');
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			Log.Debug("CZ_SETTING_WHISPER_PC: User '{0}' {1} whispers from '{2}'.",
+				character.Name, type == 0 ? "blocked" : "unblocked", targetName);
+
+			// type: 0 = block, 1 = unblock
+			if (type == 0)
+				character.WhisperBlockList.Add(targetName);
+			else
+				character.WhisperBlockList.Remove(targetName);
+
+			// Echo the new state so the client UI reflects it
+			Send.ZC_SETTING_WHISPER_PC(character, targetName, type);
+		}
+
+		/// <summary>
+		/// Request to change the whisper state (all/only friends/etc.).
+		/// Alpha wire (0x006B, 3): state (1).
+		/// </summary>
+		[PacketHandler(Op.CZ_SETTING_WHISPER_STATE)]
+		public void CZ_SETTING_WHISPER_STATE(ZoneConnection conn, Packet packet)
+		{
+			var state = packet.GetByte();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			Log.Debug("CZ_SETTING_WHISPER_STATE: User '{0}' set whisper state to '{1}'.",
+				character.Name, state);
+
+			// state: 0 = all, 1 = friends only, 2 = blocked all
+			character.WhisperState = state;
+
+			Send.ZC_SETTING_WHISPER_STATE(character, state);
+		}
+
+		/// <summary>
+		/// Request for the list of blocked/excluded whisper targets.
+		/// Alpha wire (0x006E, 2): header only.
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_WHISPER_LIST)]
+		public void CZ_REQ_WHISPER_LIST(ZoneConnection conn, Packet packet)
+		{
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			Send.ZC_WHISPER_LIST(character, character.WhisperBlockList);
+		}
+
+		// --------------------------------------------------------
+		// Beta1 / Beta2 packet handlers
+		// --------------------------------------------------------
+
+		/// <summary>
+		/// Response from the edit dialog shown by ZC_OPEN_EDITDLG
+		/// or ZC_OPEN_EDITDLGSTR. Wire (0x0143, 10): value as int.
+		/// </summary>
+		[PacketHandler(Op.CZ_INPUT_EDITDLG)]
+		public void CZ_INPUT_EDITDLG(ZoneConnection conn, Packet packet)
+		{
+			var value = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			conn.CurrentDialog?.Resume(value.ToString());
+		}
+
+		[PacketHandler(Op.CZ_INPUT_EDITDLGSTR)]
+		public void CZ_INPUT_EDITDLGSTR(ZoneConnection conn, Packet packet)
+		{
+			var length = packet.GetShort();
+			var npcHandle = packet.GetInt();
+			var textLength = Math.Max(0, length - 8);
+			var text = packet.GetString(Math.Min(textLength, packet.GetRemainingLength()));
+
+			if (conn.CurrentDialog?.Npc?.Handle == npcHandle)
+				conn.CurrentDialog.Resume(text);
+		}
+
+		/// <summary>
+		/// Notification that the client closed the NPC dialog window.
+		/// Wire (0x0146, 6): npcHandle (4).
+		/// </summary>
+		[PacketHandler(Op.CZ_CLOSE_DIALOG)]
+		public void CZ_CLOSE_DIALOG(ZoneConnection conn, Packet packet)
+		{
+			var npcHandle = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			conn.CurrentDialog?.CancelFromClient(npcHandle);
+		}
+
+		/// <summary>
+		/// Request to give a positive (manner) / negative (karma) point
+		/// to another player. Wire (0x0149, 7): targetHandle (4) + pointType (1).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_GIVE_MANNER_POINT)]
+		public void CZ_REQ_GIVE_MANNER_POINT(ZoneConnection conn, Packet packet)
+		{
+			var targetHandle = packet.GetInt();
+			var pointType = packet.GetByte(); // 0 = manner point, other = karma
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			if (!character.Map.TryGetCharacter(targetHandle, out var target))
+				return;
+
+			Log.Debug("CZ_REQ_GIVE_MANNER_POINT: '{0}' gave {1} point to '{2}'.",
+				character.Name, pointType == 0 ? "manner" : "karma", target.Name);
+
+			// Echo the point given notification to the giver so the
+			// client shows the point-animation feedback.
+			Send.ZC_NOTIFY_MANNER_POINT_GIVEN(character, targetHandle, pointType);
+		}
+
+		/// <summary>
+		/// Keep-alive ping from Beta2+ clients.
+		/// Wire (0x0187, 6): tick (4).
+		/// </summary>
+		[PacketHandler(Op.PING)]
+		public void PING(ZoneConnection conn, Packet packet)
+		{
+			// Beta2+ clients send a ping with a tick value; the server
+			// can ignore it or echo back. For now we just consume it.
+		}
+
+		/// <summary>
+		/// Request a character's name by their party/GID.
+		/// Wire (0x0193, 6): gid (4).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQNAME_BYGID)]
+		public void CZ_REQNAME_BYGID(ZoneConnection conn, Packet packet)
+		{
+			var gid = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			var target = character.Map.GetCharacter(gid);
+			if (target == null)
+				return;
+
+			Send.ZC_ACK_REQNAME_BYGID(character, gid, target.Name);
 		}
 	}
 }

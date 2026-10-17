@@ -2,6 +2,7 @@
 using Sabine.Shared.Const;
 using Sabine.Shared.Data;
 using Sabine.Shared.Data.Databases;
+using Sabine.Shared.Network;
 
 namespace Sabine.Shared
 {
@@ -22,6 +23,20 @@ namespace Sabine.Shared
 		/// <returns></returns>
 		public static int GetTick()
 			=> Environment.TickCount;
+
+		/// <summary>
+		/// True for the standard 2011-11-02 client wire profile used by the
+		/// NostalRO reference environment. This profile is chronologically
+		/// newer than S2500 but intentionally uses the earlier actor layouts.
+		/// </summary>
+		public static ProtocolProfile Protocol => ProtocolProfiles.Default;
+		public static bool IsGoro => Version == Versions.Goro20080910;
+		public static bool IsNostalRo20111102 => Version == Versions.NostalRo20111102;
+		public static bool IsNostalRo20120307 => Version == Versions.NostalRo20120307;
+		public static bool IsNostalRo => IsNostalRo20111102 || IsNostalRo20120307;
+
+		/// <summary>True only for Sabine's grouped modern profile.</summary>
+		public static bool IsSabine => Version == Versions.Sabine;
 
 		/// <summary>
 		/// The active server's loaded data, registered during
@@ -138,6 +153,20 @@ namespace Sabine.Shared
 		public const int S2500 = 2500;
 
 		/// <summary>
+		/// Standard RO wire profile pinned to PACKETVER 20111102. Its
+		/// packet layouts are loaded after S2500 but before modern Sabine
+		/// profiles, so date-specific actor packets can be selected without
+		/// changing the historical version comparisons elsewhere.
+		/// </summary>
+		public const int NostalRo20111102 = 20111102;
+
+		/// <summary>goro's plain Sakexe/rAthena 2008-09-10 profile.</summary>
+		public const int Goro20080910 = 20080910;
+
+		/// <summary>NostalRO's canonical 2012-03-07 profile.</summary>
+		public const int NostalRo20120307 = 20120307;
+
+		/// <summary>
 		/// Modern client anchor: 2018-03-07bRagexeRE, the last build
 		/// before kRO disabled packet obfuscation. Used as a regression
 		/// fixture for the obfuscation/shuffle infrastructure.
@@ -164,6 +193,16 @@ namespace Sabine.Shared
 		/// entry, v3 item lists) naturally pick the modern variant.
 		/// </summary>
 		public const int Sabine = 50000;
+
+		/// <summary>
+		/// roBrowser / rAthena standard wire-ID protocol.
+		/// Stacks body sizes from Alpha through S2500, then remaps
+		/// all wire opcodes to the standard RO client IDs (0x0064+)
+		/// used by rAthena, roBrowser (RBL), and AppleClient.
+		/// Use this to connect standard RO clients or tools that
+		/// expect the rAthena wire surface.
+		/// </summary>
+		public const int RBL = 60000;
 	}
 
 	/// <summary>

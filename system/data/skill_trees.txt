@@ -3,12 +3,12 @@
 //---------------------------------------------------------------------------
 
 [
-{ job: "Novice", skills: [
+{ job: "Novice", versionMin: 200, skills: [
 	{ id: "NV_BASIC", maxLevel: 9 },
 	//{ id: "NV_FIRSTAID", maxLevel: 1 },
 	//{ id: "NV_TRICKDEAD", maxLevel: 1 },
 ]},
-{ job: "Swordman", skills: [
+{ job: "Swordman", versionMin: 200, skills: [
 	{ id: "NV_BASIC", maxLevel: 9 },
 	//{ id: "NV_FIRSTAID", maxLevel: 1 },
 	{ id: "SM_SWORD", maxLevel: 10 },
@@ -22,7 +22,7 @@
 	//{ id: "SM_FATALBLOW", maxLevel: 1 },
 	//{ id: "SM_AUTOBERSERK", maxLevel: 1 },
 ]},
-{ job: "Mage", skills: [
+{ job: "Mage", versionMin: 200, skills: [
 	{ id: "NV_BASIC", maxLevel: 9 },
 	//{ id: "NV_FIRSTAID", maxLevel: 1 },
 	{ id: "MG_SRECOVERY", maxLevel: 10 },
@@ -40,7 +40,7 @@
 	{ id: "MG_THUNDERSTORM", maxLevel: 10, prerequisites: { "MG_LIGHTNINGBOLT": 4 } },
 	//{ id: "MG_ENERGYCOAT", maxLevel: 1 },
 ]},
-{ job: "Acolyte", skills: [
+{ job: "Acolyte", versionMin: 200, skills: [
 	{ id: "NV_BASIC", maxLevel: 9 },
 	//{ id: "NV_FIRSTAID", maxLevel: 1 },
 	{ id: "AL_DP", maxLevel: 10 },
@@ -59,7 +59,7 @@
 	{ id: "AL_CURE", maxLevel: 1 },
 	//{ id: "AL_HOLYLIGHT", maxLevel: 1 },
 ]},
-{ job: "Merchant", skills: [
+{ job: "Merchant", versionMin: 200, skills: [
 	{ id: "NV_BASIC", maxLevel: 9 },
 	//{ id: "NV_FIRSTAID", maxLevel: 1 },
 	{ id: "MC_INCCARRY", maxLevel: 10 },
@@ -73,7 +73,7 @@
 	//{ id: "MC_CHANGECART", maxLevel: 1 },
 	//{ id: "MC_LOUD", maxLevel: 1 },
 ]},
-{ job: "Archer", skills: [
+{ job: "Archer", versionMin: 200, skills: [
 	{ id: "NV_BASIC", maxLevel: 9 },
 	//{ id: "NV_FIRSTAID", maxLevel: 1 },
 	{ id: "AC_OWL", maxLevel: 10 },
@@ -84,7 +84,7 @@
 	//{ id: "AC_MAKINGARROW", maxLevel: 1 },
 	//{ id: "AC_CHARGEARROW", maxLevel: 1 },
 ]},
-{ job: "Thief", skills: [
+{ job: "Thief", versionMin: 200, skills: [
 	{ id: "NV_BASIC", maxLevel: 9 },
 	//{ id: "NV_FIRSTAID", maxLevel: 1 },
 	{ id: "TF_DOUBLE", maxLevel: 10 },

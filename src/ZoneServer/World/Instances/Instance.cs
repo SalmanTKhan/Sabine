@@ -5,6 +5,25 @@ using Sabine.Zone.World.Maps;
 
 namespace Sabine.Zone.World.Instances
 {
+	/// <summary>rAthena instance ownership modes.</summary>
+	public enum InstanceMode
+	{
+		None,
+		Character,
+		Party,
+		Guild,
+		Clan,
+	}
+
+	/// <summary>rAthena <c>instance_enter</c> return values.</summary>
+	public enum InstanceEnterResult
+	{
+		Ok,
+		NoMember,
+		NoInstance,
+		Other,
+	}
+
 	/// <summary>
 	/// A scoped, runtime-only copy of one or more maps shared by a single
 	/// owner (a player, party, or guild). Mirrors rAthena's instance
@@ -30,6 +49,9 @@ namespace Sabine.Zone.World.Instances
 		/// and the `<name>#<id>` suffix in <see cref="GetInstanceNpcName"/>.
 		/// </summary>
 		public int Id { get; }
+		public string TemplateName { get; }
+		public InstanceMode Mode { get; }
+		public int OwnerId { get; }
 
 		/// <summary>
 		/// Char id of the player who created this instance (or 0 if the
@@ -52,6 +74,11 @@ namespace Sabine.Zone.World.Instances
 		/// </summary>
 		public int OwnerGuildId { get; }
 
+		public int OwnerClanId { get; }
+		public string EntryMap { get; }
+		public int EntryX { get; }
+		public int EntryY { get; }
+
 		/// <summary>
 		/// Wall-clock time the instance was created. Combined with
 		/// <see cref="Ttl"/> to compute <see cref="ExpiresAt"/>.
@@ -64,6 +91,8 @@ namespace Sabine.Zone.World.Instances
 		/// templates can override via <c>InstanceData.TtlMinutes</c>.
 		/// </summary>
 		public TimeSpan Ttl { get; set; } = TimeSpan.FromHours(1);
+		public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(5);
+		public DateTime LastOccupiedAt { get; private set; } = DateTime.UtcNow;
 
 		/// <summary>
 		/// Convenience computed property — wall-clock time at which
@@ -84,13 +113,24 @@ namespace Sabine.Zone.World.Instances
 		/// separately via <see cref="AttachMap"/> so the manager can
 		/// track ownership of each clone.
 		/// </summary>
-		public Instance(int id, int ownerCharId = 0, int ownerPartyId = 0, int ownerGuildId = 0)
+		public Instance(int id, string templateName, InstanceMode mode, int ownerId,
+			int ownerCharId = 0, int ownerPartyId = 0, int ownerGuildId = 0,
+			int ownerClanId = 0, string entryMap = "", int entryX = 0, int entryY = 0)
 		{
 			this.Id = id;
+			this.TemplateName = templateName;
+			this.Mode = mode;
+			this.OwnerId = ownerId;
 			this.OwnerCharId = ownerCharId;
 			this.OwnerPartyId = ownerPartyId;
 			this.OwnerGuildId = ownerGuildId;
+			this.OwnerClanId = ownerClanId;
+			this.EntryMap = entryMap;
+			this.EntryX = entryX;
+			this.EntryY = entryY;
 		}
+
+		public void MarkOccupied() => this.LastOccupiedAt = DateTime.UtcNow;
 
 		/// <summary>
 		/// Records an attached map clone keyed by the *base* map name

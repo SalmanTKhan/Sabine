@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Yggdrasil.Logging;
+using Yggdrasil.Network.Framing;
 using Yggdrasil.Network.TCP;
 using Yggdrasil.Util;
 
@@ -140,6 +141,16 @@ namespace Sabine.Shared.Network
 		/// <param name="ex"></param>
 		protected override void OnReceiveException(Exception ex)
 		{
+			// A framing failure means the stream cannot be resynchronized: an
+			// unknown opcode has no trustworthy packet length. Close instead of
+			// continuing to process potentially misaligned bytes.
+			if (ex is ArgumentException || ex is InvalidMessageSizeException)
+			{
+				Log.Warning("Closing connection from '{0}' after malformed inbound data: {1}", this.Address, ex.Message);
+				this.Close();
+				return;
+			}
+
 			Log.Error("Error while receiving data: {0}", ex);
 		}
 

@@ -30,8 +30,12 @@ namespace Sabine.Shared.Network
 			[Versions.S900] = LoadVersion900,
 			[Versions.S2000] = LoadVersion2000,
 			[Versions.S2500] = LoadVersion2500,
+			[Versions.Goro20080910] = LoadVersionGoro20080910,
+			[Versions.NostalRo20111102] = LoadVersionNostalRo20111102,
+			[Versions.NostalRo20120307] = LoadVersionNostalRo20120307,
 			[Versions.Ragexe20211103] = LoadVersion21103,
 			[Versions.Sabine] = LoadVersionSabine,
+			[Versions.RBL] = LoadVersionRBL,
 		};
 
 		/// <summary>
@@ -47,16 +51,20 @@ namespace Sabine.Shared.Network
 			Names.Clear();
 			NetworkToHost.Clear();
 			HostToNetwork.Clear();
+			InboundAliases.Clear();
 
-			// Sabine-native profile inherits S2500 effective bodies
-			// (not Ragexe) so it skips any historical table newer
-			// than S2500, then runs its own renumber pass last.
-			var isSabine = Game.Version == Versions.Sabine;
-			var stackCeiling = isSabine ? Versions.S2500 : Game.Version;
+			// Sabine-native and RBL profiles inherit S2500 effective
+			// bodies (not Ragexe) so they skip any historical table
+			// newer than S2500, then run their own renumber pass last.
+			var isSabine = Game.IsSabine;
+			var isGoro = Game.IsGoro;
+			var isNostalRo = Game.IsNostalRo;
+			var isRBL = Game.Version == Versions.RBL;
+			var stackCeiling = (isSabine || isGoro || isNostalRo || isRBL) ? Versions.S2500 : Game.Version;
 
 			foreach (var (version, loadTable) in Tables.OrderBy(static a => a.Key))
 			{
-				if (version == Versions.Sabine)
+				if (version == Versions.Sabine || version == Versions.RBL)
 					continue;
 
 				if (stackCeiling < version)
@@ -67,6 +75,17 @@ namespace Sabine.Shared.Network
 
 			if (isSabine)
 				LoadVersionSabine();
+			else if (isGoro)
+				LoadVersionGoro20080910();
+			else if (isNostalRo)
+			{
+				if (Game.IsNostalRo20120307)
+					LoadVersionNostalRo20120307();
+				else
+					LoadVersionNostalRo20111102();
+			}
+			else if (isRBL)
+				LoadVersionRBL();
 
 			BuildLists();
 		}
@@ -81,6 +100,7 @@ namespace Sabine.Shared.Network
 		private static readonly Dictionary<int, string> Names = new();
 		private static readonly Dictionary<int, Op> NetworkToHost = new();
 		private static readonly Dictionary<Op, int> HostToNetwork = new();
+		private static readonly Dictionary<int, (Op Op, int Size)> InboundAliases = new();
 
 		/// <summary>
 		/// Adds a new packet to the table.
@@ -184,6 +204,15 @@ namespace Sabine.Shared.Network
 		}
 
 		/// <summary>
+		/// Adds a receive-only compatibility opcode. It is deliberately not
+		/// added to HostToNetwork, so outbound packets keep the canonical ID.
+		/// </summary>
+		private static void RegisterInboundAlias(int opNetwork, Op op, int size)
+		{
+			InboundAliases[opNetwork] = (op, size);
+		}
+
+		/// <summary>
 		/// Shifts all opcodes by the given amount.
 		/// </summary>
 		/// <param name="offset"></param>
@@ -210,6 +239,13 @@ namespace Sabine.Shared.Network
 				HostToNetwork[entry.Op] = entry.OpNetwork;
 				Names[entry.OpNetwork] = entry.Op.ToString();
 				Sizes[entry.OpNetwork] = entry.Size;
+			}
+
+			foreach (var alias in InboundAliases)
+			{
+				NetworkToHost[alias.Key] = alias.Value.Op;
+				Names[alias.Key] = alias.Value.Op + " (alias)";
+				Sizes[alias.Key] = alias.Value.Size;
 			}
 		}
 

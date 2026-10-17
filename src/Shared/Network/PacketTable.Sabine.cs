@@ -13,7 +13,8 @@ namespace Sabine.Shared.Network
 		/// clean grouped wire-ID layout:
 		///
 		/// <list type="bullet">
-		///   <item>0x0001 - 0x00FF: Auth (CA_* / AC_*)</item>
+		///   <item>0x0001 - 0x00FF: Auth (CA_* / AC_*; 0x0000 is reserved
+		///   as the client's "unregistered" sentinel and never assigned)</item>
 		///   <item>0x0100 - 0x01FF: Char (CH_* / HC_*)</item>
 		///   <item>0x0200 - 0x03FF: Zone client to server (CZ_*)</item>
 		///   <item>0x0400 - 0x0FFF: Zone server to client (ZC_*)</item>
@@ -27,6 +28,10 @@ namespace Sabine.Shared.Network
 		/// </summary>
 		private static void LoadVersionSabine()
 		{
+			// Modern clients use this separate server-to-client close
+			// notification. Sabine assigns its final grouped ZC wire ID below.
+			Register(Op.ZC_CLOSE_SCRIPT, 0x08D6, 6);
+
 			// Body-shape upgrades to rAthena-latest layouts. Sizes
 			// inherited from S2500 stacking get overridden here so the
 			// framer reads/writes the right number of bytes for each
@@ -83,6 +88,9 @@ namespace Sabine.Shared.Network
 			// and matches rA-latest exactly. Body = 4 clientTick, wire = 6.
 			// Ref: rathena clif_packetdb.hpp:1382.
 			ChangeSize(Op.CZ_REQUEST_TIME, 6);
+
+			// ZC_CLOSE_SCRIPT carries only the NPC handle.
+			ChangeSize(Op.ZC_CLOSE_SCRIPT, 6);
 
 			// Actor-entry triad: rA's packet_idle_unit / packet_spawn_unit /
 			// packet_unit_walking grew significantly between EP12 and
@@ -254,14 +262,14 @@ namespace Sabine.Shared.Network
 			ChangeSize(Op.ZC_PROPERTY_PET, 37);
 
 			// CZ_ITEM_PICKUP / CZ_ITEM_THROW: PV23 (2008-09-10aSakexe)
-			// inserts a 2-byte filler before the payload, which is what
-			// the open-midgard client sends per its committed PV23
-			// client-send alignment. Pickup wire = 2 padding + 4
-			// invItemHandle = 6 body, opcode + body = 8. Throw keeps
-			// the rA classic shape for now (2 invId + 2 amount, wire 6).
-			// Handler in PacketHandler.CZ_ITEM_PICKUP skips the padding.
-			// Ref: eA db/packet_db.txt PV22 line 1009 (0x00f5,8,takeitem,4).
-			ChangeSize(Op.CZ_ITEM_PICKUP, 8);
+			// inflates pickup with a 2-byte obfuscation filler before the
+			// AID. The Sabine-native profile drops the filler: pickup is
+			// the clean rA classic shape, opcode + 4 invItemHandle = 6.
+			// Throw likewise stays rA classic (2 invId + 2 amount, wire 6).
+			// PacketHandler.CZ_ITEM_PICKUP only skips the padding for
+			// historical PV23 deployments (S2500 <= version < Sabine).
+			// Ref: rathena clif_packetdb.hpp packet(0x009f,6,takeitem,2).
+			ChangeSize(Op.CZ_ITEM_PICKUP, 6);
 			ChangeSize(Op.CZ_ITEM_THROW, 6);
 
 			// ZC_ADD_FRIENDS_LIST: Sabine repurposes this as the initial
@@ -293,22 +301,81 @@ namespace Sabine.Shared.Network
 			// the Sabine wire surface.
 			Entries.RemoveAll(static e => e.Op.ToString().StartsWith("UNK_", StringComparison.Ordinal));
 
-			// Stable ordering by enum ordinal keeps wire IDs deterministic
-			// across rebuilds so the open-midgard client can pin a fixed
-			// mapping. Sequential assignment from 0x0001 means every Op
-			// ordinal that survived the UNK_ filter has a registered
-			// network opcode — no gaps. This is intentional: framework
-			// code that occasionally treats `(int)packet.Op` as a wire
-			// ID (e.g. legacy receive-path normalization) only works if
-			// the ordinal-to-wire mapping is dense.
-			Entries.Sort(static (a, b) => ((int)a.Op).CompareTo((int)b.Op));
+			// Repack the remaining entries into the documented Sabine
+			// wire-ID buckets. Prefix decides the bucket; enum order
+			// keeps the mapping deterministic within each bucket.
+			var buckets = new List<PacketTableEntry>[5];
+			for (var i = 0; i < buckets.Length; i++)
+				buckets[i] = new List<PacketTableEntry>();
 
-			var next = 0x0001;
 			foreach (var entry in Entries)
-				entry.OpNetwork = next++;
+				buckets[GetSabineGroup(entry.Op)].Add(entry);
 
-			if (next > 0x10000)
-				throw new InvalidOperationException("Sabine wire-ID space overflowed 0xFFFF; protocol exceeds 16-bit opcode capacity.");
+			Entries.Clear();
+			for (var bucketIndex = 0; bucketIndex < buckets.Length; bucketIndex++)
+			{
+				var bucket = buckets[bucketIndex];
+				bucket.Sort(static (a, b) => ((int)a.Op).CompareTo((int)b.Op));
+				Entries.AddRange(bucket);
+			}
+
+			for (var bucketIndex = 0; bucketIndex < buckets.Length; bucketIndex++)
+			{
+				var next = GetSabineGroupStart(bucketIndex);
+				var limit = GetSabineGroupEnd(bucketIndex);
+
+				foreach (var entry in buckets[bucketIndex])
+				{
+					if (next > limit)
+						throw new InvalidOperationException($"Sabine wire-ID group {bucketIndex} overflowed 0x{limit:X4}; protocol exceeds declared block size.");
+
+					entry.OpNetwork = next++;
+				}
+			}
 		}
+
+		private static int GetSabineGroup(Op op)
+		{
+			var name = op.ToString();
+			if (name.StartsWith("CA_", StringComparison.Ordinal) || name.StartsWith("AC_", StringComparison.Ordinal))
+				return 0;
+
+			if (name.StartsWith("CH_", StringComparison.Ordinal) || name.StartsWith("HC_", StringComparison.Ordinal))
+				return 1;
+
+			if (name.StartsWith("CZ_", StringComparison.Ordinal))
+				return 2;
+
+			if (name.StartsWith("ZC_", StringComparison.Ordinal))
+				return 3;
+
+			return 4;
+		}
+
+		private static int GetSabineGroupStart(int group)
+			=> group switch
+			{
+				// Auth starts at 0x0001, not 0x0000: the open-midgard
+				// client uses wire ID 0 as its "op not registered for
+				// this profile" sentinel, so 0x0000 must never be a
+				// valid opcode on the Sabine-native wire.
+				0 => 0x0001,
+				1 => 0x0100,
+				2 => 0x0200,
+				3 => 0x0400,
+				4 => 0x4000,
+				_ => throw new ArgumentOutOfRangeException(nameof(group), group, "Unknown Sabine wire-ID group."),
+			};
+
+		private static int GetSabineGroupEnd(int group)
+			=> group switch
+			{
+				0 => 0x00FF,
+				1 => 0x01FF,
+				2 => 0x03FF,
+				3 => 0x0FFF,
+				4 => 0xFFFF,
+				_ => throw new ArgumentOutOfRangeException(nameof(group), group, "Unknown Sabine wire-ID group."),
+			};
 	}
 }

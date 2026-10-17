@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Sabine.Shared.Data;
+using Yggdrasil.Logging;
 
 namespace Sabine.Zone.World.Shops
 {
@@ -39,11 +40,17 @@ namespace Sabine.Zone.World.Shops
 		/// </summary>
 		/// <param name="classId">Class id of the item to add.</param>
 		/// <param name="price">Price to sell the item at. use -1 for the default price.</param>
-		/// <exception cref="ArgumentException"></exception>
 		public void AddItem(int classId, int price)
 		{
 			if (!ZoneServer.Instance.Data.Items.TryFind(classId, out var itemData))
-				throw new ArgumentException($"Item '{classId}' not found.");
+			{
+				// Imported rAthena shop lists regularly refer to later-client
+				// items which are not in the currently loaded item database.
+				// Keep the valid part of the shop and the surrounding script
+				// alive instead of failing its entire Load() method.
+				Log.Warning("NpcShop('{0}'): item '{1}' is not in the item database, skipping.", this.Name, classId);
+				return;
+			}
 
 			var item = new ShopItem(itemData.ClassId);
 			item.Price = price;

@@ -32,6 +32,16 @@ namespace Sabine.Shared.Configuration.Files
 		// the @repair GM command can restore it.
 		public bool RefineBreakDestroys { get; set; }
 
+		// Local development-only deterministic actor fixture. Kept in the
+		// user override so production system configuration stays unchanged.
+		public bool EnableIntegrationActorFixture { get; set; }
+		public string IntegrationActorFixtureMap { get; set; }
+		public int IntegrationActorFixtureNpcX { get; set; }
+		public int IntegrationActorFixtureNpcY { get; set; }
+		public int IntegrationActorFixtureMonsterX { get; set; }
+		public int IntegrationActorFixtureMonsterY { get; set; }
+		public int IntegrationActorFixtureDespawnSeconds { get; set; }
+
 		// mail.conf — auto-purge schedule
 		// Mail older than this many days is deleted from mail_messages
 		// by MailManager's expiration tick. Set to 0 to disable purging
@@ -59,6 +69,14 @@ namespace Sabine.Shared.Configuration.Files
 			this.CheckBasicSkills = this.GetBool("check_basic_skills", true);
 
 			this.RefineBreakDestroys = this.GetBool("refine_break_destroys", false);
+
+			this.EnableIntegrationActorFixture = this.GetBool("enable_integration_actor_fixture", false);
+			this.IntegrationActorFixtureMap = this.GetString("integration_actor_fixture_map", "prontera");
+			this.IntegrationActorFixtureNpcX = this.GetInt("integration_actor_fixture_npc_x", 153);
+			this.IntegrationActorFixtureNpcY = this.GetInt("integration_actor_fixture_npc_y", 191);
+			this.IntegrationActorFixtureMonsterX = this.GetInt("integration_actor_fixture_monster_x", 157);
+			this.IntegrationActorFixtureMonsterY = this.GetInt("integration_actor_fixture_monster_y", 191);
+			this.IntegrationActorFixtureDespawnSeconds = this.GetInt("integration_actor_fixture_despawn_seconds", 45);
 
 			this.MailExpireDays = this.GetInt("mail_expire_days", 15);
 		}

@@ -11,6 +11,8 @@ namespace Sabine.Shared.Data.Databases
 	public class ItemData
 	{
 		public int ClassId { get; set; }
+		/// <summary>rAthena/Aegis database identifier, when it differs from the display name.</summary>
+		public string AegisName { get; set; }
 		public string Name { get; set; }
 		public ItemType Type { get; set; }
 		public int Weight { get; set; }
@@ -62,6 +64,9 @@ namespace Sabine.Shared.Data.Databases
 		/// </summary>
 		public int Slots { get; set; }
 
+		/// <summary>rAthena item subtype (notably normal versus enchant cards).</summary>
+		public int SubType { get; set; }
+
 		public WeaponType GetWeaponType()
 		{
 			// Check if the LookId is a defined member of the WeaponType enum.
@@ -81,6 +86,18 @@ namespace Sabine.Shared.Data.Databases
 	/// </summary>
 	public class ItemDb : DatabaseJsonIndexed<int, ItemData>
 	{
+		/// <summary>Finds an item by its Aegis identifier or display name.</summary>
+		public ItemData Find(string name)
+			=> this.Find(a => string.Equals(a.AegisName, name, StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase));
+
+		/// <summary>Finds an item by its Aegis identifier or display name.</summary>
+		public bool TryFind(string name, out ItemData data)
+		{
+			data = this.Find(name);
+			return data != null;
+		}
+
 		/// <summary>
 		/// Called to read an entry from the data.
 		/// </summary>
@@ -134,6 +151,7 @@ namespace Sabine.Shared.Data.Databases
 			var data = new ItemData();
 
 			data.ClassId = entry.ReadInt("id");
+			data.AegisName = entry.ReadString("aegisName", entry.ReadString("aegis", data.ClassId.ToString()));
 			data.Name = entry.ReadString("name");
 			data.Type = entry.ReadEnum<ItemType>("type");
 			data.Weight = entry.ReadInt("weight");
@@ -156,6 +174,7 @@ namespace Sabine.Shared.Data.Databases
 			data.DefenseElement = entry.ReadEnum("defenseElement", ElementType.None);
 			data.MagicAttack = entry.ReadInt("magicAttack", 0);
 			data.Slots = entry.ReadInt("slots", 0);
+			data.SubType = entry.ReadInt("subtype", 0);
 
 			if (Game.Version >= Versions.Beta2)
 			{

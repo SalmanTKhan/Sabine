@@ -34,6 +34,9 @@ namespace Sabine.Shared.Network
 			Register(new ProtocolProfile("s900-bro-ep9", Versions.S900, Era.Classic, ProtocolFeatures.None));
 			Register(new ProtocolProfile("s2000-euro-ep10", Versions.S2000, Era.Classic, ProtocolFeatures.None));
 			Register(new ProtocolProfile("s2500-kro-sak-ep12", Versions.S2500, Era.Classic, ProtocolFeatures.CashShop));
+			Register(new ProtocolProfile("goro-20080910", Versions.Goro20080910, Era.Classic, ProtocolFeatures.None, wireLayout: ProtocolWireLayout.GoroSakexe20080910, effectiveDataVersion: Versions.S2500));
+			Register(new ProtocolProfile("nostalro-20111102", Versions.NostalRo20111102, Era.Classic, ProtocolFeatures.None, wireLayout: ProtocolWireLayout.NostalRo20111102, effectiveDataVersion: Versions.Beta1));
+			Register(new ProtocolProfile("nostalro-20120307", Versions.NostalRo20120307, Era.Classic, ProtocolFeatures.None, wireLayout: ProtocolWireLayout.NostalRo20120307, effectiveDataVersion: Versions.Beta1));
 
 			// Modern anchors. The 2018-03-07 RagexeRE keys come from
 			// rAthena's clif_obfuscation.hpp and serve as the last
@@ -113,7 +116,9 @@ namespace Sabine.Shared.Network
 					Game.Era,
 					profile.Features,
 					profile.ObfuscationKeys,
-					profile.ShuffleMap);
+					profile.ShuffleMap,
+					profile.WireLayout,
+					profile.EffectiveDataVersion);
 			}
 		}
 

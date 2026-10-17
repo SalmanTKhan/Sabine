@@ -49,6 +49,11 @@ namespace Sabine.Zone.World.Groups
 		private readonly List<GuildMember> _members = new();
 		public IReadOnlyList<GuildMember> Members => _members.AsReadOnly();
 
+		// Guild skills are owned by the guild, not its leader. Keep them in
+		// their own keyed collection because rAthena skill ids are sparse.
+		private readonly Dictionary<int, int> _skills = new();
+		public IReadOnlyDictionary<int, int> Skills => _skills;
+
 		private readonly HashSet<int> _allies = new();
 		public IReadOnlyCollection<int> Allies => _allies;
 
@@ -86,6 +91,8 @@ namespace Sabine.Zone.World.Groups
 			this.Notice = row.Notice;
 			this.Zeny = row.Zeny;
 			this.EmblemData = row.EmblemData;
+			foreach (var skill in row.Skills)
+				_skills[skill.SkillId] = skill.Level;
 
 			foreach (var m in row.Members)
 			{
@@ -142,6 +149,17 @@ namespace Sabine.Zone.World.Groups
 		}
 
 		public GuildMember GetMember(int characterId) => _members.FirstOrDefault(m => m.CharacterId == characterId);
+
+		public int GetSkillLevel(int skillId)
+			=> _skills.TryGetValue(skillId, out var level) ? level : 0;
+
+		internal void SetSkillLevel(int skillId, int level)
+		{
+			if (level <= 0)
+				_skills.Remove(skillId);
+			else
+				_skills[skillId] = level;
+		}
 
 		/// <summary>
 		/// Returns true if <paramref name="player"/> is this guild's

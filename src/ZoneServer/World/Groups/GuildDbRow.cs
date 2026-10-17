@@ -25,6 +25,13 @@ namespace Sabine.Zone.World.Groups
 		public byte[] EmblemData { get; set; }
 
 		public List<GuildMemberDbRow> Members { get; } = new();
+		public List<GuildSkillDbRow> Skills { get; } = new();
+	}
+
+	public class GuildSkillDbRow
+	{
+		public int SkillId { get; set; }
+		public int Level { get; set; }
 	}
 
 	/// <summary>

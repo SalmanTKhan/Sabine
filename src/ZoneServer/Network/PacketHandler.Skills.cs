@@ -1,9 +1,15 @@
-﻿using Sabine.Shared.Const;
+﻿using System;
+using Sabine.Shared;
+using Sabine.Shared.Const;
 using Sabine.Shared.Network;
+using Sabine.Shared.Util;
+using Sabine.Shared.World;
 using Sabine.Zone.Skills;
+using Sabine.Zone.Skills.Handlers;
 using Sabine.Zone.World.Actors;
 using Sabine.Zone.World.Groups;
 using Yggdrasil.Logging;
+using Yggdrasil.Util;
 
 namespace Sabine.Zone.Network
 {
@@ -548,6 +554,147 @@ namespace Sabine.Zone.Network
 
 			Send.ZC_PARTY_CONFIG(character, expFlag);
 			party.UpdateAllClients();
+		}
+
+		/// <summary>
+		/// Request the list of items that can be compounded into the
+		/// given item. Wire (0x017A, 4): inventoryId (2).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_ITEMCOMPOSITION_LIST)]
+		public void CZ_REQ_ITEMCOMPOSITION_LIST(ZoneConnection conn, Packet packet)
+		{
+			var invId = packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			var item = character.Inventory.GetItem(invId);
+			if (item == null)
+				return;
+
+			Log.Debug("CZ_REQ_ITEMCOMPOSITION_LIST: '{0}' requested composition list for item {1}.",
+				character.Name, invId);
+
+			// Stub: send empty list until composition system is implemented.
+			// The client will close the composition window gracefully.
+		}
+
+		/// <summary>
+		/// Request to compound a card into an item.
+		/// Wire (0x017C, 6): targetInvId (2) + cardInvId (2).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQ_ITEMCOMPOSITION)]
+		public void CZ_REQ_ITEMCOMPOSITION(ZoneConnection conn, Packet packet)
+		{
+			var targetInvId = packet.GetShort();
+			var cardInvId = packet.GetShort();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			Log.Debug("CZ_REQ_ITEMCOMPOSITION: '{0}' requested composition of card {1} into item {2}.",
+				character.Name, cardInvId, targetInvId);
+		}
+
+		/// <summary>
+		/// Request to create an item via a crafting skill (e.g. Smith,
+		/// Alchemist). Wire (0x018E, 10): skillId (2) + itemId (4) +
+		/// materialCount (4).
+		/// </summary>
+		[PacketHandler(Op.CZ_REQMAKINGITEM)]
+		public void CZ_REQMAKINGITEM(ZoneConnection conn, Packet packet)
+		{
+			var skillId = (SkillId)packet.GetShort();
+			var itemId = packet.GetInt();
+			var materialCount = packet.GetInt();
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			Log.Debug("CZ_REQMAKINGITEM: '{0}' requested creation of item {1} with skill {2}.",
+				character.Name, itemId, skillId);
+
+			// Stub — crafting system not yet implemented.
+			Send.ZC_ACK_REQMAKINGITEM(character, 0, itemId);
+		}
+
+		/// <summary>
+		/// Request to use a skill with a talkbox message to a ground
+		/// position (Bard/Dancer performance, etc).
+		/// Legacy 0x0190/90 uses the compact skillId/level/position prefix;
+		/// Goro 0x007E/102 retains the 2008 filler bytes before the same
+		/// 80-byte message body.
+		/// </summary>
+		[PacketHandler(Op.CZ_USE_SKILL_TOGROUND_WITHTALKBOX)]
+		public void CZ_USE_SKILL_TOGROUND_WITHTALKBOX(ZoneConnection conn, Packet packet)
+		{
+			SkillId skillId;
+			int level;
+			int x;
+			int y;
+			if (Game.IsGoro)
+			{
+				// rAthena 0x007E offsets are level @5, skill @9,
+				// x @12, y @20, followed by the 80-byte message.
+				packet.Skip(3);
+				level = packet.GetShort();
+				packet.Skip(2);
+				skillId = (SkillId)packet.GetShort();
+				packet.Skip(1);
+				x = packet.GetShort();
+				packet.Skip(6);
+				y = packet.GetShort();
+			}
+			else
+			{
+				skillId = (SkillId)packet.GetShort();
+				level = packet.GetShort();
+				x = packet.GetShort();
+				y = packet.GetShort();
+			}
+			var message = packet.GetString(packet.GetRemainingLength()).TrimEnd('\0');
+
+			var character = conn.GetCurrentCharacter();
+			if (character == null)
+				return;
+
+			Log.Debug("CZ_USE_SKILL_TOGROUND_WITHTALKBOX: '{0}' used skill {1} at ({2},{3}) with message '{4}'.",
+				character.Name, skillId, x, y, message);
+
+			if (character.IsImmobilized || character.IsSilenced || character.SkillBlocked)
+				return;
+
+			if (!TryResolveSkill(character, skillId, out var skill))
+			{
+				Log.Warning("CZ_USE_SKILL_TOGROUND_WITHTALKBOX: '{0}' doesn't have skill '{1}'.",
+					conn.Account.Username, skillId);
+				return;
+			}
+
+			if (skill.Level == 0) return;
+			if (!character.CanActNow(DateTime.UtcNow)) return;
+			if (character.Skills.IsLockedOut()) return;
+			if (character.Skills.IsOnCooldown(skill.Id)) return;
+
+			var targetPos = new Position(x, y);
+			level = Math.Clamp(level, 1, skill.Level);
+
+			if (!ZoneServer.Instance.SkillHandlers.TryGetHandler<IGroundSkillHandler>(skill.Id, out var handler))
+			{
+				character.ServerMessage(Localization.Get("This skill has not been implemented yet."));
+				Log.Debug("CZ_USE_SKILL_TOGROUND_WITHTALKBOX: No handler for skill '{0}'.", skill.Id);
+				return;
+			}
+
+			if (!TryDeductSkillCost(character, skill, level))
+				return;
+
+			character.Vars.Temp.SetString("Sabine.SkillTalkboxMessage", message);
+			handler.Handle(new UseGroundSkillParams(character, targetPos, skill, level));
+			character.Skills.NoteSkillUsed(skill);
 		}
 	}
 }

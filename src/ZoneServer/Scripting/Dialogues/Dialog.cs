@@ -47,6 +47,7 @@ namespace Sabine.Zone.Scripting.Dialogues
 		public void SetPortrait(string portrait) => this.Portrait = portrait;
 
 		public DialogActionType GetLastAction() => _lastAction;
+		public bool IsCancelled => _cancellation.IsCancellationRequested;
 
 		/// <summary>
 		/// Creates and prepares a new dialog between the player and
@@ -140,6 +141,22 @@ namespace Sabine.Zone.Scripting.Dialogues
 			if (this.State != DialogState.Waiting) return;
 			_response = response;
 			_resumeSignal.Release();
+		}
+
+		/// <summary>
+		/// Cancels a dialog from a client close/escape action. The dialog
+		/// remains installed on the connection until its async script has
+		/// unwound, preventing a duplicate contact from racing construction
+		/// against cleanup.
+		/// </summary>
+		public bool CancelFromClient(int npcHandle)
+		{
+			if (this.Npc?.Handle != npcHandle || this.State == DialogState.Ended)
+				return false;
+
+			this.State = DialogState.Ended;
+			_cancellation.Cancel();
+			return true;
 		}
 
 		private async Task<string> GetClientResponse()
@@ -260,22 +277,26 @@ namespace Sabine.Zone.Scripting.Dialogues
 		}
 
 		/// <summary>
-		/// Stub for rAthena's <c>input</c> command. Alpha-era clients
-		/// don't have a number-input dialog packet, so this is a
-		/// placeholder that immediately returns the optional default
-		/// value (or zero). Awaits a confirmation click via
-		/// <see cref="Next"/> so the dialog flow still gates on user
-		/// interaction. Min/max bounds are accepted for API parity but
-		/// not enforced.
+		/// Shows the client's numeric input dialog and waits for its response.
 		/// </summary>
 		/// <param name="defaultValue">Value returned to the script.</param>
 		/// <param name="min">Lower bound (ignored on alpha clients).</param>
 		/// <param name="max">Upper bound (ignored on alpha clients).</param>
 		public async Task<int> InputNumber(int defaultValue = 0, int min = int.MinValue, int max = int.MaxValue)
 		{
-			_ = min; _ = max;
-			await this.Next();
-			return defaultValue;
+			_lastAction = DialogActionType.Input;
+			Send.ZC_OPEN_EDITDLG(this.Player, this.Npc.Handle);
+			var response = await GetClientResponse();
+			if (!int.TryParse(response, out var value))
+				value = defaultValue;
+			return Math.Clamp(value, min, max);
+		}
+
+		public async Task<string> InputString()
+		{
+			_lastAction = DialogActionType.Input;
+			Send.ZC_OPEN_EDITDLGSTR(this.Player, this.Npc.Handle);
+			return await GetClientResponse();
 		}
 
 		/// <summary>
@@ -407,7 +428,7 @@ namespace Sabine.Zone.Scripting.Dialogues
 		{
 			_lastAction = DialogActionType.Close;
 			if (this.State == DialogState.Ended) return;
-			Send.ZC_CLOSE_DIALOG(this.Player, this.Npc.Handle);
+			Send.ZC_CLOSE_SCRIPT(this.Player, this.Npc.Handle);
 		}
 
 		/// <summary>

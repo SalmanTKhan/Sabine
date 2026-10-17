@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
@@ -57,6 +57,10 @@ namespace Sabine.Zone.Network
 			// account id to be sent upon connection, or it won't react to
 			// any packets...? Any only several years later they upgraded
 			// to an actual packet :+1:
+			// Goro is the exception in the numeric S2500 stack: its 2008
+			// map handshake starts with ZC_ACCEPT_ENTER and has no prelude.
+			if (Game.IsGoro)
+				return;
 
 			if (Game.Version < Versions.S2500)
 			{
@@ -83,7 +87,27 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ACCEPT_ENTER);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsGoro)
+			{
+				// rAthena PACKET_ZC_ACCEPT_ENTER at 2008-09-10:
+				// startTime + packed position/direction + xSize + ySize +
+				// font. The first field is not the character id.
+				packet.PutInt(Game.GetTick());
+				packet.AddPackedPosition(character.Position, character.Direction);
+				packet.PutByte(5);
+				packet.PutByte(5);
+				packet.PutShort(0); // font
+			}
+			else if (Game.IsNostalRo)
+			{
+				// PACKET_ZC_ACCEPT_ENTER at 20111102: start time, packed
+				// position, and the 5x5 client view dimensions = 11 bytes.
+				packet.PutInt(Game.GetTick());
+				packet.AddPackedPosition(character.Position, character.Direction);
+				packet.PutByte(5);
+				packet.PutByte(5);
+			}
+			else if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_ACCEPT_ENTER 0xa18 at PACKETVER >= 20141022
 				// (except the 20141022-20160329 window which uses 0x2eb
@@ -103,7 +127,7 @@ namespace Sabine.Zone.Network
 				packet.AddPackedPosition(character.Position, character.Direction);
 				packet.PutShort(0);
 
-				if (Game.Version >= Versions.S2500)
+				if (!Game.IsNostalRo && Game.Version >= Versions.S2500)
 					packet.PutShort(0);
 			}
 
@@ -133,6 +157,22 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_NOTIFY_TIME);
 			packet.PutInt(tick);
+
+			conn.Send(packet);
+		}
+
+		/// <summary>
+		/// Opens a client book at the requested page. The packet was added
+		/// with the 2000-era protocol table and is unavailable to older clients.
+		/// </summary>
+		public static void ZC_READ_BOOK(ZoneConnection conn, int bookId, int page)
+		{
+			if (conn == null || !PacketTable.IsRegistered(Op.ZC_READ_BOOK))
+				return;
+
+			using var packet = Packet.Rent(Op.ZC_READ_BOOK);
+			packet.PutInt(bookId);
+			packet.PutInt(page);
 
 			conn.Send(packet);
 		}
@@ -528,6 +568,26 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Notifies nearby players of a status change for a character
+		/// (e.g., HP bar color change for poisoned/frozen/etc).
+		/// Alpha wire (0x0059, 5): targetHandle (2) + statusType (1).
+		/// </summary>
+		/// <remarks>
+		/// This differs from ZC_STATE_CHANGE (Beta1+), which uses a
+		/// different opcode and carries an AID-sized target field.
+		/// On the Alpha client the handle is a uint16 (session id).
+		/// </remarks>
+		public static void ZC_STATUS_CHANGE(Character character, byte statusType)
+		{
+			using var packet = Packet.Rent(Op.ZC_STATUS_CHANGE);
+
+			packet.PutShort((short)character.Handle);
+			packet.PutByte(statusType);
+
+			character.Map.Broadcast(packet, character, BroadcastTargets.All);
+		}
+
+		/// <summary>
 		/// Updates several stats and sub-stats on the character's client.
 		/// </summary>
 		/// <param name="character"></param>
@@ -655,6 +715,58 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Sends the result of a whisper block/unblock request.
+		/// Alpha wire (0x006C, 4): type (1) + result (1).
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="targetName">The player whose whisper setting changed.</param>
+		/// <param name="type">0 = blocked, 1 = unblocked.</param>
+		public static void ZC_SETTING_WHISPER_PC(PlayerCharacter character, string targetName, byte type)
+		{
+			using var packet = Packet.Rent(Op.ZC_SETTING_WHISPER_PC);
+
+			packet.PutByte(type);
+			packet.PutByte(0); // result: always success for now
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the result of a whisper state change.
+		/// Alpha wire (0x006D, 4): state (1) + result (1).
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="state">0 = all, 1 = friends only, 2 = block all.</param>
+		public static void ZC_SETTING_WHISPER_STATE(PlayerCharacter character, byte state)
+		{
+			using var packet = Packet.Rent(Op.ZC_SETTING_WHISPER_STATE);
+
+			packet.PutByte(state);
+			packet.PutByte(0); // result: always success for now
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the list of blocked/excluded whisper targets.
+		/// Alpha wire (0x006F, -1): dynamic — repeats name (16) entries.
+		/// </summary>
+		/// <param name="character"></param>
+		/// <param name="blockedList"></param>
+		public static void ZC_WHISPER_LIST(PlayerCharacter character, System.Collections.Generic.HashSet<string> blockedList)
+		{
+			using var packet = Packet.Rent(Op.ZC_WHISPER_LIST);
+
+			if (blockedList != null)
+			{
+				foreach (var name in blockedList)
+					packet.PutString(name, 16);
+			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Broadcasts message on all maps, displayed in the center
 		/// of the game screen.
 		/// </summary>
@@ -682,7 +794,7 @@ namespace Sabine.Zone.Network
 			packet.PutInt(character.Handle);
 			packet.PutByte((byte)type);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_SPRITE_CHANGE at PACKETVER_MAIN_NUM >=
 				// 20181121 widens val to uint32 and adds a second uint32
@@ -733,6 +845,31 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Acknowledges a manner-point request.
+		/// Beta2 wire (0x014A, 6): result (1).
+		/// </summary>
+		public static void ZC_ACK_GIVE_MANNER_POINT(PlayerCharacter character, byte result)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_GIVE_MANNER_POINT);
+			packet.PutByte(result);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies players nearby that a manner/karma point was given.
+		/// Beta2 wire (0x014B, 27): targetHandle (4) + pointType (1) +
+		/// giverName (16) + padding.
+		/// </summary>
+		public static void ZC_NOTIFY_MANNER_POINT_GIVEN(PlayerCharacter character, int targetHandle, byte pointType)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_MANNER_POINT_GIVEN);
+			packet.PutInt(targetHandle);
+			packet.PutByte(pointType);
+			packet.PutString(character.Name, 16);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Makes character use the given emotion.
 		/// </summary>
 		/// <param name="character"></param>
@@ -778,13 +915,21 @@ namespace Sabine.Zone.Network
 
 			packet.PutInt(character.Handle);
 
-			if (Game.Version >= Versions.Beta2)
+			if (Game.IsNostalRo)
 			{
-				packet.PutByte((byte)headTurn);
-				packet.PutByte(0);
+				packet.PutShort((short)headTurn);
+				packet.PutByte((byte)direction);
 			}
+			else
+			{
+				if (Game.Version >= Versions.Beta2)
+				{
+					packet.PutByte((byte)headTurn);
+					packet.PutByte(0);
+				}
 
-			packet.PutByte((byte)direction);
+				packet.PutByte((byte)direction);
+			}
 
 			character.Map.Broadcast(packet, character, BroadcastTargets.All);
 		}
@@ -829,7 +974,7 @@ namespace Sabine.Zone.Network
 			packet.PutInt(IPAddress.Parse(ip));
 			packet.PutShort((short)port);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_NPCACK_SERVERMOVE 0xac7 at PACKETVER >= 20170315
 				// adds a 128-byte domain field for hostname-based zone
@@ -892,7 +1037,7 @@ namespace Sabine.Zone.Network
 			{
 				using var packet = Packet.Rent(Op.ZC_NOTIFY_ACT);
 
-				if (Game.Version >= Versions.Sabine)
+				if (Game.IsSabine)
 				{
 					// rA PACKET_ZC_NOTIFY_ACT 0x8c8 at PACKETVER >= 20131223:
 					// damage and damage2 widened to int32, isSPDamage byte
@@ -920,7 +1065,14 @@ namespace Sabine.Zone.Network
 				packet.PutInt(handleTarget);
 				packet.PutInt(tick);
 
-				if (Game.Version >= Versions.Beta1)
+				if (Game.IsGoro)
+				{
+					// 0x008A/29 keeps both animation speeds as raw int32
+					// values in the 2008 client.
+					packet.PutInt(arg2);
+					packet.PutInt(arg3);
+				}
+				else if (Game.Version >= Versions.Beta1)
 				{
 					// kRO Sak EP12+ clients reinterpret srcSpeed as an
 					// inverted animation modifier (rA clif.cpp:5213,
@@ -979,6 +1131,37 @@ namespace Sabine.Zone.Network
 				if (scaled > KroDefaultAnimationSpeed) scaled = KroDefaultAnimationSpeed;
 				return scaled;
 			}
+		}
+
+		/// <summary>
+		/// Notifies clients of an action with a ground-position component.
+		/// Beta1+ wire (0x0027, size 23): source (4) + target (4) + tick (4) +
+		/// dmg (2) + hit (2) + type (1) + x (2) + y (2) = 21 body bytes. This is
+		/// the compact positional variant of <see cref="ZC_NOTIFY_ACT"/>; it
+		/// drops the animation-speed field (the client derives motion timing
+		/// locally). The previous implementation also wrote a 4-byte speed field,
+		/// overrunning the registered 23-byte size by 4 — corrected here.
+		/// </summary>
+		/// <remarks>
+		/// Currently unused by the action pipeline: all combat is broadcast via
+		/// <see cref="ZC_NOTIFY_ACT"/> and positional skills via
+		/// ZC_NOTIFY_SKILL_POSITION. Kept wire-correct so it matches the packet
+		/// table if a future feature emits it.
+		/// </remarks>
+		public static void ZC_NOTIFY_ACT_POSITION(Character character, int handleSource, int handleTarget, int tick, Position pos, int damage, ActionType type, int hitCount)
+		{
+			using var packet = Packet.Rent(Op.ZC_NOTIFY_ACT_POSITION);
+
+			packet.PutInt(handleSource);
+			packet.PutInt(handleTarget);
+			packet.PutInt(tick);
+			packet.PutShort((short)damage);
+			packet.PutShort((short)hitCount);
+			packet.PutByte((byte)type);
+			packet.PutShort((short)pos.X);
+			packet.PutShort((short)pos.Y);
+
+			character.Map.Broadcast(packet, character, BroadcastTargets.All);
 		}
 
 		/// <summary>
@@ -1045,6 +1228,19 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
+		/// Immediately removes an NPC script window without sending the
+		/// client's final close-button response. This is the rAthena/RBL
+		/// close2 semantic used when the script continues server-side.
+		/// </summary>
+		public static void ZC_CLOSE_SCRIPT(PlayerCharacter character, int npcHandle)
+		{
+			using var packet = Packet.Rent(Op.ZC_CLOSE_SCRIPT);
+			packet.PutInt(npcHandle);
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
 		/// Displays a list of options to choose from during a dialog.
 		/// </summary>
 		/// <param name="character"></param>
@@ -1095,14 +1291,15 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ITEM_PICKUP_ACK);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_ITEM_PICKUP_ACK at PACKETVER_MAIN_NUM >=
-				// 20181121: 61-byte body — Index(2) + count(2) + nameid(4)
+				// 20181121: 59-byte body — Index(2) + count(2) + nameid(4)
 				// + IsIdentified(1) + IsDamaged(1) + refiningLevel(1) +
 				// slot[8] + location(4) + type(1) + result(1) +
 				// HireExpireDate(4) + bindOnEquipType(2) +
-				// option_data[5](25) + favorite(1) + look(2). Wire = 63.
+				// option_data[5](25) + favorite(1) + look(2). Wire = 61.
+				// (refineGrade is PACKETVER >= 20200724 and not included.)
 				// Ref: rathena packets_struct.hpp:540, map/clif.cpp clif_additem.
 				packet.PutShort((short)item.InventoryId);
 				packet.PutShort((short)amount);
@@ -1129,7 +1326,7 @@ namespace Sabine.Zone.Network
 			// route the base Op through wire 0x02D4 size 29 at S2500+,
 			// older clients keep the legacy 0x003B/23 layout.
 			// Ref: eA src/map/clif.c clif_additem (line 2078).
-			var useV3 = Game.Version >= Versions.S2500;
+			var useV3 = Game.IsGoro || Game.Version >= Versions.S2500;
 
 			packet.PutShort((short)item.InventoryId);
 			packet.PutShort((short)amount);
@@ -1176,8 +1373,8 @@ namespace Sabine.Zone.Network
 			// Sabine writes rA V6 26-byte entries (uint32 ITID + bonus
 			// options block). S2500 writes the 22-byte V3 layout. Older
 			// clients keep the legacy 18-byte entry shape.
-			var useV6 = Game.Version >= Versions.Sabine;
-			var useV3 = !useV6 && Game.Version >= Versions.S2500;
+			var useV6 = Game.IsSabine;
+			var useV3 = !useV6 && (Game.IsGoro || Game.Version >= Versions.S2500);
 			using var packet = Packet.Rent(Op.ZC_NORMAL_ITEMLIST);
 
 			foreach (var item in items)
@@ -1201,8 +1398,8 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_STORE_NORMAL_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var useV6 = Game.Version >= Versions.Sabine;
-			var useV3 = !useV6 && Game.Version >= Versions.S2500;
+			var useV6 = Game.IsSabine;
+			var useV3 = !useV6 && (Game.IsGoro || Game.Version >= Versions.S2500);
 			using var packet = Packet.Rent(Op.ZC_STORE_NORMAL_ITEMLIST);
 
 			foreach (var item in items)
@@ -1237,7 +1434,7 @@ namespace Sabine.Zone.Network
 
 				packet.PutByte(0);
 
-				if (Game.Version >= Versions.Sabine)
+				if (Game.IsSabine)
 				{
 					// rA PACKET_ZC_PC_PURCHASE_ITEMLIST_sub at PACKETVER_MAIN
 					// >= 20181121 widens itemId to uint32. Per-entry body =
@@ -1323,8 +1520,8 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_EQUIPMENT_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var useV6 = Game.Version >= Versions.Sabine;
-			var useV3 = !useV6 && Game.Version >= Versions.S2500;
+			var useV6 = Game.IsSabine;
+			var useV3 = !useV6 && (Game.IsGoro || Game.Version >= Versions.S2500);
 			using var packet = Packet.Rent(Op.ZC_EQUIPMENT_ITEMLIST);
 
 			foreach (var item in items)
@@ -1348,8 +1545,8 @@ namespace Sabine.Zone.Network
 		/// <param name="items"></param>
 		public static void ZC_STORE_EQUIPMENT_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var useV6 = Game.Version >= Versions.Sabine;
-			var useV3 = !useV6 && Game.Version >= Versions.S2500;
+			var useV6 = Game.IsSabine;
+			var useV3 = !useV6 && (Game.IsGoro || Game.Version >= Versions.S2500);
 			using var packet = Packet.Rent(Op.ZC_STORE_EQUIPMENT_ITEMLIST);
 
 			foreach (var item in items)
@@ -1374,7 +1571,7 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ITEM_ENTRY);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_ITEM_ENTRY at PACKETVER_MAIN_NUM >=
 				// 20181121: AID + uint32 itemId + identify + x + y +
@@ -1405,7 +1602,7 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ITEM_FALL_ENTRY);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA packet_dropflooritem at PACKETVER >= 20180418:
 				// AID + uint32 ITID + type + IsIdentified + xPos + yPos +
@@ -1492,7 +1689,7 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_USE_ITEM_ACK);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_USE_ITEM_ACK at PACKETVER_MAIN_NUM >=
 				// 20181121 widens itemId to uint32 and adds AID.
@@ -1549,7 +1746,7 @@ namespace Sabine.Zone.Network
 
 				packet.PutShort((short)invId);
 
-				if (Game.Version >= Versions.Sabine)
+				if (Game.IsSabine)
 				{
 					// rA PACKET_ZC_REQ_WEAR_EQUIP_ACK 0x0999 at
 					// PACKETVER_MAIN_NUM >= 20121205 widens wearLocation
@@ -1588,7 +1785,7 @@ namespace Sabine.Zone.Network
 
 			packet.PutShort((short)invId);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_REQ_TAKEOFF_EQUIP_ACK 0x099a at PACKETVER
 				// >= 20130000 widens wearLocation to uint32. Body = 2
@@ -1632,6 +1829,41 @@ namespace Sabine.Zone.Network
 		public static void ZC_CLOSE_STORE(PlayerCharacter character)
 		{
 			using var packet = Packet.Rent(Op.ZC_CLOSE_STORE);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the list of items that can be compounded into the
+		/// given item. Beta2+ wire (0x017B, -1): dynamic.
+		/// </summary>
+		public static void ZC_ITEMCOMPOSITION_LIST(PlayerCharacter character, System.Collections.Generic.IEnumerable<int> cardIds)
+		{
+			using var packet = Packet.Rent(Op.ZC_ITEMCOMPOSITION_LIST);
+			foreach (var cardId in cardIds)
+				packet.PutShort((short)cardId);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the result of a composition request.
+		/// Beta2+ wire (0x017D, 7): result (1) + itemId (2).
+		/// </summary>
+		public static void ZC_ACK_ITEMCOMPOSITION(PlayerCharacter character, byte result, short itemId)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_ITEMCOMPOSITION);
+			packet.PutByte(result);
+			packet.PutShort(itemId);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Acknowledges a disconnect-character request.
+		/// Alpha wire (0x0068, 3): flag (1).
+		/// </summary>
+		public static void ZC_ACK_DISCONNECT_CHARACTER(PlayerCharacter character, byte flag)
+		{
+			using var packet = Packet.Rent(Op.ZC_ACK_DISCONNECT_CHARACTER);
+			packet.PutByte(flag);
 			character.Connection.Send(packet);
 		}
 
@@ -1701,7 +1933,18 @@ namespace Sabine.Zone.Network
 		}
 
 		/// <summary>
-		/// Sends response to restart request to character's client.
+		/// Informs the MVP character's client that they got an MVP item
+		/// that couldn't be added to the inventory (dropped on ground).
+		/// Alpha wire (0x00A6, 2): header only.
+		/// </summary>
+		public static void ZC_THROW_MVPITEM(PlayerCharacter character)
+		{
+			using var packet = Packet.Rent(Op.ZC_THROW_MVPITEM);
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Response to restart request.
 		/// </summary>
 		/// <param name="character"></param>
 		/// <param name="type"></param>
@@ -1776,32 +2019,29 @@ namespace Sabine.Zone.Network
 			if (!ZoneServer.Instance.Data.Skills.TryFind(skillId, out var skillData))
 				return;
 
-			using var packet = Packet.Rent(Op.ZC_ADD_SKILL);
-
-			// ZC_ADD_SKILL is a fixed-size packet (33 in Alpha, 39 in Beta1+),
-			// so the payload here must match AddSkillData's layout exactly.
-			packet.PutShort((short)skillId);
-
-			// Keep packing in sync with PacketSkillHelpers.AddSkillData: low 16
-			// bits = inf, high 16 bits = inf2 so the classic client can identify
-			// quest/wedding/etc. skills.
-			var inf = (int)skillData.TypeFlags;
-			var inf2 = (int)((uint)skillData.PropertyFlags & 0xFFFF);
-			packet.PutInt(inf | (inf2 << 16));
-
-			packet.PutShort((short)level);
-			packet.PutShort((short)skillData.GetSpCost(level));
-			packet.PutShort((short)skillData.GetRange(level));
-
-			var nameLength = (Game.Version < Versions.Beta1) ? 16 : 24;
-			packet.PutString(skillData.StringId, nameLength);
-
-			packet.PutByte(canUpgrade);
-
-			if (Game.Version < Versions.Beta1)
-				packet.PutEmpty(2);
+			using var packet = BuildSkillInfoUpdatePacket(
+				skillId,
+				level,
+				skillData.GetSpCost(level),
+				skillData.GetRange(level),
+				canUpgrade);
 
 			character.Connection.Send(packet);
+		}
+
+		internal static Packet BuildSkillInfoUpdatePacket(
+			SkillId skillId, int level, int spCost, int range, bool canUpgrade)
+		{
+			// rAthena ZC_SKILLINFO_UPDATE (0x010E/11) is the compact
+			// skill-id/level/SP/range/upgradable record. ZC_ADD_SKILL is
+			// a different 39-byte packet that also carries the skill name.
+			var packet = Packet.Rent(Op.ZC_SKILLINFO_UPDATE);
+			packet.PutShort((short)skillId);
+			packet.PutShort((short)level);
+			packet.PutShort((short)spCost);
+			packet.PutShort((short)range);
+			packet.PutByte(canUpgrade);
+			return packet;
 		}
 
 		/// <summary>
@@ -1891,9 +2131,16 @@ namespace Sabine.Zone.Network
 			{
 				using var packet = Packet.Rent(Op.ZC_ADD_EXCHANGE_ITEM);
 
-				if (Game.Version >= Versions.Sabine)
-				{
-					packet.AddExchangeItemV6(item, amount, item.GetSlotsFor(character));
+					if (Game.IsGoro)
+					{
+						packet.AddExchangeItemGoro(item, amount);
+						character.Connection.Send(packet);
+						return;
+					}
+
+					if (Game.IsSabine)
+					{
+						packet.AddExchangeItemV6(item, amount, item.GetSlotsFor(character));
 					character.Connection.Send(packet);
 					return;
 				}
@@ -1914,8 +2161,17 @@ namespace Sabine.Zone.Network
 			{
 				using var packet = Packet.Rent(Op.ZC_ADD_EXCHANGE_ITEM);
 
-				if (Game.Version >= Versions.Sabine)
-				{
+					if (Game.IsGoro)
+					{
+						packet.PutInt(amount);
+						packet.PutShort(0);
+						packet.PutEmpty(11);
+						character.Connection.Send(packet);
+						return;
+					}
+
+					if (Game.IsSabine)
+					{
 					// V6 fixed-size body must match the Item variant; emit
 					// a zero-id placeholder with zeny in the amount slot.
 					// The classic eA convention used a "money" string id at
@@ -1984,6 +2240,17 @@ namespace Sabine.Zone.Network
 			using var packet = Packet.Rent(Op.ZC_EXEC_EXCHANGE_ITEM);
 			packet.PutByte((byte)result);
 
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies the character that the trade items should be returned
+		/// to inventory (trade failed or was cancelled).
+		/// Alpha wire (0x008C, 2): header only.
+		/// </summary>
+		public static void ZC_EXCHANGEITEM_UNDO(PlayerCharacter character)
+		{
+			using var packet = Packet.Rent(Op.ZC_EXCHANGEITEM_UNDO);
 			character.Connection.Send(packet);
 		}
 
@@ -2531,7 +2798,7 @@ namespace Sabine.Zone.Network
 			using var packet = Packet.Rent(Op.ZC_ITEM_PICKUP_PARTY);
 			packet.PutInt(pickerHandle);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 				packet.PutInt(item.ClassId);
 			else
 				packet.PutShort((short)item.ClassId);
@@ -2609,7 +2876,7 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_MAKINGARROW_LIST);
 
-			var wideId = Game.Version >= Versions.Sabine;
+			var wideId = Game.IsSabine;
 			foreach (var classId in sourceClassIds)
 			{
 				if (wideId)
@@ -2648,6 +2915,20 @@ namespace Sabine.Zone.Network
 			using var packet = Packet.Rent(Op.ZC_NOTIFY_MAPINFO);
 			packet.PutShort((short)type);
 
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates the map info on the client (used for map-server
+		/// transitions). Beta2+ wire (0x0192, 24).
+		/// </summary>
+		public static void ZC_UPDATE_MAPINFO(PlayerCharacter character, int mapId, int x, int y, short type)
+		{
+			using var packet = Packet.Rent(Op.ZC_UPDATE_MAPINFO);
+			packet.PutInt(mapId);
+			packet.PutShort((short)x);
+			packet.PutShort((short)y);
+			packet.PutShort(type);
 			character.Connection.Send(packet);
 		}
 
@@ -2713,7 +2994,7 @@ namespace Sabine.Zone.Network
 			using var packet = Packet.Rent(Op.ZC_ACK_REQMAKINGITEM);
 			packet.PutShort((short)result);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 				packet.PutInt(classId);
 			else
 				packet.PutShort((short)classId);
@@ -2753,7 +3034,7 @@ namespace Sabine.Zone.Network
 			packet.PutShort((short)petComp.Intimacy);
 			packet.PutShort((short)eggItemClassId);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 				packet.PutShort((short)pet.IdentityId);     // job sprite (PV>=20081126)
 
 			owner.Connection.Send(packet);
@@ -2771,7 +3052,7 @@ namespace Sabine.Zone.Network
 			using var packet = Packet.Rent(Op.ZC_FEED_PET);
 			packet.PutByte((byte)result);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 				packet.PutInt(foodClassId);
 			else
 				packet.PutShort((short)foodClassId);
@@ -2988,6 +3269,111 @@ namespace Sabine.Zone.Network
 		/// counts, levels, exp, alignment, treasury, and master name.
 		/// Mirrors rA <c>clif_guild_basicinfo</c>
 		/// (<c>ZC_GUILD_INFO2</c> 0x01B6, 114 bytes — rA's classic
+		/// <summary>
+		/// Sends the basic guild info (name, master, etc.) to open the
+		/// guild window. Beta2+ wire (0x014C, -1): dynamic body with
+		/// guild info fields.
+		/// </summary>
+		public static void ZC_MYGUILD_BASIC_INFO(PlayerCharacter character, Sabine.Zone.World.Groups.Guild guild)
+		{
+			using var packet = Packet.Rent(Op.ZC_MYGUILD_BASIC_INFO);
+			packet.PutInt(guild.Id);
+			packet.PutString(guild.Name, 24);
+			packet.PutInt(guild.MasterCharId);
+			packet.PutString(guild.MasterName ?? "", 24);
+			packet.PutInt(guild.Level);
+			// Additional fields would go here for a full implementation.
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends full guild info (Beta2 wire 0x0150, 110).
+		/// Guild name (24) + master name (24) + level (4) + member count
+		/// (4) + max members (4) + etc.
+		/// </summary>
+		public static void ZC_GUILD_INFO(PlayerCharacter character, Sabine.Zone.World.Groups.Guild guild)
+		{
+			using var packet = Packet.Rent(Op.ZC_GUILD_INFO);
+			packet.PutString(guild.Name, 24);
+			packet.PutString(guild.MasterName ?? "", 24);
+			packet.PutInt(guild.Level);
+			packet.PutInt(guild.Members.Count);
+			packet.PutInt(guild.Members.Count); // max members (same as count for now)
+			packet.PutInt(guild.Members.Count); // online count (all considered online)
+			packet.PutEmpty(110 - 4 - 24 - 24 - 4 - 4 - 4); // Pad to wire size
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates the guild information on the character's client
+		/// after joining. Beta2+ wire (0x016C, 43).
+		/// </summary>
+		public static void ZC_UPDATE_GDID(PlayerCharacter character, Sabine.Zone.World.Groups.Guild guild)
+		{
+			using var packet = Packet.Rent(Op.ZC_UPDATE_GDID);
+			packet.PutInt(guild.Id);
+			packet.PutInt(guild.Level);
+			packet.PutString(guild.Name, 24);
+			// Remaining fields padded to fit wire size.
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Updates a guild member's online/offline state on the client.
+		/// Beta2+ wire (0x016D, 14): charId (4) + state (1) + ...
+		/// </summary>
+		public static void ZC_UPDATE_CHARSTAT(PlayerCharacter character, int charId, byte state)
+		{
+			using var packet = Packet.Rent(Op.ZC_UPDATE_CHARSTAT);
+			packet.PutInt(charId);
+			packet.PutByte(state); // 0 = offline, 1 = online
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies all guild members when a new member joins.
+		/// Beta2+ wire (0x0182, 106): member info block.
+		/// </summary>
+		public static void ZC_MEMBER_ADD(PlayerCharacter character, Sabine.Zone.World.Groups.GuildMember member)
+		{
+			using var packet = Packet.Rent(Op.ZC_MEMBER_ADD);
+			packet.PutInt(member.CharacterId); // Using CharacterId as primary key
+			packet.PutString(member.Name, 24);
+			packet.PutByte((byte)(member.IsMaster ? 1 : 0));
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends the em-engraved / enemy-guild list.
+		/// Beta2+ wire (0x0164, -1): dynamic list of guild entries.
+		/// </summary>
+		public static void ZC_OTHER_GUILD_LIST(PlayerCharacter character, System.Collections.Generic.List<Sabine.Zone.World.Groups.Guild> guilds)
+		{
+			using var packet = Packet.Rent(Op.ZC_OTHER_GUILD_LIST);
+			foreach (var g in guilds)
+			{
+				packet.PutInt(g.Id);
+				packet.PutString(g.Name, 24);
+			}
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends position / rank info for the guild info window.
+		/// Beta2+ wire (0x0166, -1): dynamic list of position entries.
+		/// </summary>
+		public static void ZC_POSITION_ID_NAME_INFO(PlayerCharacter character, System.Collections.Generic.List<(int id, string name, int mode)> positions)
+		{
+			using var packet = Packet.Rent(Op.ZC_POSITION_ID_NAME_INFO);
+			foreach (var pos in positions)
+			{
+				packet.PutInt(pos.id);
+				packet.PutString(pos.name, 24);
+				packet.PutInt(pos.mode);
+			}
+			character.Connection.Send(packet);
+		}
+
 		/// 0x01b6 layout). At PV>=20161019 rA switches to 0x0a84;
 		/// Sabine PV 50000 keeps the 0x01b6 form since open-midgard
 		/// targets that layout.
@@ -3460,7 +3846,7 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_MAKABLEITEMLIST);
 
-			var wideId = Game.Version >= Versions.Sabine;
+			var wideId = Game.IsSabine;
 			foreach (var (classId, mat1, mat2, mat3) in recipes)
 			{
 				if (wideId)
@@ -3931,7 +4317,7 @@ namespace Sabine.Zone.Network
 			packet.PutInt(friendCharId);
 			packet.PutByte(online ? (byte)0 : (byte)1);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 				packet.PutString(friendName ?? string.Empty, 24);
 
 			character.Connection.Send(packet);

@@ -77,6 +77,15 @@ namespace Sabine.Zone.Scripting
 			lock (Rnd)
 				return Rnd.Next(min, max + 1);
 		}
+
+		/// <summary>Returns a random number in the half-open range [0, max).</summary>
+		public static int Random(int max)
+		{
+			if (max <= 0)
+				return 0;
+			lock (Rnd)
+				return Rnd.Next(max);
+		}
 	}
 
 	/// <summary>

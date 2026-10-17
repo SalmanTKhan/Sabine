@@ -74,6 +74,16 @@ namespace Sabine.Zone.World.Actors
 		/// </summary>
 		public virtual int HairId { get; set; }
 
+		/// <summary>Current palette/look values used by scripting and sprite updates.</summary>
+		public virtual int HairColorLook { get; set; }
+		public virtual int ClothesColorLook { get; set; }
+		public virtual int ShieldLook { get; set; }
+		public virtual int BodyLook { get; set; }
+		public virtual int RobeLook { get; set; }
+		public virtual int Body2Look { get; set; }
+		public virtual bool DamageImmune { get; set; }
+		public virtual int ScriptGroupId { get; set; }
+
 		/// <summary>
 		/// Returns a character's upper headgear look.
 		/// </summary>
@@ -422,6 +432,24 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Replaces the three state fields exposed by rAthena's script
+		/// <c>@option</c> usage and broadcasts the result once.
+		/// </summary>
+		public void SetScriptOptions(int bodyState, int healthState, int optionState)
+		{
+			this.BodyState = (BodyState)bodyState;
+			this.HealthState = (HealthState)healthState;
+			this.OptionState = (OptionState)optionState;
+			Send.ZC_STATE_CHANGE(this);
+		}
+
+		public void ClearDressOptions()
+		{
+			this.OptionState &= ~OptionState.Wedding;
+			Send.ZC_STATE_CHANGE(this);
+		}
+
+		/// <summary>
 		/// Updates the character's components.
 		/// </summary>
 		/// <param name="elapsed"></param>
@@ -503,6 +531,17 @@ namespace Sabine.Zone.World.Actors
 		}
 
 		/// <summary>
+		/// Returns true if the given character is within this character's
+		/// attack range, measured using the Chebyshev (square) metric so
+		/// that diagonal adjacency counts as in range.
+		/// </summary>
+		/// <param name="other"></param>
+		/// <param name="range"></param>
+		/// <returns></returns>
+		public bool InAttackRange(Character other, int range)
+			=> this.Position.InSquareRange(other.Position, range);
+
+		/// <summary>
 		/// Reduces the character's HP by the given amount, returns the
 		/// character's remaining HP.
 		/// </summary>
@@ -511,7 +550,7 @@ namespace Sabine.Zone.World.Actors
 		/// <returns></returns>
 		public virtual int TakeDamage(int amount, Character attacker)
 		{
-			if (this.IsDead)
+			if (this.IsDead || this.DamageImmune)
 				return 0;
 
 			var remainingHp = this.Parameters.Modify(ParameterType.Hp, -amount);
@@ -640,12 +679,28 @@ namespace Sabine.Zone.World.Actors
 		/// </summary>
 		/// <param name="target"></param>
 		/// <param name="autoAttack"></param>
-		private void Attack(Character target, bool autoAttack)
+		internal void Attack(Character target, bool autoAttack)
 		{
 			var attacker = this;
 
 			if (_cancelAttack || target.IsDead || target.Map != attacker.Map || attacker.IsImmobilized || attacker.IsDead)
 			{
+				_attackCallbackId = 0;
+				return;
+			}
+
+			// Per-swing range re-validation (B4 attack-range fix, see plan
+			// Stream A1). The auto-attack timer keeps ticking even if the
+			// target walked out of range between scheduled swings, so we
+			// must reject the swing server-side rather than trust the
+			// request. The metric is Chebyshev (square) so that diagonal
+			// adjacency counts as in range, matching the client's melee
+			// selection. Default reaction: stop the attack loop. Player
+			// overrides OnAttackTargetOutOfRange to resume the chase.
+			var attackRange = attacker.GetAttackRange();
+			if (!attacker.InAttackRange(target, attackRange))
+			{
+				this.OnAttackTargetOutOfRange(target, attackRange);
 				_attackCallbackId = 0;
 				return;
 			}
@@ -733,6 +788,42 @@ namespace Sabine.Zone.World.Actors
 			if (this is PlayerCharacter player)
 				player.StopCasting();
 		}
+
+		/// <summary>
+		/// Called by <see cref="Attack"/> when a scheduled swing finds the
+		/// target outside the Chebyshev attack range. The base class clears
+		/// <c>_attackCallbackId</c> after this hook returns, so subclasses
+		/// must either cancel or reschedule through their own action
+		/// subsystem; they must not re-enter <c>Attack</c> directly or the
+		/// loop will desync with the scheduler's notion of "next swing".
+		/// <para>
+		/// Default implementation: no-op (the caller already cancels the
+		/// callback). This is the right behaviour for plain melee monsters
+		/// whose combat does not chase; PlayerCharacter overrides this to
+		/// feed the target back into the chase path so the attack sequence
+		/// resumes automatically when the target steps back into range.
+		/// </para>
+		/// </summary>
+		protected virtual void OnAttackTargetOutOfRange(Character target, int attackRange)
+		{
+		}
+
+		/// <summary>
+		/// Read-only accessor for <c>_attackCallbackId</c>, exposed for
+		/// tests in <c>Tests.Shared</c> (the assembly is marked
+		/// <c>InternalsVisibleTo</c> by <c>Properties/AssemblyInfo.cs</c>).
+		/// Lets the headless test fixture observe that the per-swing range
+		/// recheck cleared the auto-attack callback after rejecting a swing.
+		/// </summary>
+		internal long AttackCallbackIdForTests => this._attackCallbackId;
+
+		/// <summary>
+		/// Read-only accessor for <c>_cancelAttack</c>. Same rationale as
+		/// <see cref="AttackCallbackIdForTests"/>: tests must observe that
+		/// <c>StopAttacking</c> actually flips the cancellation flag.
+		/// </summary>
+		internal bool CancelAttackFlagForTests => this._cancelAttack;
+
 
 		/// <summary>
 		/// Restores the specified amount of health points (HP) to the entity.

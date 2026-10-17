@@ -53,8 +53,15 @@ namespace Sabine.Zone.Skills.Handlers.Magician
 				AttackElement = ElementType.Ghost,
 			};
 			var result = BattleCalculator.Calc(ctx);
-			if (!result.IsMiss)
-				target.TakeDamage(result.Damage, caster);
+			var damage = result.IsMiss ? 0 : result.Damage;
+
+			if (damage > 0)
+				target.TakeDamage(damage, caster);
+
+			// Sent per hit, including misses: this is the only packet that tells the
+			// client a hit landed, so without it there are no damage numbers and no
+			// impact effect. The 100ms spacing between hits carries the stagger.
+			Send.ZC_NOTIFY_SKILL(caster, target.Handle, skill.Id, level, damage, 0, 0, result.ActionType);
 		}
 	}
 }

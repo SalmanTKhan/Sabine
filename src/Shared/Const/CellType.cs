@@ -60,6 +60,8 @@ namespace Sabine.Shared.Const
 		/// <c>cell_icewall</c>.
 		/// </summary>
 		IceWall,
+		/// <summary>Legacy converter spelling compatibility.</summary>
+		Icewall = IceWall,
 
 		/// <summary>
 		/// No skills usable on this cell. rAthena: <c>cell_noskill</c>.

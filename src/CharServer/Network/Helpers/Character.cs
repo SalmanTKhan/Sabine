@@ -30,6 +30,18 @@ namespace Sabine.Char.Network.Helpers
 				jobExp = 0;
 			}
 
+			if (Game.IsGoro)
+			{
+				packet.AddCharacterGoro(character, jobLevel, jobExp);
+				return;
+			}
+
+			if (Game.IsNostalRo)
+			{
+				packet.AddCharacterNostalRo(character, jobLevel, jobExp);
+				return;
+			}
+
 			packet.PutInt(character.Id);
 			packet.PutInt(character.BaseExp);
 			packet.PutInt(character.Zeny);
@@ -108,6 +120,97 @@ namespace Sabine.Char.Network.Helpers
 					packet.PutShort(0);
 				}
 			}
+		}
+
+		private static void AddCharacterGoro(this Packet packet, Character character, int jobLevel, int jobExp)
+		{
+			// rAthena CHARACTER_INFO at PACKETVER 2008-09-10 is a fixed
+			// 108-byte record (the HC_ACCEPT_MAKECHAR packet is 110 bytes
+			// including its header). Keep every field at its legacy width;
+			// the later 64-bit HP/EXP and slot extensions are not present.
+			packet.PutInt(character.Id);
+			packet.PutInt(character.BaseExp);
+			packet.PutInt(character.Zeny);
+			packet.PutInt(jobExp);
+			packet.PutInt(jobLevel);
+			packet.PutInt(0); // body state
+			packet.PutInt(0); // health state
+			packet.PutInt(0); // effect state
+			packet.PutInt(0); // virtue
+			packet.PutInt(0); // honor
+			packet.PutShort((short)character.StatPoints);
+			packet.PutShort((short)character.Hp);
+			packet.PutShort((short)character.HpMax);
+			packet.PutShort((short)character.Sp);
+			packet.PutShort((short)character.SpMax);
+			packet.PutShort((short)character.Speed);
+			packet.PutShort((short)character.JobId);
+			packet.PutShort((short)character.HairId);
+			packet.PutShort((short)character.WeaponLook);
+			packet.PutShort((short)character.BaseLevel);
+			packet.PutShort(0); // skill points
+			packet.PutShort((short)character.HeadBottomLook);
+			packet.PutShort(0); // shield
+			packet.PutShort((short)character.HeadTopLook);
+			packet.PutShort((short)character.HeadMiddleLook);
+			packet.PutShort((short)character.HairColorId);
+			packet.PutShort(0); // body palette
+			packet.PutString(character.Name, Sizes.CharacterNames);
+			packet.PutByte((byte)character.Str);
+			packet.PutByte((byte)character.Agi);
+			packet.PutByte((byte)character.Vit);
+			packet.PutByte((byte)character.Int);
+			packet.PutByte((byte)character.Dex);
+			packet.PutByte((byte)character.Luk);
+			packet.PutShort((short)character.Slot);
+			packet.PutShort(0); // changed-name / reserved tail
+		}
+
+		private static void AddCharacterNostalRo(this Packet packet, Character character, int jobLevel, int jobExp)
+		{
+			// CharacterInfoNeoUnion at PACKETVER 20111102 is 144 bytes.
+			packet.PutInt(character.Id);
+			packet.PutInt(character.BaseExp);
+			packet.PutInt(character.Zeny);
+			packet.PutInt(jobExp);
+			packet.PutInt(jobLevel);
+			packet.PutInt(0); // body state
+			packet.PutInt(0); // health state
+			packet.PutInt(0); // effect state
+			packet.PutInt(0); // virtue
+			packet.PutInt(0); // honor
+			packet.PutShort((short)character.StatPoints);
+			packet.PutInt(character.Hp);
+			packet.PutInt(character.HpMax);
+			packet.PutShort((short)character.Sp);
+			packet.PutShort((short)character.SpMax);
+			packet.PutShort((short)character.Speed);
+			packet.PutShort((short)character.JobId);
+			packet.PutShort((short)character.HairId);
+			packet.PutShort((short)character.WeaponLook);
+			packet.PutShort((short)character.BaseLevel);
+			packet.PutShort(0); // skill points
+			packet.PutShort((short)character.HeadBottomLook);
+			packet.PutShort(0); // shield
+			packet.PutShort((short)character.HeadTopLook);
+			packet.PutShort((short)character.HeadMiddleLook);
+			packet.PutShort((short)character.HairColorId);
+			packet.PutShort(0); // body color
+			packet.PutString(character.Name, 24);
+			packet.PutByte((byte)character.Str);
+			packet.PutByte((byte)character.Agi);
+			packet.PutByte((byte)character.Vit);
+			packet.PutByte((byte)character.Int);
+			packet.PutByte((byte)character.Dex);
+			packet.PutByte((byte)character.Luk);
+			packet.PutByte((byte)character.Slot);
+			packet.PutByte((byte)character.HairColorId);
+			packet.PutShort(0); // changed character name
+			packet.PutString("", 16); // last map
+			packet.PutInt(0); // delete date
+			packet.PutInt(0); // robe
+			packet.PutInt(0); // slot addon
+			packet.PutInt(0); // rename addon
 		}
 	}
 }

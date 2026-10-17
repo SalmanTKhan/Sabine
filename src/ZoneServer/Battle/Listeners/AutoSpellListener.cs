@@ -48,7 +48,7 @@ namespace Sabine.Zone.Battle.Listeners
 				SkillId = boltId,
 				SkillLevel = effect.Level,
 				Kind = AttackKind.Magic,
-				SkillRatio = 1.0f,
+				SkillRatio = effect.Level,
 				HitCount = effect.Level,
 				AttackElement = element,
 				AlwaysHits = true,
@@ -57,7 +57,16 @@ namespace Sabine.Zone.Battle.Listeners
 			if (!boltResult.IsMiss)
 				target.TakeDamage(boltResult.Damage, attacker);
 
-			Send.ZC_NOTIFY_SKILL(attacker, target.Handle, boltId, effect.Level, boltResult.Damage, 0, effect.Level, ActionType.Skill);
+			Send.ZC_NOTIFY_SKILL(
+				attacker,
+				target.Handle,
+				boltId,
+				effect.Level,
+				boltResult.Damage,
+				0,
+				target.Parameters.DamageMotionDelay,
+				boltResult.ActionType,
+				boltResult.HitCount);
 		}
 	}
 }

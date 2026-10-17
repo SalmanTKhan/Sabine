@@ -114,6 +114,11 @@ namespace Sabine.Zone.Database
 
 							item.Amount = reader.GetInt32("amount");
 							item.EquippedOn = (EquipSlots)reader.GetInt32("equipped");
+							try { item.HireExpireDate = reader.GetInt32("hireExpireDate"); } catch { }
+
+							if (item.HireExpireDate > 0
+								&& item.HireExpireDate <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+								continue;
 
 							// 1 = cart, 0 = body. New column may be missing
 							// on older databases, so default to body.
@@ -123,7 +128,10 @@ namespace Sabine.Zone.Database
 							if (location == 1)
 								character.Inventory.AddCartItemInit(item);
 							else
+							{
 								character.Inventory.AddItemInit(item);
+								character.Inventory.ScheduleRentalExpiration(item);
+							}
 						}
 					}
 				}
@@ -329,6 +337,7 @@ namespace Sabine.Zone.Database
 						cmd.Set("amount", item.Amount);
 						cmd.Set("equipped", (int)item.EquippedOn);
 						cmd.Set("location", 0);
+						cmd.Set("hireExpireDate", item.HireExpireDate);
 
 						cmd.AddRow();
 						cmd.ExecuteOn(200);
@@ -343,6 +352,7 @@ namespace Sabine.Zone.Database
 						cmd.Set("amount", item.Amount);
 						cmd.Set("equipped", 0);
 						cmd.Set("location", 1);
+						cmd.Set("hireExpireDate", item.HireExpireDate);
 
 						cmd.AddRow();
 						cmd.ExecuteOn(200);
@@ -467,6 +477,22 @@ namespace Sabine.Zone.Database
 				}
 			}
 
+			using (var cmd = new MySqlCommand("SELECT * FROM `guild_skills`", conn))
+			using (var reader = cmd.ExecuteReader())
+			{
+				while (reader.Read())
+				{
+					var guildId = reader.GetInt32("guildId");
+					if (!guilds.TryGetValue(guildId, out var guild))
+						continue;
+					guild.Skills.Add(new World.Groups.GuildSkillDbRow
+					{
+						SkillId = reader.GetInt32("skillId"),
+						Level = reader.GetInt32("level"),
+					});
+				}
+			}
+
 			return guilds.Values.ToList();
 		}
 
@@ -525,6 +551,25 @@ namespace Sabine.Zone.Database
 			using var conn = this.GetConnection();
 			using var cmd = new MySqlCommand("DELETE FROM `guilds` WHERE `guildId` = @id", conn);
 			cmd.AddParameter("@id", guildId);
+			cmd.ExecuteNonQuery();
+		}
+
+		/// <summary>Upserts one learned guild skill; level zero removes it.</summary>
+		public void SaveGuildSkill(int guildId, int skillId, int level)
+		{
+			using var conn = this.GetConnection();
+			if (level <= 0)
+			{
+				using var delete = new MySqlCommand("DELETE FROM `guild_skills` WHERE `guildId` = @guildId AND `skillId` = @skillId", conn);
+				delete.AddParameter("@guildId", guildId);
+				delete.AddParameter("@skillId", skillId);
+				delete.ExecuteNonQuery();
+				return;
+			}
+			using var cmd = new MySqlCommand("INSERT INTO `guild_skills` (`guildId`, `skillId`, `level`) VALUES (@guildId, @skillId, @level) ON DUPLICATE KEY UPDATE `level` = @level", conn);
+			cmd.AddParameter("@guildId", guildId);
+			cmd.AddParameter("@skillId", skillId);
+			cmd.AddParameter("@level", level);
 			cmd.ExecuteNonQuery();
 		}
 

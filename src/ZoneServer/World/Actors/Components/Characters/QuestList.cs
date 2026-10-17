@@ -70,6 +70,12 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			return _entries.TryGetValue(questId, out var e) ? e.State : QuestState.Inactive;
 		}
 
+		public bool Contains(int questId)
+		{
+			this.EnsureLoaded();
+			return _entries.ContainsKey(questId);
+		}
+
 		public bool IsActive(int questId) => this.GetStatus(questId) == QuestState.Active;
 		public bool IsComplete(int questId) => this.GetStatus(questId) == QuestState.Complete;
 

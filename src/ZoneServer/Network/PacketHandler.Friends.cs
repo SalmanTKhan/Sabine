@@ -79,12 +79,11 @@ namespace Sabine.Zone.Network
 
 			FriendsService.MutualAdd(requester, target);
 
-			// Both sides get a single-entry "list" so the UI inserts the new
-			// row without needing a separate ack op.
-			var requesterEntry = new[] { new FriendEntry { AccountId = target.Handle, CharId = target.Id, Name = target.Name } };
-			var targetEntry = new[] { new FriendEntry { AccountId = requester.Handle, CharId = requester.Id, Name = requester.Name } };
-			Send.ZC_ADD_FRIENDS_LIST(requester, requesterEntry);
-			Send.ZC_ADD_FRIENDS_LIST(target, targetEntry);
+			// Both sides get the full list re-sent. The client treats every
+			// ZC_ADD_FRIENDS_LIST as a replace (clear + repopulate), same as
+			// the map-enter dump, so a partial list here would wipe the UI.
+			Send.ZC_ADD_FRIENDS_LIST(requester, requester.Friends.GetAll());
+			Send.ZC_ADD_FRIENDS_LIST(target, target.Friends.GetAll());
 
 			// Each side learns the other is online right away.
 			Send.ZC_FRIENDS_STATE(requester, target.Handle, target.Id, target.Name, online: true);

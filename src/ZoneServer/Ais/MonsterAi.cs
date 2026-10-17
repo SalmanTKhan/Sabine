@@ -410,7 +410,7 @@ namespace Sabine.Zone.Ais
 				foreach (var _ in this.Wait(attackDelay))
 					yield return true;
 
-				while (!attacker.Position.InRange(target.Position, attackRange))
+				while (!attacker.InAttackRange(target, attackRange))
 				{
 					if (!isBoss && !attacker.Position.InRange(target.Position, chaseRange))
 						yield break;

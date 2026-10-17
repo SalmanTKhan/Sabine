@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Network;
@@ -20,27 +20,54 @@ namespace Sabine.Zone.Network
 		/// Notifies clients about a skill being used.
 		/// </summary>
 		/// <remarks>
-		/// At S2500+ this routes to <c>ZC_NOTIFY_SKILL2</c> (0x01DE/33,
+		/// At S2500+ (except Goro) this routes to <c>ZC_NOTIFY_SKILL2</c> (0x01DE/33,
 		/// int32 damage) per eA/rA at PV&gt;=3. Legacy 0x00AE/31 with
 		/// int16 damage is preserved for older Sabine versions whose
-		/// clients only understand that op. Source-delay is scaled
-		/// through <see cref="Send.ZC_NOTIFY_ACT.ScaleToKroAnimationSpeed"/>
-		/// at S2500+ so skill animations don't fall into the &gt;432
-		/// 1x-cap band on EP12 clients.
+		/// clients only understand that op. Unlike ZC_NOTIFY_ACT's normal
+		/// attack speed field, rAthena sends the skill attack motion in
+		/// milliseconds unchanged; the client uses it as time-to-impact.
 		/// </remarks>
-		public static void ZC_NOTIFY_SKILL(Character character, int targetId, SkillId skillId, int level, int damage, int attackTime, int attackedTime, ActionType action)
+		public static void ZC_NOTIFY_SKILL(Character character, int targetId, SkillId skillId, int level, int damage, int attackTime, int attackedTime, ActionType action, int hitCount = 1)
 		{
-			var useV2 = Game.Version >= Versions.S2500;
-			var op = useV2 ? Op.ZC_NOTIFY_SKILL2 : Op.ZC_NOTIFY_SKILL;
-			var srcDelay = useV2 ? ZC_NOTIFY_ACT.ScaleToKroAnimationSpeed(attackTime) : attackTime;
+			var useV2 = !Game.IsGoro && Game.Version >= Versions.S2500;
 
-			using var packet = Packet.Rent(op);
+			using var packet = BuildNotifySkillPacket(
+				useV2,
+				skillId,
+				character.Handle,
+				targetId,
+				Game.GetTick(),
+				attackTime,
+				attackedTime,
+				damage,
+				level,
+				hitCount,
+				action);
+
+			character.Map.Broadcast(packet, character, BroadcastTargets.All);
+		}
+
+		internal static Packet BuildNotifySkillPacket(
+			bool useV2,
+			SkillId skillId,
+			int sourceId,
+			int targetId,
+			int startTime,
+			int attackTime,
+			int attackedTime,
+			int damage,
+			int level,
+			int hitCount,
+			ActionType action)
+		{
+			var op = useV2 ? Op.ZC_NOTIFY_SKILL2 : Op.ZC_NOTIFY_SKILL;
+			var packet = Packet.Rent(op);
 
 			packet.PutShort((short)skillId);
-			packet.PutInt(character.Handle);
+			packet.PutInt(sourceId);
 			packet.PutInt(targetId);
-			packet.PutInt(Game.GetTick());
-			packet.PutInt(srcDelay);
+			packet.PutInt(startTime);
+			packet.PutInt(attackTime);
 			packet.PutInt(attackedTime);
 
 			if (useV2)
@@ -49,10 +76,10 @@ namespace Sabine.Zone.Network
 				packet.PutShort((short)damage);
 
 			packet.PutShort((short)level);
-			packet.PutShort(1); // count
+			packet.PutShort((short)System.Math.Clamp(hitCount, 1, short.MaxValue));
 			packet.PutByte((byte)action);
 
-			character.Map.Broadcast(packet, character, BroadcastTargets.All);
+			return packet;
 		}
 
 		/// <summary>
@@ -89,7 +116,7 @@ namespace Sabine.Zone.Network
 			packet.PutShort((short)character.BodyState);
 			packet.PutShort((short)character.HealthState);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_STATE_CHANGE 0x0229 at PACKETVER >= 7
 				// widens effectState (opt3) from int16 to int32. Body =
@@ -164,8 +191,8 @@ namespace Sabine.Zone.Network
 		/// </summary>
 		public static void ZC_CART_EQUIPMENT_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var useV6 = Game.Version >= Versions.Sabine;
-			var useV3 = !useV6 && Game.Version >= Versions.S2500;
+			var useV6 = Game.IsSabine;
+			var useV3 = !useV6 && (Game.IsGoro || Game.Version >= Versions.S2500);
 			using var packet = Packet.Rent(Op.ZC_CART_EQUIPMENT_ITEMLIST);
 			foreach (var item in items)
 			{
@@ -183,8 +210,8 @@ namespace Sabine.Zone.Network
 		/// </summary>
 		public static void ZC_CART_NORMAL_ITEMLIST(PlayerCharacter character, IEnumerable<Item> items)
 		{
-			var useV6 = Game.Version >= Versions.Sabine;
-			var useV3 = !useV6 && Game.Version >= Versions.S2500;
+			var useV6 = Game.IsSabine;
+			var useV3 = !useV6 && (Game.IsGoro || Game.Version >= Versions.S2500);
 			using var packet = Packet.Rent(Op.ZC_CART_NORMAL_ITEMLIST);
 			foreach (var item in items)
 			{
@@ -204,7 +231,7 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ADD_ITEM_TO_CART);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_ADD_ITEM_TO_CART 0x0a0b at PACKETVER_MAIN_NUM
 				// >= 20181121. Wire = 49.
@@ -414,7 +441,7 @@ namespace Sabine.Zone.Network
 			using var packet = Packet.Rent(Op.ZC_RECOVERY);
 			packet.PutShort((short)type);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_RECOVERY 0xa27 at PACKETVER >= 20141022
 				// widens amount from int16 to int32. Body = 2 type + 4

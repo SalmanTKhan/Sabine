@@ -127,6 +127,19 @@ namespace Sabine.Zone.World.Groups
 			}
 		}
 
+		/// <summary>Sets a guild skill and persists the level immediately.</summary>
+		public bool SetSkillLevel(int guildId, int skillId, int level)
+		{
+			lock (_guilds)
+			{
+				if (!_guilds.TryGetValue(guildId, out var guild))
+					return false;
+				guild.SetSkillLevel(skillId, level);
+				ZoneServer.Instance.Database.SaveGuildSkill(guildId, skillId, level);
+				return true;
+			}
+		}
+
 		public IReadOnlyList<Guild> All
 		{
 			get { lock (_guilds) return _guilds.Values.ToList(); }

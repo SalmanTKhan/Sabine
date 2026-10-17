@@ -44,11 +44,15 @@
 			ChangeSize(Op.ZC_ADD_EXCHANGE_ITEM, 30);
 			ChangeSize(Op.ZC_ADD_ITEM_TO_STORE, 32);
 			ChangeSize(Op.CZ_MAKE_GROUP, 26);
+			ChangeSize(Op.ZC_ACK_REQ_JOIN_GROUP, 27);
+			ChangeSize(Op.ZC_REQ_JOIN_GROUP, 30);
+			ChangeSize(Op.CZ_REQ_EXPEL_GROUP_MEMBER, 30);
+			ChangeSize(Op.ZC_ADD_MEMBER_TO_GROUP, 79);
+			ChangeSize(Op.ZC_DELETE_MEMBER_FROM_GROUP, 31);
 			ChangeSize(Op.ZC_ACK_TOUSESKILL, 10);
 			ChangeSize(Op.ZC_ADD_SKILL, 39);
 
 			Register(Op.ZC_NOTIFY_ACT_POSITION, 0x0027, 23);
-			Register(Op.CZ_UPGRADE_SKILLLEVEL, 0x00AC, 4);
 			Register(Op.CZ_USE_SKILL, 0x00AD, 10);
 			Register(Op.ZC_NOTIFY_SKILL, 0x00AE, 31);
 			Register(Op.ZC_NOTIFY_SKILL_POSITION, 0x00AF, 35);

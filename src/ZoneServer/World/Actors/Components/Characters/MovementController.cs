@@ -24,6 +24,20 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 		private bool _destinationChanged;
 		private bool _moving;
 
+		/// <summary>
+		/// Monotonic token bumped on every new movement path. Stale
+		/// scheduled <see cref="ExecuteMove"/> callbacks capture the
+		/// generation at schedule time and self-cancel if it no longer
+		/// matches, preventing desync from a superseded move.
+		/// </summary>
+		private int _movementGeneration = 0;
+
+		/// <summary>
+		/// Handle of the pending scheduled move callback, or 0 when none
+		/// is outstanding. Used to cancel the timer on stop.
+		/// </summary>
+		private long _pendingMoveTimer = 0;
+
 		private readonly InOutTracker<TriggerArea> _triggers = new();
 
 		/// <summary>
@@ -192,19 +206,48 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			// handler. Mirrors rA canmove_tick updated per tile.
 			character.NoteMoveStarted((int)speed);
 
+			// Cancel any previously scheduled move callback and bump the
+			// movement generation so a stale ExecuteMove from a prior path
+			// can never advance the character to a superseded destination.
+			if (_pendingMoveTimer != 0)
+			{
+				ZoneServer.Instance.World.Scheduler.Cancel(_pendingMoveTimer);
+				_pendingMoveTimer = 0;
+			}
+
+			_movementGeneration++;
+
 			// I tried running the controller on the heartbeat, but I
 			// wasn't entirely happy with the results. Let's switch to a
 			// high-resolution timer for now and see how that goes.
-			ZoneServer.Instance.World.Scheduler.Schedule(speed, this.ExecuteMove);
+			// Capture the generation so the callback can self-cancel if a
+			// newer move supersedes it before it fires.
+			var generation = _movementGeneration;
+			_pendingMoveTimer = ZoneServer.Instance.World.Scheduler.Schedule(speed, _ => this.ExecuteMove(generation));
 		}
 
 		/// <summary>
 		/// Updates the character's position to the current destination
 		/// tile and potentially starts the next move.
 		/// </summary>
-		/// <param name="state"></param>
-		private void ExecuteMove(CallbackState state)
+		/// <param name="generation">
+		/// The movement generation captured when this callback was
+		/// scheduled. If it no longer matches <see cref="_movementGeneration"/>
+		/// (because a newer move superseded this one), the update is
+		/// discarded to prevent desync.
+		/// </param>
+		private void ExecuteMove(int generation)
 		{
+			// The scheduled callback has now fired; it is no longer pending.
+			_pendingMoveTimer = 0;
+
+			// A newer move was initiated (StopMove, or a fresh MoveTo that
+			// re-pathed) since this callback was scheduled. Discard the
+			// stale update to avoid teleporting the character to a
+			// superseded destination.
+			if (generation != _movementGeneration || !_moving)
+				return;
+
 			var character = this.Character;
 			character.Position = _nextDestination;
 
@@ -244,11 +287,26 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (!_moving)
 				return character.Position;
 
-			var stopPos = _nextDestination;
+			// Cancel the pending move callback and bump the generation so
+			// any late ExecuteMove fire self-cancels instead of teleporting
+			// the character to a stale _nextDestination.
+			if (_pendingMoveTimer != 0)
+			{
+				ZoneServer.Instance.World.Scheduler.Cancel(_pendingMoveTimer);
+				_pendingMoveTimer = 0;
+			}
+			_movementGeneration++;
+
+			// Broadcast the last committed cell, not the not-yet-reached
+			// _nextDestination, so the client stops where it actually is.
+			var stopPos = character.Position;
 
 			lock (_pathQueue)
 				_pathQueue.Clear();
 			_moving = false;
+			_destinationChanged = false;
+			_nextDestination = character.Position;
+			_finalDestination = character.Position;
 
 			// The client doesn't react to ZC_STOPMOVE for its controlled
 			// character, so we need to send a move to make it stop.
@@ -301,10 +359,22 @@ namespace Sabine.Zone.World.Actors.Components.Characters
 			if (!_triggers.Empty)
 			{
 				foreach (var triggerArea in _triggers.Added)
+				{
 					triggerArea.Enter?.Invoke(this.Character, triggerArea.Owner);
 
-				foreach (var triggerArea in _triggers.Removed)
-					triggerArea.Exit?.Invoke(this.Character, triggerArea.Owner);
+					// A warp trigger can stop movement and start a map change
+					// from inside Enter. Do not continue dispatching overlapping
+					// trigger areas after that first warp; doing so invokes another
+					// Warp before the client can acknowledge the first one.
+					if (_playerCharacter?.IsWarping == true)
+						break;
+				}
+
+				if (_playerCharacter?.IsWarping != true)
+				{
+					foreach (var triggerArea in _triggers.Removed)
+						triggerArea.Exit?.Invoke(this.Character, triggerArea.Owner);
+				}
 			}
 
 			_triggers.End();

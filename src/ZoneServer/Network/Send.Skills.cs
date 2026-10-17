@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sabine.Shared;
 using Sabine.Shared.Const;
 using Sabine.Shared.Network;
@@ -34,6 +34,37 @@ namespace Sabine.Zone.Network
 				packet.PutByte((byte)(member.IsLeader ? 0 : 1));
 				packet.PutByte((byte)(member.IsOnline ? 0 : 1));
 			}
+
+			character.Connection.Send(packet);
+		}
+
+		/// <summary>
+		/// Notifies party members that a new member joined.
+		/// </summary>
+		/// <remarks>
+		/// Currently UNUSED: the party roster reaches the client through the full
+		/// <see cref="ZC_GROUP_LIST"/> broadcast (Party.cs re-sends it on every
+		/// membership change), so this incremental add is never invoked. It is
+		/// kept wire-correct so it matches the client's decoder if a future
+		/// incremental-update path wires it.
+		///
+		/// Registered size is 79 (rA-modern PACKET_ZC_ADD_MEMBER_TO_GROUP), body
+		/// = accountId (4) + role (4, 0=leader) + reserved (4) + state (1,
+		/// 0=online) + partyName (24) + charName (24) + mapName (16) = 77.
+		/// The previous implementation wrote a 63-byte Alpha-order body, which the
+		/// framer then padded to 79 with uninitialised bytes.
+		/// </remarks>
+		public static void ZC_ADD_MEMBER_TO_GROUP(PlayerCharacter character, string partyName, PartyMember member)
+		{
+			using var packet = Packet.Rent(Op.ZC_ADD_MEMBER_TO_GROUP);
+
+			packet.PutInt(member.AccountId);                 // AID          @2
+			packet.PutInt(member.IsLeader ? 0 : 1);          // role         @6  (0 = leader)
+			packet.PutInt(0);                                // reserved     @10 (client ignores)
+			packet.PutByte((byte)(member.IsOnline ? 0 : 1)); // state        @14 (0 = online)
+			packet.PutString(partyName, 24);                 // party name   @15
+			packet.PutString(member.Name, 24);               // character    @39
+			packet.PutString(member.MapName ?? "", 16);      // map name     @63
 
 			character.Connection.Send(packet);
 		}
@@ -195,21 +226,13 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_WARPLIST);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.Version >= Versions.Beta2)
 			{
-				// rA PACKET_ZC_WARPLIST at PACKETVER_MAIN_NUM >= 20170502
-				// uses dynamic length: packetLength + skillId +
-				// PACKET_ZC_WARPLIST_sub maps[]. Per-entry = MAP_NAME_LENGTH_EXT
-				// (16). Wire = 2 type + 2 length + 2 skillId + N×16.
-				// Ref: rathena packets_struct.hpp:3613.
-				packet.PutShort((short)(2 + 2 + 2 + mapNames.Count * 16)); // packetLength
-				packet.PutShort((short)skillId);
-				foreach (var mapName in mapNames)
-					packet.PutString(mapName, 16);
-			}
-			else if (Game.Version >= Versions.Beta2)
-			{
-				// Newer versions use dynamic packet
+				// Beta2+ and Sabine use a dynamic packet: skillId + N×16
+				// map names. The framer writes type + length for dynamic
+				// ops itself, so the body starts at skillId. Matches rA
+				// PACKET_ZC_WARPLIST at PACKETVER_MAIN_NUM >= 20170502
+				// (packets_struct.hpp:3613).
 				packet.PutShort((short)skillId);
 
 				foreach (var mapName in mapNames)
@@ -305,7 +328,7 @@ namespace Sabine.Zone.Network
 				packet.PutByte(1); // disposable
 			}
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_USESKILL_ACK 0x0b1a at PACKETVER_MAIN_NUM
 				// >= 20181212 appends uint32 attackMT (attack motion
@@ -386,7 +409,7 @@ namespace Sabine.Zone.Network
 		{
 			using var packet = Packet.Rent(Op.ZC_ADD_ITEM_TO_STORE);
 
-			if (Game.Version >= Versions.Sabine)
+			if (Game.IsSabine)
 			{
 				// rA PACKET_ZC_ADD_ITEM_TO_STORE 0x0a0a at PACKETVER_MAIN_NUM
 				// >= 20181121. Wire = 49.
@@ -478,48 +501,71 @@ namespace Sabine.Zone.Network
 		/// <summary>
 		/// Notifies about skill entry (ground skill effect).
 		/// </summary>
-		/// <param name="character"></param>
-		/// <param name="skillId"></param>
-		/// <param name="sourceId"></param>
-		/// <param name="level"></param>
+		/// <param name="caster"></param>
+		/// <param name="unitHandle"></param>
+		/// <param name="unitId"></param>
 		/// <param name="x"></param>
 		/// <param name="y"></param>
-		public static void ZC_SKILL_ENTRY(Character caster, Character target, SkillId skillId, int level, int x, int y)
+		public static void ZC_SKILL_ENTRY(Character caster, int unitHandle, SkillUnitId unitId, int x, int y)
 		{
-			using var packet = Packet.Rent(Op.ZC_SKILL_ENTRY);
+			// EP3+ real clients (packet versions S400..S2500) expect the wider
+			// ZC_SKILL_ENTRY2 (0x01C9, 97): it adds a radius byte and an 80-byte
+			// unit-name field on top of the compact ZC_SKILL_ENTRY. Older clients
+			// use ZC_SKILL_ENTRY. The custom Sabine / RBL emulation versions
+			// (>= Versions.Sabine) keep the compact form their clients decode, so
+			// don't switch them over.
+			var useEntry2 = Game.Version >= Versions.S400 && Game.Version < Versions.Sabine;
 
-			if (Game.Version >= Versions.Beta2)
-			{
-				packet.PutShort(0); // packet length (will be set automatically)
-			}
-
-			packet.PutInt(target.Handle);
-			packet.PutInt(caster.Handle);
-			packet.PutShort((short)x);
-			packet.PutShort((short)y);
-
-			if (Game.Version >= Versions.Beta2)
-			{
-				packet.PutInt((int)skillId);
-			}
-			else
-			{
-				packet.PutByte((byte)skillId);
-			}
-
-			if (Game.Version >= Versions.Beta2)
-			{
-				packet.PutByte(0); // radius range
-			}
-
-			packet.PutByte(1); // visible
-
-			if (Game.Version >= Versions.S350)
-			{
-				packet.PutByte((byte)level);
-			}
+			using var packet = useEntry2
+				? BuildSkillEntry2Packet(unitHandle, caster.Handle, unitId, x, y)
+				: BuildSkillEntryPacket(Game.Version >= Versions.Beta2, unitHandle, caster.Handle, unitId, x, y);
 
 			caster.Map.Broadcast(packet, caster, BroadcastTargets.All);
+		}
+
+		internal static Packet BuildSkillEntryPacket(
+			bool modern,
+			int unitHandle,
+			int creatorHandle,
+			SkillUnitId unitId,
+			int x,
+			int y)
+		{
+			var packet = Packet.Rent(Op.ZC_SKILL_ENTRY);
+			packet.PutInt(unitHandle);
+			if (modern)
+				packet.PutInt(creatorHandle);
+			packet.PutShort((short)x);
+			packet.PutShort((short)y);
+			packet.PutByte((byte)unitId);
+			if (modern)
+				packet.PutByte(1); // visible
+			return packet;
+		}
+
+		/// <summary>
+		/// Builds the EP3+ ZC_SKILL_ENTRY2 (0x01C9, 97): unitHandle (4) +
+		/// creatorHandle (4) + x (2) + y (2) + unitId (1) + radius (1) +
+		/// isVisible (1) + name (80). Matches rAthena clif_skill_setunit for
+		/// PACKETVER &lt; 20121010.
+		/// </summary>
+		internal static Packet BuildSkillEntry2Packet(
+			int unitHandle,
+			int creatorHandle,
+			SkillUnitId unitId,
+			int x,
+			int y)
+		{
+			var packet = Packet.Rent(Op.ZC_SKILL_ENTRY2);
+			packet.PutInt(unitHandle);
+			packet.PutInt(creatorHandle);
+			packet.PutShort((short)x);
+			packet.PutShort((short)y);
+			packet.PutByte((byte)unitId);
+			packet.PutByte(0);          // radius/range — not tracked per-unit yet
+			packet.PutByte(1);          // isVisible
+			packet.PutString("", 80);   // unit name (graffiti text); empty for standard units
+			return packet;
 		}
 
 		/// <summary>
